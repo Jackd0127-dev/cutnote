@@ -1170,7 +1170,7 @@ DD.speed.setItems(RATES.map(r => ({ value: r, label: r + "×", hint: r === 1 ? "
 $("#loop").onclick = () => { S.loop = !S.loop; $("#loop").classList.toggle("on", S.loop); };
 
 document.addEventListener("keydown", e => {
-  if (document.body.classList.contains("hub-on") || document.querySelector(".hb-modal")) return;   // the Hub has its own keys
+  if (document.body.classList.contains("hub-on") || document.querySelector(".hb-modal") || document.getElementById("hbTour")) return;   // the Hub and the tours have their own keys
   const tag = (e.target.tagName || "").toLowerCase();
   if (tag === "textarea" || tag === "input" || tag === "select" || e.target.isContentEditable || (e.target.closest && e.target.closest(".dd.open"))) return;
   const k = e.key, K = k.length === 1 ? k.toLowerCase() : k, cmd = e.metaKey || e.ctrlKey;

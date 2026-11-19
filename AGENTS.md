@@ -22,6 +22,8 @@ Whenever you make a new video project folder for someone (a new edit, a new set 
 python3 ~/.cutnote/review.py --add "<project folder>" "<name to show>"
 ```
 
+If the finished video also has a page in Content OS, add `--content "<its Content OS link>"` so the Content OS button on its Hub card opens that page.
+
 The Hub (header menu → **Cutnote Hub**) lists every project on their computer from `~/.config/cutnote/projects.json`. Folders Cutnote opens are added by themselves, and so is any folder holding a `Project/` folder inside a folder they've told the Hub to watch. Renaming in the Hub only changes the name shown; never rename or move their folders for it.
 
 ## The review loop
