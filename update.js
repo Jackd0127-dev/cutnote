@@ -66,7 +66,7 @@
   menu.innerHTML = `<button class="ib" type="button" aria-haspopup="true" aria-expanded="false">Cutnote <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
     <div id="cnPop" role="menu">
       <div class="cards">
-        <a class="card" role="menuitem" href="${SITE}" target="_blank" rel="noopener"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg></span><span><b>Website</b><small>What Cutnote does, the demo and how to install it</small></span></a>
+        <a class="card" role="menuitem" href="${SITE}" target="_blank" rel="noopener"><span class="tile"><svg><use href="#i-blade"/></svg></span><span><b>Website</b><small>What Cutnote does, the demo and how to install it</small></span></a>
         <a class="card" role="menuitem" href="${GH}" target="_blank" rel="noopener"><span class="tile dark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg></span><span><b>GitHub</b><small>The code, every release and how to contribute</small></span></a>
       </div>
       <div class="links"><a href="${GH}/commits/main" target="_blank" rel="noopener">What's new</a><a href="${GH}/issues/new" target="_blank" rel="noopener">Report a problem</a><a href="${GH}#install" target="_blank" rel="noopener">Install guide</a></div>
@@ -172,10 +172,66 @@
     if (a === "later") { try { sessionStorage.setItem("cutnote:later", U.latest); } catch {} bar.classList.remove("on"); }
   });
 
-  try {
-    const from = sessionStorage.getItem("cutnote:updated-from");
-    if (from) { sessionStorage.removeItem("cutnote:updated-from"); setTimeout(() => typeof toast === "function" && toast("Cutnote is up to date"), 1200); }
-  } catch {}
+  /* ---------- What's new: shown once after every update (clicked, automatic or a fresh install's first update) ---------- */
+  const wcss = `
+  #wnew { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(12,12,14,.42); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  #wnew.on { opacity: 1; pointer-events: auto; }
+  #wnew .card { position: relative; width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; border-radius: 22px; background: var(--panel); color: var(--ink);
+    box-shadow: 0 40px 100px rgba(0,0,0,.35), 0 0 0 1px var(--line); transform: translateY(14px) scale(.97); transition: transform .45s cubic-bezier(.22,1,.36,1); }
+  #wnew.on .card { transform: none; }
+  #wnew .hero { position: relative; padding: 26px 26px 22px; overflow: hidden; background: radial-gradient(120% 140% at 0% 0%, rgba(198,244,50,.55), transparent 55%), radial-gradient(120% 140% at 100% 0%, rgba(198,244,50,.22), transparent 60%), var(--panel-2); border-bottom: 1px solid var(--line); }
+  #wnew .hero .logo { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 20px rgba(120,160,0,.35); }
+  #wnew .hero .logo svg { width: 22px; height: 22px; }
+  #wnew .eyebrow { margin-top: 16px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+  #wnew h2 { margin: 4px 0 0; font-size: 26px; letter-spacing: -.02em; line-height: 1.15; }
+  #wnew .sub { margin-top: 4px; color: var(--dim); font-size: 12.5px; }
+  #wnew ul { list-style: none; margin: 0; padding: 18px 26px 6px; display: grid; gap: 14px; }
+  #wnew li { display: flex; gap: 12px; align-items: flex-start; opacity: 0; transform: translateY(6px); animation: wnIn .45s cubic-bezier(.22,1,.36,1) forwards; }
+  #wnew li i { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); font-style: normal; }
+  #wnew li i svg { width: 14px; height: 14px; }
+  #wnew li b { display: block; font-size: 13.5px; line-height: 1.35; }
+  #wnew li span { display: block; color: var(--dim); font-size: 12.5px; line-height: 1.45; margin-top: 2px; }
+  @keyframes wnIn { to { opacity: 1; transform: none; } }
+  #wnew .foot { display: flex; align-items: center; gap: 12px; padding: 16px 26px 22px; }
+  #wnew .foot a { color: var(--dim); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+  #wnew .foot button { margin-left: auto; height: 38px; padding: 0 22px; border: 0; border-radius: 10px; background: var(--ink); color: var(--panel); font-weight: 700; cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) { #wnew, #wnew .card, #wnew li { transition: none; animation: none; opacity: 1; transform: none; } }`;
+  const wst = document.createElement("style"); wst.textContent = wcss; document.head.appendChild(wst);
+  const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  // a note is "Title: more detail" or {title, text}; plain sentences show as one line
+  const splitNote = n => {
+    if (n && typeof n === "object") return [n.title || "", n.text || ""];
+    const s2 = String(n); const k = s2.indexOf(": ");
+    if (k > 0 && k < 70) { const d2 = s2.slice(k + 2); return [s2.slice(0, k), d2.charAt(0).toUpperCase() + d2.slice(1)]; }
+    const d = s2.search(/[.!?](\s|$)/); return d > 0 && d < s2.length - 2 ? [s2.slice(0, d + 1), s2.slice(d + 2)] : [s2, ""];
+  };
+  async function whatsNew(fromV) {
+    let v;
+    try { v = await fetch("/version.json", { cache: "no-store" }).then(r => r.json()); } catch { return; }
+    if (!v || !(v.notes || []).length) return;
+    document.body.insertAdjacentHTML("beforeend", `<div id="wnew" role="dialog" aria-modal="true" aria-labelledby="wnT"><div class="card">
+      <div class="hero"><span class="logo"><svg><use href="#i-blade"/></svg></span><div class="eyebrow">What's new</div>
+        <h2 id="wnT">Cutnote ${esc(v.version)}</h2><div class="sub">${fromV ? "Updated from " + esc(fromV) : "Just updated"}${v.date ? " · " + esc(v.date) : ""}</div></div>
+      <ul>${v.notes.map((n, k) => { const [t, d] = splitNote(n); return `<li style="animation-delay:${0.12 + k * 0.07}s"><i>${CHECK}</i><div><b>${esc(t)}</b>${d ? `<span>${esc(d)}</span>` : ""}</div></li>`; }).join("")}</ul>
+      <div class="foot"><a href="https://github.com/Jackd0127-dev/cutnote/commits/main" target="_blank" rel="noopener">See every change</a><button type="button">Let's go</button></div></div></div>`);
+    const el = $("#wnew");
+    const close = () => { el.classList.remove("on"); setTimeout(() => el.remove(), 300); };
+    el.querySelector("button").onclick = close;
+    el.addEventListener("click", e => { if (e.target === el) close(); });
+    document.addEventListener("keydown", function k(e) { if (e.key === "Escape") { close(); document.removeEventListener("keydown", k); } });
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
+    setTimeout(() => el.querySelector("button").focus(), 100);
+  }
+  // remember the last version this browser saw; a newer one (however it got here) gets the What's new screen once
+  (async () => {
+    let cur;
+    try { cur = (await fetch("/api/version", { cache: "no-store" }).then(r => r.json())).version; } catch { return; }
+    let seen = null, from = null;
+    try { seen = localStorage.getItem("cutnote:seen"); from = sessionStorage.getItem("cutnote:updated-from"); sessionStorage.removeItem("cutnote:updated-from"); } catch {}
+    try { localStorage.setItem("cutnote:seen", cur); } catch {}
+    const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+    if ((seen && newer(cur, seen)) || (from && newer(cur, from))) setTimeout(() => whatsNew(from || seen), 900);
+  })();
   refresh();
   setInterval(() => refresh(), 10 * 60 * 1000);
 
