@@ -144,14 +144,14 @@
   #insp.on { transform: none; visibility: visible; }
   #insp header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); height: auto; background: none; grid-column: auto; }
   #insp header .nm { min-width: 0; flex: 1; }
-  #insp header b { display: block; font-size: 13px; }
+  #insp header .it { display: block; font-size: 13px; margin: 0; }
   #insp header small { display: block; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #insp .body { flex: 1; overflow: auto; padding: 6px 14px 14px; }
   #insp .grp { padding: 12px 0; border-bottom: 1px solid var(--line); }
   #insp .grp:last-child { border-bottom: 0; }
-  #insp h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
-  #insp h4 .lnk { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; border: 0; background: none; color: var(--accent-text); cursor: pointer; padding: 0; font-size: 12px; }
-  #insp h4 .lnk:disabled { color: var(--faint); cursor: default; }
+  #insp h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+  #insp h3 .lnk { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; border: 0; background: none; color: var(--accent-text); cursor: pointer; padding: 0; font-size: 12px; }
+  #insp h3 .lnk:disabled { color: var(--faint); cursor: default; }
   #insp textarea { width: 100%; min-height: 76px; resize: vertical; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; outline: none; line-height: 1.45; }
   #insp textarea:focus, #insp input[type=number]:focus { border-color: var(--accent); }
   #insp .was { margin-top: 6px; font-size: 11px; color: var(--dim); }
@@ -326,16 +326,16 @@
   </main>
   <aside>
     <section id="insp" aria-label="Edit the selected piece">
-      <header><div class="nm"><b>Edit on frame</b><small id="inspName"></small></div><button class="ib icon" id="inspClose" title="Close (Esc)">✕</button></header>
+      <header><div class="nm"><h2 class="it">Edit on frame</h2><small id="inspName"></small></div><button class="ib icon" id="inspClose" title="Close (Esc)">✕</button></header>
       <div class="body">
-        <div class="grp" id="inspTextGrp"><h4>Text<button class="lnk" id="inspTextReset" type="button">Original</button></h4>
+        <div class="grp" id="inspTextGrp"><h3>Text<button class="lnk" id="inspTextReset" type="button">Original</button></h3>
           <textarea id="inspText" placeholder="Text on screen"></textarea><div class="was">Was: <span id="inspWas"></span></div></div>
-        <div class="grp"><h4>Position<button class="lnk" id="inspPosReset" type="button">Reset</button></h4>
+        <div class="grp"><h3>Position<button class="lnk" id="inspPosReset" type="button">Reset</button></h3>
           <div class="two"><label class="num">X<input type="number" id="inspX" step="1"> px</label><label class="num">Y<input type="number" id="inspY" step="1"> px</label></div>
           <p class="hint" style="margin:8px 0 0">Or drag it on the frame. Hold ⇧ to keep it straight.</p></div>
-        <div class="grp"><h4>Size<button class="lnk" id="inspSizeReset" type="button">Reset</button></h4>
+        <div class="grp"><h3>Size<button class="lnk" id="inspSizeReset" type="button">Reset</button></h3>
           <div class="slide"><input type="range" id="inspSR" min="10" max="300" step="1"><label class="num"><input type="number" id="inspS" min="10" max="800" step="1">%</label></div></div>
-        <div class="grp" id="inspColGrp"><h4>Text colour<button class="lnk" id="inspColReset" type="button">Original</button></h4><div class="sws" id="inspCols"></div></div>
+        <div class="grp" id="inspColGrp"><h3>Text colour<button class="lnk" id="inspColReset" type="button">Original</button></h3><div class="sws" id="inspCols"></div></div>
         <div class="grp"><div class="row2"><div><b style="font-size:13px">Show on screen</b><div class="hint">Turn off to remove it from the video.</div></div><span class="switch"><input type="checkbox" id="inspShow"><i></i></span></div>
           <div class="off" id="inspOff">Not on screen at this moment. Changes still apply whenever it shows.</div></div>
         <p class="hint" style="margin-top:12px">Changes play live here. They're saved as edits for the rebuild, like your cuts.</p>
