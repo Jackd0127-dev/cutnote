@@ -195,6 +195,11 @@
   #wnew .foot { display: flex; align-items: center; gap: 12px; padding: 16px 26px 22px; }
   #wnew .foot a { color: var(--dim); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
   #wnew .foot button { margin-left: auto; height: 38px; padding: 0 22px; border: 0; border-radius: 10px; background: var(--ink); color: var(--panel); font-weight: 700; cursor: pointer; }
+  #wnew .foot button.later { margin-left: auto; background: none; color: var(--dim); padding: 0 12px; }
+  #wnew .foot button.later:hover { color: var(--ink); background: var(--hover); }
+  #wnew .foot button.later + button { margin-left: 0; }
+  #wnew .foot button.lime { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 22px rgba(120,160,0,.3); }
+  #wnew .foot button.lime svg { width: 18px; height: 18px; } #wnew .foot button.lime .mk-hub path { fill: var(--accent); } #wnew .foot button.lime .mk-hub { color: var(--accent-ink); }
   @media (prefers-reduced-motion: reduce) { #wnew, #wnew .card, #wnew li { transition: none; animation: none; opacity: 1; transform: none; } }`;
   const wst = document.createElement("style"); wst.textContent = wcss; document.head.appendChild(wst);
   const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -210,6 +215,15 @@
     e.preventDefault(); const pop2 = $("#updPop"); if (pop2) pop2.classList.remove("on"); const m = $("#cnMenu"); if (m) m.classList.remove("open");
     whatsNew(null);
   });
+  // a release can ask for an action button, e.g. {"action": {"label": "Show me the Hub", "run": "hub-tour"}}
+  function tourBtn(v) {
+    const a = v.action;
+    if (a && a.run === "hub-tour" && window.CutnoteHub) {
+      const mark = (window.CutnoteMarks && window.CutnoteMarks.LOGO_HUB) || "";
+      return `<button type="button" class="later">Not now</button><button type="button" class="lime" data-run="hub-tour">${mark}${esc(a.label || "Show me the Hub")}</button>`;
+    }
+    return `<button type="button">Let's go</button>`;
+  }
   async function whatsNew(fromV) {
     if ($("#wnew")) return;
     let v;
@@ -219,14 +233,18 @@
       <div class="hero"><span class="logo"><svg><use href="#i-blade"/></svg></span><div class="eyebrow">What's new</div>
         <h2 id="wnT">Cutnote ${esc(v.version)}</h2><div class="sub">${fromV ? "Updated from " + esc(fromV) : "The latest changes"}${v.date ? " · " + esc(v.date) : ""}</div></div>
       <ul>${v.notes.map((n, k) => { const [t, d] = splitNote(n); return `<li style="animation-delay:${0.12 + k * 0.07}s"><i>${CHECK}</i><div><b>${esc(t)}</b>${d ? `<span>${esc(d)}</span>` : ""}</div></li>`; }).join("")}</ul>
-      <div class="foot"><a href="https://github.com/Jackd0127-dev/cutnote/commits/main" target="_blank" rel="noopener">See every change</a><button type="button">Let's go</button></div></div></div>`);
+      <div class="foot"><a href="https://github.com/Jackd0127-dev/cutnote/commits/main" target="_blank" rel="noopener">See every change</a>${tourBtn(v)}</div></div></div>`);
     const el = $("#wnew");
     const close = () => { el.classList.remove("on"); setTimeout(() => el.remove(), 300); };
-    el.querySelector("button").onclick = close;
+    el.querySelectorAll(".foot button").forEach(b => b.onclick = () => {
+      close();
+      // "Show me the Hub": open Cutnote Hub and walk round it (the tour can be skipped at every step)
+      if (b.dataset.run === "hub-tour" && window.CutnoteHub) setTimeout(() => window.CutnoteHub.tour(true), 320);
+    });
     el.addEventListener("click", e => { if (e.target === el) close(); });
     document.addEventListener("keydown", function k(e) { if (e.key === "Escape") { close(); document.removeEventListener("keydown", k); } });
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
-    setTimeout(() => el.querySelector("button").focus(), 100);
+    setTimeout(() => { const b = el.querySelector(".foot button:last-child"); b && b.focus(); }, 100);
   }
   // remember the last version this browser saw; a newer one (however it got here) gets the What's new screen once
   (async () => {

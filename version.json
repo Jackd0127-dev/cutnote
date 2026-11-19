@@ -1,11 +1,15 @@
 {
-  "version": "1.4.0",
-  "date": "19 Nov 2026",
+  "version": "1.4.1",
+  "date": "20 Nov 2026",
+  "action": {
+    "label": "Show me the Hub",
+    "run": "hub-tour"
+  },
   "notes": [
     "Cutnote Hub: hover Cutnote Editor at the top left and pick Cutnote Hub to see every project on your computer, each with a picture, its open notes and when you last edited it.",
+    "A quick tour: the first time you open the Hub, a short walk-round shows you where everything is, including how to get back to the editor. Skip it any time, or replay it from Take the tour.",
     "Switch projects in one click: open any project from the Hub and the editor reopens on it, no restart needed.",
     "New project: name it, drop in your footage and Cutnote makes the folder and copies the footage in. Your originals stay where they are.",
-    "Rename, remove or trash: renaming only changes the name in the Hub, never the folder. Deleting asks first, and Move to Trash can always be undone from the Trash.",
-    "Watched folders: point the Hub at a folder of projects and new ones show up by themselves, including the ones your AI assistant makes."
+    "New logos: the Editor has its own timeline mark and the Hub its own project grid, so you always know where you are."
   ]
 }
