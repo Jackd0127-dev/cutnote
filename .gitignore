@@ -7,3 +7,5 @@ review-drawings/
 .review-cache/
 Keys/
 .env*
+.impeccable/
+.playwright-mcp/
