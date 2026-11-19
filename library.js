@@ -59,7 +59,11 @@
   .lp-row.on { box-shadow: 0 0 0 2px #f3a6e6; }
   .lp-row.on .foot button { background: #f3a6e6; border-color: #f3a6e6; color: #3a0632; }
   .lp-empty { color: var(--dim); text-align: center; padding: 36px 10px; }
-  .lp-det { padding-top: 12px; }
+  .lp-det { padding-top: 12px; animation: lpIn .32s cubic-bezier(.22,1,.36,1); }
+  .lp-body.back > * { animation: lpBack .32s cubic-bezier(.22,1,.36,1); }
+  @keyframes lpIn { from { opacity: 0; transform: translateX(18px); } }
+  @keyframes lpBack { from { opacity: 0; transform: translateX(-14px); } }
+  @media (prefers-reduced-motion: reduce) { .lp-det, .lp-body.back > * { animation: none; } }
   .lp-det .back { height: 28px; padding: 0 10px 0 8px; margin-bottom: 12px; font-size: 12px; }
   .lp-det .big { width: 100%; margin: 0 0 14px; }
   .lp-det h2 { margin: 0 0 4px; font-size: 15px; }
@@ -281,7 +285,7 @@
         const add = e.target.closest("[data-act=add], [data-act=use]");
         if (add) { const def = VideoLibrary.components[add.closest("[data-id]").dataset.id]; if (def) place(def, S.t, null, null, null); return; }
         const c = e.target.closest(".lp-card, .lp-row");
-        if (c) { D.detail[kind] = c.dataset.id; render(kind); }
+        if (c) { (D.scroll = D.scroll || {})[kind] = body.scrollTop; D.detail[kind] = c.dataset.id; render(kind); body.scrollTop = 0; }
       });
       body.addEventListener("dragstart", onDragStart);
     }
@@ -306,7 +310,10 @@
       if (kind === "lib") html += `<div class="lp-grid">${ds.map(d => `<div class="lp-card" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><button class="add" type="button" data-act="add" title="Add at the playhead" aria-label="Add ${esc(d.name)} at the playhead"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button><b>${esc(d.name)}</b><small>${esc(d.source || "")}</small></div>`).join("")}</div>`;
       else html += `<div class="lp-list">${ds.map(d => { const on = curCap && curCap.c.id === d.id; return `<div class="lp-row${on ? " on" : ""}" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><div class="foot"><span><b>${esc(short(d.name))}</b><br><small>${esc(d.source || "")}</small></span><button type="button" data-act="use">${on ? "In use" : "Use"}</button></div></div>`; }).join("")}</div>`;
     }
+    const back = D.back === kind; D.back = null;
+    body.classList.remove("back");
     body.innerHTML = html;
+    if (back) { void body.offsetWidth; body.classList.add("back"); body.scrollTop = (D.scroll && D.scroll[kind]) || 0; }
     body.querySelectorAll(".lp-card .pv").forEach(el => mkPreview(el, VideoLibrary.components[el.closest("[data-id]").dataset.id], el.clientWidth || 160, 4 / 3));
     body.querySelectorAll(".lp-row .pv").forEach(el => mkPreview(el, VideoLibrary.components[el.closest("[data-id]").dataset.id], el.clientWidth || 330, 2.2));
     playVisible();
@@ -373,7 +380,7 @@
     body.innerHTML = `<div class="lp-det"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
       <div class="big"></div><h2>${esc(kind === "cap" ? short(def.name) + " captions" : def.name)}</h2><p>${esc(def.description || "")}</p>
       <button class="go" type="button">${kind === "cap" ? "Use for the whole video" : "Add at the playhead"}</button><div class="form"></div></div>`;
-    body.querySelector(".back").onclick = () => { D.detail[kind] = null; render(kind); };
+    body.querySelector(".back").onclick = () => { D.detail[kind] = null; D.back = kind; render(kind); };
     const big = body.querySelector(".big");
     let pv = null;
     const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: big.clientWidth || 300, aspect: kind === "cap" ? 2.2 : 4 / 3, params, radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
@@ -414,8 +421,8 @@
       };
       buildForm(form, def, params, save, extra);
       let h = 0; form.addEventListener("input", e => { if (e.target.dataset.x) { clearTimeout(h); h = setTimeout(save, 350); } });
-      body.querySelector(".back").onclick = () => { D.editing = null; D.detail[kind] = null; render(kind); };
-      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; render(kind); paintFrame(); };
+      body.querySelector(".back").onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
+      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
       body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
       if (!p.cap) seek(Math.max(S.t, p.t));
     });

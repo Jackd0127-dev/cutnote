@@ -199,7 +199,8 @@
     stage.style.cssText = `position:absolute;left:0;top:0;width:${LIB.W}px;height:${LIB.H}px;transform-origin:0 0`;
     box.appendChild(stage);
     host.appendChild(box);
-    const p = Object.assign(LIB.defaults(id), o.params || {});
+    // a component can ask for different settings in its preview card (preview.params), e.g. text centred in the card
+    const p = Object.assign(LIB.defaults(id), (def.preview && def.preview.params) || {}, o.params || {});
     const dur = +p.duration || def.duration;
     const T0 = 0.25;
     let tl = null;

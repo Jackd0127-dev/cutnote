@@ -5,7 +5,7 @@ VideoLibrary.register({
   category: "Series",
   collection: "Cinematic",
   order: 3,
-  preview: { background: "photo" },
+  preview: { background: "photo", params: { y: 790 } },
   source: "Day 20",
   description: "Coins and notes fall through the whole frame over a soft dark dim, then a huge \"£0\" with a lime \"spent\" slams in with a blur.",
   tags: ["money", "coins", "price", "spend", "cost", "free"],
