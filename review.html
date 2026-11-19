@@ -234,28 +234,42 @@
   aside .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
   aside .pane.on { display: flex; animation: paneIn .22s cubic-bezier(.22,1,.36,1); }
   @keyframes paneIn { from { opacity: 0; transform: translateY(4px); } }
-  .note { position: relative; padding: 10px 12px; border-radius: 10px; margin-bottom: 4px; cursor: pointer; border: 1px solid transparent; transition: background .12s, border-color .12s; }
-  .note:hover { background: var(--hover); }
-  .note.sel { background: var(--panel-2); border-color: var(--line-2); }
-  .note .meta { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--dim); min-height: 22px; }
-  .note .when { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--raise); color: var(--ink); }
-  .note .kind { text-transform: capitalize; }
-  .pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--dim); white-space: nowrap; }
-  .pill.ink { color: var(--accent-text); border-color: color-mix(in srgb, var(--accent-text) 40%, transparent); }
+  .note { position: relative; padding: 11px 12px 12px 14px; border-radius: 12px; margin-bottom: 8px; cursor: pointer; background: var(--panel); border: 1px solid var(--line);
+    transition: border-color .15s, box-shadow .18s, background .15s; }
+  .note::before { content: ""; position: absolute; left: -1px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--fix); }
+  .note[data-k="change"]::before { background: var(--change); } .note[data-k="remember"]::before { background: var(--remember); }
+  .note.done::before { background: var(--line-2); }
+  .note:hover { border-color: var(--line-2); box-shadow: 0 6px 18px rgba(0,0,0,.07); }
+  .note.sel { border-color: var(--line-2); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .note .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--dim); min-height: 24px; padding-right: 96px; }
+  .note .meta .dot { display: none; }
+  .note .when { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); }
+  .note .kind { text-transform: capitalize; font-weight: 600; padding: 3px 8px; border-radius: 7px; color: var(--fix); background: color-mix(in srgb, var(--fix) 12%, transparent); }
+  .note[data-k="change"] .kind { color: var(--change); background: color-mix(in srgb, var(--change) 14%, transparent); }
+  .note[data-k="remember"] .kind { color: var(--remember); background: color-mix(in srgb, var(--remember) 13%, transparent); }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 7px; border: 1px solid var(--line-2); color: var(--dim); white-space: nowrap; }
+  .pill.ink { color: var(--accent-text); border-color: color-mix(in srgb, var(--accent-text) 35%, transparent); background: var(--accent-soft); }
   .pill.stale { color: var(--change); border-color: color-mix(in srgb, var(--change) 45%, transparent); }
-  .note .acts { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-  .note:hover .acts, .note.sel .acts, .note:focus-within .acts { opacity: 1; }
-  .note .acts button { width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); cursor: pointer; display: grid; place-items: center; padding: 0; }
-  .note .acts button:hover { background: var(--raise); color: var(--ink); }
-  .note .acts button[data-a="del"]:hover { color: var(--fix); }
-  .note .acts svg { width: 14px; height: 14px; pointer-events: none; }
-  .note .tx { white-space: pre-wrap; margin-top: 4px; outline: none; word-break: break-word; }
-  .note .tx[contenteditable="true"] { background: var(--bg); border-radius: 6px; padding: 6px 8px; box-shadow: 0 0 0 1px var(--accent); cursor: text; }
-  .note .ver { font-size: 11px; color: var(--faint); margin-top: 2px; }
-  .note .reply { margin-top: 8px; padding: 7px 9px; border-radius: 8px; background: var(--accent-soft); color: var(--ink); font-size: 12px; display: flex; gap: 7px; }
-  .note .reply b { color: var(--accent-text); font-weight: 600; flex: none; }
+  /* the actions: a small floating toolbar, top right, on hover (always shown on touch screens) */
+  .note .acts { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line);
+    box-shadow: 0 4px 14px rgba(0,0,0,.08); opacity: 0; transform: translateY(-2px); transition: opacity .15s, transform .15s; }
+  .note:hover .acts, .note.sel .acts, .note:focus-within .acts { opacity: 1; transform: none; }
+  @media (hover: none) { .note .acts { opacity: 1; transform: none; } }
+  .note .acts button { width: 28px; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--dim); cursor: pointer; display: grid; place-items: center; padding: 0; transition: background .12s, color .12s; }
+  .note .acts button:hover { background: var(--hover); color: var(--ink); }
+  .note .acts button[data-a="done"]:hover { background: color-mix(in srgb, var(--audio) 14%, transparent); color: var(--audio); }
+  .note .acts button[data-a="del"]:hover { background: color-mix(in srgb, var(--fix) 12%, transparent); color: var(--fix); }
+  .note .acts svg { width: 15px; height: 15px; pointer-events: none; }
+  .note .tx { white-space: pre-wrap; margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--ink); outline: none; word-break: break-word; }
+  .note .tx[contenteditable="true"] { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; box-shadow: 0 0 0 2px var(--accent); cursor: text; }
+  .note .ver { font-size: 11px; color: var(--faint); margin-top: 4px; }
+  .note .reply { margin-top: 10px; padding: 9px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); font-size: 12.5px; line-height: 1.45; display: flex; gap: 8px; align-items: flex-start; }
+  .note .reply b { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px 1px 5px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; }
+  .note .reply b::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+  .note.done { background: var(--panel-2); }
   .note.done .tx { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--faint); }
-  .note.done .when { background: transparent; color: var(--dim); box-shadow: 0 0 0 1px var(--line); }
+  .note.done .when { background: transparent; color: var(--dim); }
+  .note.done .kind { color: var(--dim); background: var(--hover); }
   .empty { color: var(--dim); padding: 36px 20px; text-align: center; line-height: 1.6; }
   .empty svg { width: 34px; height: 34px; color: var(--faint); display: block; margin: 0 auto 10px; }
 
