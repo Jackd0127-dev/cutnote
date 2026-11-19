@@ -54,6 +54,28 @@
   .lp-det .row button { flex: 1; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; font-weight: 600; }
   .lp-det .row button.b { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .lp-det pre { margin: 12px 0 0; padding: 8px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); font-size: 11px; white-space: pre-wrap; word-break: break-word; }
+  .lp-det .go { width: 100%; height: 36px; margin: 2px 0 14px; border: 0; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+  .lp-det .phead { display: flex; gap: 10px; align-items: flex-start; margin: 2px 0 14px; }
+  .lp-det .phead .dot { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: #c6f432; box-shadow: 0 0 0 3px rgba(198,244,50,.25); }
+  .lp-det .phead .dot.cap { background: #f3a6e6; box-shadow: 0 0 0 3px rgba(243,166,230,.3); }
+  .lp-det .phead small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+  .lp-det details.fs { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+  .lp-det details.fs summary { cursor: pointer; list-style: none; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+  .lp-det details.fs summary::-webkit-details-marker { display: none; }
+  .lp-det details.fs summary::after { content: "▾"; float: right; transition: transform .2s; }
+  .lp-det details.fs:not([open]) summary::after { transform: rotate(-90deg); }
+  .lp-det .fl { display: block; margin: 0 0 10px; }
+  .lp-det .fl > span { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+  .lp-det .fl.row { display: flex; align-items: center; justify-content: space-between; }
+  .lp-det .fl.row > span { margin: 0; }
+  .lp-det .fl input[type=text], .lp-det .fl textarea, .lp-det .num input { width: 100%; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 8px; padding: 7px 9px; font: 13px/1.4 inherit; }
+  .lp-det .fl textarea { resize: vertical; } .lp-det .fl textarea.mono { font: 11.5px ui-monospace, Menlo, monospace; }
+  .lp-det .fl input:focus, .lp-det .fl textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .lp-det .num { display: flex; align-items: center; gap: 6px; max-width: 140px; } .lp-det .num span { color: var(--dim); font-size: 12px; }
+  .lp-det .rng { display: flex; align-items: center; gap: 10px; } .lp-det .rng input { flex: 1; accent-color: #9cc20f; } .lp-det .rng output { min-width: 34px; text-align: right; font-size: 12px; color: var(--dim); }
+  .lp-det .seg.sm { display: inline-flex; } .lp-det .seg.sm button { height: 28px; padding: 0 12px; text-transform: capitalize; }
+  .lp-det .row2 { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .lp-det .row2 button { flex: 1; }
+  .lp-det .ib.danger { color: var(--fix); }
   .lp-cur { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; margin: 0 0 12px; border-radius: 12px; border: 1.5px solid ${PINK}; background: rgba(255,63,216,.07); }
   .lp-cur b { font-size: 12.5px; } .lp-cur small { display: block; color: var(--dim); font-size: 11.5px; }
   .lp-cur button { margin-left: auto; }
@@ -132,10 +154,20 @@
     SP.cur = name;
     document.querySelectorAll("#sideTabs button").forEach(b => { const on = b.dataset.p === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     for (const k in P) P[k].classList.toggle("on", k === name);
+    slideBar();
     try { localStorage.setItem("cutnote:pane", name); } catch {}
     if (name !== "notes") ensureLoaded().then(() => { if (!P[name].dataset.built) render(name); playVisible(); });
     playVisible();
   };
+  // the underline slides to the selected tab
+  function slideBar() {
+    const bar = $("#sideTabs .ink-bar"), b = $(`#sideTabs button[data-p="${SP.cur}"]`); if (!bar || !b) return;
+    const pad = 10;
+    bar.style.width = (b.offsetWidth - pad * 2) + "px";
+    bar.style.transform = `translateX(${b.offsetLeft + pad}px)`;
+  }
+  addEventListener("resize", slideBar);
+  requestAnimationFrame(slideBar);
   $("#sideTabs").addEventListener("click", e => { const b = e.target.closest("button[data-p]"); if (b) SP.show(b.dataset.p); });
 
   /* ---------- loading the runtime + components ---------- */
@@ -242,17 +274,115 @@
     body.querySelectorAll(".lp-card").forEach(el => mkPreview(el.querySelector(".pv"), VideoLibrary.components[el.dataset.id], (el.clientWidth || 160) - 12));
     playVisible();
   }
-  function openDetail(kind, def, body) {
-    body.innerHTML = `<div class="lp-det"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button><div class="ed"></div></div>`;
-    body.querySelector(".back").onclick = () => { D.detail[kind] = null; render(kind); };
-    const host = body.querySelector(".ed");
-    const apiEd = VLEditor.open(host, def.id, {
-      width: 220,
-      actions: kind === "cap" ? `<button class="b" data-act="use">Use for the whole video</button>` : `<button class="b" data-act="add">Add at playhead</button>`,
-      onAction(act, params) { if (act === "add" || act === "use") place(def, S.t, null, null, params); },
-    });
-    D.ed = { host, api: apiEd };
+  /* ---------- the settings form: simple fields, grouped, the fiddly ones tucked under "More" ---------- */
+  const GROUP = p => {
+    if (["text", "longtext", "lines", "image", "color"].includes(p.type)) return "Text";
+    if (["time", "times"].includes(p.type) || /At$|duration/i.test(p.key)) return "Timing";
+    if (["box", "json"].includes(p.type)) return "More";
+    return "Style";
+  };
+  function field(p, v) {
+    const k = esc(p.key), lab = esc((p.label || p.key).replace(/\s*\((s|px|[^)]*\[[^)]*\][^)]*)\)\s*$/i, ""));
+    const unit = p.type === "time" || p.type === "times" || p.key === "duration" ? "s" : "";
+    let inp;
+    if (p.type === "bool") inp = `<span class="switch"><input type="checkbox" data-k="${k}" ${v ? "checked" : ""}><i></i></span>`;
+    else if (p.type === "select") inp = `<div class="seg sm">${p.options.map(o => `<button type="button" data-k="${k}" data-v="${esc(o)}" class="${o === v ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
+    else if (p.type === "lines") inp = `<textarea data-k="${k}" rows="${Math.min(5, Math.max(2, (v || []).length))}" placeholder="One per line. Put [lime] words in brackets.">${esc((v || []).join("\n"))}</textarea>`;
+    else if (p.type === "longtext") inp = `<textarea data-k="${k}" rows="3">${esc(v)}</textarea>`;
+    else if (p.type === "number" && p.min != null && p.max != null) inp = `<div class="rng"><input type="range" data-k="${k}" min="${p.min}" max="${p.max}" step="${p.step || 1}" value="${esc(v)}"><output>${esc(v)}</output></div>`;
+    else if (p.type === "number" || p.type === "time") inp = `<div class="num"><input type="number" data-k="${k}" step="${p.type === "time" ? 0.1 : p.step || 1}" value="${v == null ? "" : esc(v)}" placeholder="${p.type === "time" ? "off" : ""}">${unit ? `<span>${unit}</span>` : ""}</div>`;
+    else if (p.type === "times" || p.type === "box") inp = `<input type="text" data-k="${k}" value="${esc((v || []).join(", "))}">`;
+    else if (p.type === "json") inp = `<textarea data-k="${k}" rows="2" class="mono">${esc(JSON.stringify(v))}</textarea>`;
+    else if (p.type === "color") inp = `<input type="color" data-k="${k}" value="${esc(v)}">`;
+    else inp = `<input type="text" data-k="${k}" value="${esc(v)}">`;
+    return `<label class="fl${p.type === "bool" ? " row" : ""}"><span>${lab}</span>${inp}</label>`;
   }
+  function readField(p, el) {
+    const raw = el.type === "checkbox" ? el.checked : el.dataset.v != null ? el.dataset.v : el.value;
+    switch (p.type) {
+      case "bool": return !!raw;
+      case "number": return raw === "" ? p.default : +raw;
+      case "time": return raw === "" ? null : +raw;
+      case "lines": return String(raw).split("\n").map(x => x.trim()).filter(Boolean);
+      case "times": case "box": return String(raw).split(/[\s,]+/).filter(Boolean).map(Number);
+      case "json": try { return JSON.parse(raw); } catch { return undefined; }
+      default: return raw;
+    }
+  }
+  // builds the form into host; onChange(params) fires (debounced) after every edit
+  function buildForm(host, def, params, onChange, extra) {
+    const groups = { Text: [], Timing: [], Style: [], More: [] };
+    for (const p of def.params) groups[GROUP(p)].push(p);
+    const sec = (name, list, open) => list.length || (name === "Timing" && extra) ? `<details class="fs" ${open ? "open" : ""}><summary>${name}</summary>${name === "Timing" && extra ? extra : ""}${list.map(p => field(p, params[p.key])).join("")}</details>` : "";
+    host.innerHTML = sec("Text", groups.Text, true) + sec("Timing", groups.Timing, true) + sec("Style", groups.Style, true) + sec("More", groups.More, false);
+    let h = 0;
+    const fire = () => { clearTimeout(h); h = setTimeout(() => onChange(params), 350); };
+    const upd = el => {
+      const k = el.dataset.k; if (!k) return;
+      const p = def.params.find(x => x.key === k); if (!p) return;
+      const v = readField(p, el); if (v === undefined) return;
+      params[k] = v;
+      if (el.type === "range") el.nextElementSibling.textContent = el.value;
+      if (el.dataset.v != null) el.parentElement.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === el));
+      fire();
+    };
+    host.addEventListener("input", e => upd(e.target));
+    host.addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) upd(b); });
+  }
+
+  // a library card opened before adding it: preview, settings, Add
+  function openDetail(kind, def, body) {
+    const params = VideoLibrary.defaults(def.id);
+    body.innerHTML = `<div class="lp-det"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
+      <div class="big"></div><h2>${esc(kind === "cap" ? short(def.name) + " captions" : def.name)}</h2><p>${esc(def.description || "")}</p>
+      <button class="go" type="button">${kind === "cap" ? "Use for the whole video" : "Add at the playhead"}</button><div class="form"></div></div>`;
+    body.querySelector(".back").onclick = () => { D.detail[kind] = null; render(kind); };
+    const big = body.querySelector(".big");
+    let pv = null;
+    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: 220, params, radius: 14 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
+    show();
+    buildForm(body.querySelector(".form"), def, params, show);
+    body.querySelector(".go").onclick = () => place(def, S.t, null, null, JSON.parse(JSON.stringify(params)));
+  }
+
+  // a component already on the video: edit it in place (changes save to its note and play straight away)
+  function openPlacement(id) {
+    const p = placements().find(q => q.id === id); if (!p) return;
+    const def = VideoLibrary.components[p.c.id]; if (!def) return;
+    const kind = p.cap ? "cap" : "lib";
+    D.editing = id;
+    SP.show(kind);
+    ensureLoaded().then(() => {
+      if (!P[kind].dataset.built) render(kind);
+      dropPreviews(kind);
+      const body = P[kind].querySelector("[data-body]");
+      const params = Object.assign(VideoLibrary.defaults(def.id), JSON.parse(JSON.stringify(p.c.params || {})));
+      body.innerHTML = `<div class="lp-det pl"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
+        <div class="phead"><span class="dot${p.cap ? " cap" : ""}"></span><div><h2>${esc(p.cap ? short(def.name) + " captions" : def.name)}</h2>
+        <small>${p.cap ? "Whole video · Claude builds them on the next run" : `On your video at ${fmt(p.t)} · Claude builds it on the next run`}</small></div></div>
+        <div class="form"></div><div class="row2"><button class="ib danger" type="button" data-a="del">Remove</button><button class="ib primary" type="button" data-a="done">Done</button></div></div>`;
+      const extra = p.cap ? "" : `<label class="fl"><span>Starts at</span><div class="num"><input type="number" data-x="t" step="0.1" min="0" value="${(+p.t).toFixed(2)}"><span>s</span></div></label>
+        <label class="fl"><span>Plays for</span><div class="num"><input type="number" data-x="dur" step="0.1" min="0.5" value="${(+p.dur).toFixed(1)}"><span>s</span></div></label>`;
+      const form = body.querySelector(".form");
+      const save = async () => {
+        const n = (S.notes || []).find(x => x.id === id); if (!n) return;
+        const patch = { id, component: Object.assign({}, n.component, { params: JSON.parse(JSON.stringify(params)) }) };
+        if (!p.cap) {
+          const t = Math.max(0, +form.querySelector('[data-x="t"]').value || 0), dur = Math.max(0.5, +form.querySelector('[data-x="dur"]').value || p.dur);
+          patch.component.params.duration = dur; patch.t = +t.toFixed(3); patch.end = +(t + dur).toFixed(3); patch.frame = Math.round(t * FPS);
+        }
+        D.measured.clear();
+        await noteOp("update", patch); layoutLanes(); draw(); sync(true);
+      };
+      buildForm(form, def, params, save, extra);
+      let h = 0; form.addEventListener("input", e => { if (e.target.dataset.x) { clearTimeout(h); h = setTimeout(save, 350); } });
+      body.querySelector(".back").onclick = () => { D.editing = null; D.detail[kind] = null; render(kind); };
+      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.detail[kind] = null; render(kind); };
+      body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
+      if (!p.cap) seek(Math.max(S.t, p.t));
+    });
+  }
+  D.openPlacement = openPlacement;
 
   /* ---------- placements = open notes with a component ---------- */
   function placements() {
@@ -292,12 +422,14 @@
   }
   // components are 1080x1920 designs: on another canvas they're scaled to fit (uniformly) and centred
   const MAP = () => { const k = Math.min(S.W / VideoLibrary.W, S.H / VideoLibrary.H); return { k, ox: (S.W - VideoLibrary.W * k) / 2, oy: (S.H - VideoLibrary.H * k) / 2 }; };
+  // new components sit centred across the frame; a drop sets the height, otherwise the component keeps its own
   function offsetFor(id, params, x, y) {
-    if (x == null || y == null) return [0, 0];
     const b = measureBox(id, params);
     if (!b || b.whole || !(b.x1 > b.x0)) return [0, 0];
     const m = MAP();
-    return [Math.round((x - m.ox) / m.k - (b.x0 + b.x1) / 2), Math.round((y - m.oy) / m.k - (b.y0 + b.y1) / 2)];
+    const dx = Math.round(VideoLibrary.W / 2 - (b.x0 + b.x1) / 2);
+    const dy = y == null ? 0 : Math.round((y - m.oy) / m.k - (b.y0 + b.y1) / 2);
+    return [dx, dy];
   }
 
   /* ---------- adding: saved straight away as a note ---------- */
@@ -446,7 +578,7 @@
     const p = placements().find(q => q.id === blk.dataset.id); if (!p) return;
     e.preventDefault(); e.stopPropagation();
     if (e.target.closest(".x")) { removePlacement(p.id); return; }
-    if (p.cap) { SP.show("cap"); return; }
+    if (p.cap) { openPlacement(p.id); return; }
     // retime in program time (what the timeline shows), so it follows the pointer even when the video has cuts
     const per = S.view.len / ($("#tl").clientWidth - G), E0 = toE(p.t);
     D.drag = { id: p.id, mode: e.target.closest(".rs") ? "len" : "move", x0: e.clientX, dur0: p.dur, moved: false };
@@ -459,7 +591,7 @@
       D.paintLane();
     }, async cancelled => {
       const d = D.drag; if (!d) return;
-      if (cancelled || !d.moved) { D.drag = null; if (!cancelled) seek(p.t); D.paintLane(); return; }
+      if (cancelled || !d.moved) { D.drag = null; if (!cancelled) { seek(p.t); openPlacement(p.id); } D.paintLane(); return; }
       const patch = { id: p.id };
       if (d.mode === "move") { patch.t = +d.t.toFixed(3); patch.end = +(d.t + p.dur).toFixed(3); patch.frame = Math.round(d.t * FPS); if (typeof contextAt === "function") patch.context = contextAt(patch.t); }
       else { patch.component = Object.assign({}, p.c, { params: Object.assign({}, p.c.params, { duration: d.dur }) }); patch.end = +(p.t + d.dur).toFixed(3); }
@@ -501,7 +633,7 @@
     if (!boxEl) return;
     const p = placements().find(q => q.id === boxEl.dataset.id);
     e.preventDefault(); e.stopPropagation();
-    if (!p || p.cap) { if (p) SP.show("cap"); return; }
+    if (!p || p.cap) { if (p) openPlacement(p.id); return; }
     const fr = frEl.getBoundingClientRect(), per = S.W / fr.width / MAP().k;   // screen px -> component px
     D.drag = { id: p.id, x0: e.clientX, y0: e.clientY, dx0: p.dx, dy0: p.dy, moved: false };
     trackDrag(ev => {
@@ -512,7 +644,7 @@
       const bx = frEl.querySelector(`.lb-box[data-id="${p.id}"]`); if (bx) bx.classList.add("drag");
     }, async cancelled => {
       const d = D.drag;
-      if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy); paintFrame(); return; }
+      if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy); paintFrame(); if (d && !cancelled) openPlacement(p.id); return; }
       const b = measureBox(p.c.id, p.c.params);
       const c = Object.assign({}, p.c, { dx: d.dx, dy: d.dy });
       if (b && b.x1 > b.x0) { const m = MAP(); c.x = Math.round(m.ox + ((b.x0 + b.x1) / 2 + d.dx) * m.k); c.y = Math.round(m.oy + ((b.y0 + b.y1) / 2 + d.dy) * m.k); }
@@ -532,7 +664,14 @@
   }
   function loadInto(w, src) { return new Promise(res => { const s = w.document.createElement("script"); s.src = src; s.onload = s.onerror = res; setTimeout(res, 6000); try { w.document.head.appendChild(s); } catch (e) { res(); } }); }
   function liveT(dx, dy) { const m = MAP(); return `translate(${m.ox}px,${m.oy}px) scale(${m.k}) translate(${+dx || 0}px,${+dy || 0}px)`; }
-  function liveMove(id, dx, dy) { for (const v of LIVE.items.values()) if (v.id === id) v.holder.style.transform = liveT(dx, dy); }
+  function fixScrims(holder, dx, dy) {
+    for (const sc of holder.querySelectorAll(".vl-scrim")) {
+      if (sc.dataset.h0 == null) sc.dataset.h0 = parseFloat(sc.style.height) || 0;
+      sc.style.left = (-(+dx || 0) - 200) + "px"; sc.style.right = ((+dx || 0) - 200) + "px";
+      sc.style.height = (+sc.dataset.h0 + Math.max(0, -(+dy || 0)) + 200) + "px";
+    }
+  }
+  function liveMove(id, dx, dy) { for (const v of LIVE.items.values()) if (v.id === id) { v.holder.style.transform = liveT(dx, dy); fixScrims(v.holder, dx, dy); } }
   async function liveSync(force) {
     if (LIVE.busy) { if (force) setTimeout(() => liveSync(true), 300); return; }
     const fr = liveFrame();
@@ -560,6 +699,7 @@
         root.appendChild(holder);
         const sub = W.gsap.timeline();
         try { W.VideoLibrary.mount(p.c.id, { root: holder, tl: sub, start: 0, params: p.c.params }); } catch (e) { holder.remove(); continue; }
+        fixScrims(holder, p.c.dx, p.c.dy);
         main.add(sub, Math.max(0, +p.n.t || 0));
         LIVE.items.set(k, { id: p.id, holder, sub });
       }

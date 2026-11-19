@@ -213,7 +213,10 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .15s, background .15s; }
   #sideTabs button:hover { color: var(--ink); background: var(--hover); }
   #sideTabs button.on { color: var(--ink); }
-  #sideTabs button.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+  #sideTabs { position: relative; }
+  #sideTabs .ink-bar { position: absolute; bottom: -1px; left: 0; height: 2px; border-radius: 2px; background: var(--accent); pointer-events: none;
+    transition: transform .32s cubic-bezier(.22,1,.36,1), width .32s cubic-bezier(.22,1,.36,1); }
+  #live { display: none !important; }
   #sideTabs .badge:empty { display: none; }
   aside .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
   aside .pane.on { display: flex; animation: paneIn .22s cubic-bezier(.22,1,.36,1); }
@@ -356,6 +359,7 @@
       <button type="button" role="tab" data-p="notes" class="on" aria-selected="true">Notes<span class="badge" id="tabCount"></span></button>
       <button type="button" role="tab" data-p="lib" aria-selected="false">Library</button>
       <button type="button" role="tab" data-p="cap" aria-selected="false">Captions</button>
+      <span class="ink-bar" aria-hidden="true"></span>
     </nav>
     <div class="pane on" id="pNotes" role="tabpanel">
     <div id="compose">
