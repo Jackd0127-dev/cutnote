@@ -2,6 +2,10 @@
 
 **Review, mark up and cut videos in your browser, then hand the notes to Claude.**
 
+[Website](https://jackd0127-dev.github.io/cutnote/) · [Install](#install) · [Try the demo](#try-the-demo) · [Keyboard](#keyboard)
+
+![Cutnote: a video with a drawing on the frame, notes in the sidebar and a timeline with a cut](docs/img/hero-light.jpg)
+
 Cutnote is a small local video review player and editor. Open a folder, and it plays your videos and [HyperFrames](https://www.npmjs.com/package/hyperframes) compositions live, with no render step. You pause anywhere, write a note, draw on the frame, and cut the footage on a timeline. Everything is saved as plain files that an AI assistant such as Claude Code (or a human editor) can read and act on.
 
 It runs on your machine and needs no account or upload. It is one Python file plus one page, and has no dependencies beyond Python and ffmpeg.
@@ -20,17 +24,18 @@ It runs on your machine and needs no account or upload. It is one Python file pl
   - Move and trim overlays, captions and sound.
   - Snapping, undo and redo, zoom.
   - A filmstrip and waveform for the main footage.
-- **Edit what's on screen.** With the Select tool, click any overlay, card or caption on the frame:
-  - drag it to move it (hold <kbd>⇧</kbd> to keep it straight)
-  - drag a corner to resize it
-  - double-click it to change its text
-  - press <kbd>⌫</kbd> to hide it
+- **Edit what's on screen.** With the Select tool, click any overlay, card or caption on the frame. A sidebar opens where you can:
+  - change its text (word-by-word animation keeps working)
+  - set its position and size, or drag it on the frame and pull a corner
+  - change the text colour
+  - hide it
 
-  It updates live, and is saved as an edit for whoever builds the composition.
+  Changes update live and are saved as edits for whoever builds the composition.
+- **Layers.** Drag overlays, b-roll, captions and sounds up or down on the timeline to move them to another row. The top row plays in front.
 - **Formats.** Reframe for 9:16, 4:5, 1:1, 16:9 or 4:3. Drag a crop window over the frame to choose what stays in the shot.
 - **Export cut.** For plain video files, Cutnote renders your cut and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
 - **Approval gate.** For compositions, an *Approve* button records the exact build you signed off. A render script can refuse anything that isn't approved.
-- **Light and dark mode**, custom dropdowns, and editor-standard shortcuts. Press <kbd>?</kbd> in the app for the full list.
+- **Light mode by default, dark mode with <kbd>⇧D</kbd>**, custom dropdowns, and editor-standard shortcuts. Press <kbd>?</kbd> in the app for the full list.
 
 ## Install
 
@@ -71,6 +76,18 @@ python3 cutnote/review.py ~/Videos/my-project
 - **Python 3.8+**, standard library only.
 - **ffmpeg and ffprobe**, used for the filmstrip, the waveform and Export cut. Install with `brew install ffmpeg`, `sudo apt install ffmpeg` or `winget install ffmpeg`.
 - **Node.js 18+**, only if you review HyperFrames compositions. Run `npx hyperframes --version` once so the player is on your machine. Cutnote finds it automatically, or you can point `HYPERFRAMES_DIST` at a `hyperframes/dist` folder.
+
+## Try the demo
+
+The repo includes a short demo composition and video, so you can see everything without your own footage:
+
+```bash
+python3 review.py examples/demo
+```
+
+Play it, press <kbd>N</kbd> to leave a note, and click the card on the frame to open the edit sidebar. The demo composition needs the HyperFrames player (`npx hyperframes --version`, run once). The background video plays without it.
+
+![Dark mode with a card selected and the edit sidebar open](docs/img/inspector-dark.jpg)
 
 ## Using it
 
@@ -140,7 +157,9 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | --- | --- |
 | `review.py` | The local server: finds versions, serves the player, stores notes, builds filmstrips and waveforms, exports cuts. |
 | `review.html` | The app: player, notes, drawing, dropdowns, themes. |
-| `timeline.js` | The timeline editor. |
+| `timeline.js` | The timeline editor and on-frame editing. |
+| `examples/demo/` | A demo composition and video to try it on. |
+| `docs/` | The project website (GitHub Pages). |
 | `install.sh` | The one-command installer. |
 | `AGENTS.md` | Instructions for AI agents installing, using or changing Cutnote. |
 

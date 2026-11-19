@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cutnote</title>
-<script>try { const t = localStorage.getItem("hfr:theme"); document.documentElement.dataset.theme = t === "light" || t === "dark" ? t : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); } catch {}</script>
+<script>try { const t = localStorage.getItem("cutnote:theme"); document.documentElement.dataset.theme = t === "dark" ? "dark" : "light"; } catch {}</script>
 <script src="/_hf/hyperframes-player.global.js"></script>
 <style>
   :root, [data-theme="dark"] {
@@ -118,11 +118,6 @@
   #elsel i { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid #111; border-radius: 2px; }
   #elsel i[data-h="0"] { left: -5px; top: -5px; } #elsel i[data-h="1"] { right: -5px; top: -5px; } #elsel i[data-h="2"] { right: -5px; bottom: -5px; } #elsel i[data-h="3"] { left: -5px; bottom: -5px; }
   #elsel span { position: absolute; left: -1px; top: -24px; background: var(--accent); color: var(--accent-ink); font: 600 11px/1 -apple-system, system-ui, sans-serif; padding: 4px 7px; border-radius: 5px; white-space: nowrap; }
-  #fetext { position: fixed; z-index: 90; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 10px; box-shadow: var(--shadow); }
-  #fetext textarea { width: 100%; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none; line-height: 1.45; }
-  #fetext textarea:focus { border-color: var(--accent); }
-  #fetext .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-  #fetext .row span { flex: 1; min-width: 0; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* drawing toolbar */
   #frame > #ink { z-index: 3; pointer-events: auto; touch-action: none; }
   #frame > #ink[data-tool=pen], #frame > #ink[data-tool=box] { cursor: crosshair; }
@@ -143,7 +138,48 @@
   #tools .size { font-size: 11px; font-weight: 600; }
 
   /* notes sidebar */
-  aside { grid-row: 2 / 4; grid-column: 2; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  aside { grid-row: 2 / 4; grid-column: 2; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; position: relative; overflow: hidden; }
+  /* inspector: edits the piece selected on the frame */
+  #insp { position: absolute; inset: 0; z-index: 5; background: var(--panel); display: flex; flex-direction: column; transform: translateX(102%); transition: transform .22s cubic-bezier(.2,.8,.2,1); visibility: hidden; }
+  #insp.on { transform: none; visibility: visible; }
+  #insp header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); height: auto; background: none; grid-column: auto; }
+  #insp header .nm { min-width: 0; flex: 1; }
+  #insp header b { display: block; font-size: 13px; }
+  #insp header small { display: block; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #insp .body { flex: 1; overflow: auto; padding: 6px 14px 14px; }
+  #insp .grp { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  #insp .grp:last-child { border-bottom: 0; }
+  #insp h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+  #insp h4 .lnk { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; border: 0; background: none; color: var(--accent-text); cursor: pointer; padding: 0; font-size: 12px; }
+  #insp h4 .lnk:disabled { color: var(--faint); cursor: default; }
+  #insp textarea { width: 100%; min-height: 76px; resize: vertical; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; outline: none; line-height: 1.45; }
+  #insp textarea:focus, #insp input[type=number]:focus { border-color: var(--accent); }
+  #insp .was { margin-top: 6px; font-size: 11px; color: var(--dim); }
+  #insp .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  #insp label.num { min-width: 0; }
+  #insp label.num { display: flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; height: 34px; color: var(--dim); font-size: 12px; }
+  #insp label.num:focus-within { border-color: var(--accent); }
+  #insp label.num input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #insp .slide { display: flex; align-items: center; gap: 10px; }
+  #insp input[type=range] { flex: 1; accent-color: var(--accent); }
+  #insp .slide label.num { width: 92px; flex: none; }
+  #insp .sws { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #insp .sws button, #insp .sws label { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(127,127,127,.4) inset; cursor: pointer; padding: 0; position: relative; overflow: hidden; }
+  #insp .sws .on { border-color: var(--ink); }
+  #insp .sws label { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+  #insp .sws label input { position: absolute; inset: -6px; opacity: 0; cursor: pointer; }
+  #insp .row2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--line-2); transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
+  .switch input:checked + i { background: var(--accent); }
+  .switch input:checked + i::after { transform: translateX(16px); }
+  .switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #insp .hint { font-size: 12px; color: var(--dim); line-height: 1.5; }
+  #insp .off { font-size: 12px; color: var(--change); margin-top: 8px; display: none; }
+  #insp footer { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+  #insp footer .ib { flex: 1; }
   #compose { margin: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); transition: border-color .15s, box-shadow .15s; }
   #compose:focus-within { border-color: var(--line-2); box-shadow: 0 0 0 3px var(--accent-soft); }
   #compose .top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -289,6 +325,23 @@
     <div id="err"></div>
   </main>
   <aside>
+    <section id="insp" aria-label="Edit the selected piece">
+      <header><div class="nm"><b>Edit on frame</b><small id="inspName"></small></div><button class="ib icon" id="inspClose" title="Close (Esc)">✕</button></header>
+      <div class="body">
+        <div class="grp" id="inspTextGrp"><h4>Text<button class="lnk" id="inspTextReset" type="button">Original</button></h4>
+          <textarea id="inspText" placeholder="Text on screen"></textarea><div class="was">Was: <span id="inspWas"></span></div></div>
+        <div class="grp"><h4>Position<button class="lnk" id="inspPosReset" type="button">Reset</button></h4>
+          <div class="two"><label class="num">X<input type="number" id="inspX" step="1"> px</label><label class="num">Y<input type="number" id="inspY" step="1"> px</label></div>
+          <p class="hint" style="margin:8px 0 0">Or drag it on the frame. Hold ⇧ to keep it straight.</p></div>
+        <div class="grp"><h4>Size<button class="lnk" id="inspSizeReset" type="button">Reset</button></h4>
+          <div class="slide"><input type="range" id="inspSR" min="10" max="300" step="1"><label class="num"><input type="number" id="inspS" min="10" max="800" step="1">%</label></div></div>
+        <div class="grp" id="inspColGrp"><h4>Text colour<button class="lnk" id="inspColReset" type="button">Original</button></h4><div class="sws" id="inspCols"></div></div>
+        <div class="grp"><div class="row2"><div><b style="font-size:13px">Show on screen</b><div class="hint">Turn off to remove it from the video.</div></div><span class="switch"><input type="checkbox" id="inspShow"><i></i></span></div>
+          <div class="off" id="inspOff">Not on screen at this moment. Changes still apply whenever it shows.</div></div>
+        <p class="hint" style="margin-top:12px">Changes play live here. They're saved as edits for the rebuild, like your cuts.</p>
+      </div>
+      <footer><button class="ib" id="inspResetAll" type="button">Reset all</button><button class="ib primary" id="inspDone" type="button">Done</button></footer>
+    </section>
     <div id="compose">
       <div class="top"><b>New note</b><span class="tcchip mono" id="atLabel">0:00.00</span><span class="keys"><kbd>N</kbd> new <kbd>⏎</kbd> save</span></div>
       <textarea id="text" placeholder="What should change here? Typing pauses the video. Draw on the frame with P or R."></textarea>
@@ -412,13 +465,13 @@ function Dropdown(root, { prefix = "", onChange }) {
 }
 
 /* ---------- light / dark ---------- */
-function setTheme(t) {
-  document.documentElement.dataset.theme = t; store.set("hfr:theme", t);
+function setTheme(t, save) {
+  document.documentElement.dataset.theme = t; if (save) store.set("cutnote:theme", t);
   $("#themeBtn").innerHTML = ico(t === "dark" ? "sun" : "moon"); $("#themeBtn").title = t === "dark" ? "Switch to light mode (⇧D)" : "Switch to dark mode (⇧D)";
   if (typeof readTheme === "function") { readTheme(); draw(); }
   inkSig = "";
 }
-$("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+$("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 
 /* ---------- playback adapters: the composition code (official HyperFrames player) or a rendered mp4 ---------- */
 function codeAdapter(src) {
@@ -589,6 +642,7 @@ async function noteOp(op, note) {
   const st = await api("/api/stat"); S.notesMtime = st.__notes;
 }
 function startNote() {
+  if (FE.sel) { inspCommit(); feSelect(null); }
   pause(); if (!INK.draft.length) S.noteAt = S.t; updateAt(); $("#text").focus();
 }
 function updateAt() {
@@ -665,6 +719,7 @@ const inkBump = () => { INK.ver++; };
 function setTool(t) {
   if (t === "none") t = "select";
   INK.tool = t; ink.dataset.tool = t;
+  if (t !== "select" && typeof FE !== "undefined" && FE.sel) { inspCommit(); feSelect(null); }
   if (t !== "select") INK.sel = null;
   document.querySelectorAll("#tools .tb[data-tool]").forEach(b => b.classList.toggle("on", b.dataset.tool === t));
   inkBump();
@@ -836,6 +891,76 @@ function inkEnd() {
 }
 ink.addEventListener("pointerup", inkEnd);
 ink.addEventListener("dblclick", e => { if (INK.tool === "select" && !pick(inkPos(e))) { e.preventDefault(); feText(e.clientX, e.clientY); } });
+/* ---------- inspector (right sidebar) for the piece selected on the frame ---------- */
+const INSP_COLORS = ["#ffffff", "#111111", "#c6f432", "#ffcc00", "#ff3b30", "#34c7ff", "#ff4fd8"];
+$("#inspCols").innerHTML = INSP_COLORS.map(c => `<button type="button" data-c="${c}" title="${c}" style="background:${c}"></button>`).join("") + '<label title="Any colour"><input type="color" id="inspPick"></label>';
+const IN = { key: null, sig: "", begun: false };
+function inspEdit(key, patch, live) {
+  if (!key) return;
+  if (!IN.begun) { tlBegin(); IN.begun = true; }
+  const g = feGeom(), kel = g && feResolve(key, g.fr.d);
+  feSet(key, patch, kel ? feName(kel) : IN.name);
+  if (live) { const fr = compFrame(); if (fr) applyFrameEdits(fr); } else { IN.begun = false; tlCommit(); }
+}
+function inspCommit() { if (IN.begun) { IN.begun = false; tlCommit(); } if (TL.needSync) setTimeout(tlSync, 0); }
+function inspOpen(on) { $("#insp").classList.toggle("on", on); }
+function renderInsp() {
+  const key = FE.sel, open = !!key && S.comp && S.comp.kind === "code" && INK.tool === "select";
+  if (!open) { if (IN.key) { inspCommit(); IN.key = null; IN.sig = ""; } inspOpen(false); return; }
+  const g = feGeom(), el = g && feResolve(key, g.fr.d);
+  const tk = FE.textKey && FE.textFor === key ? FE.textKey : (el && feText0(el) ? key : null);
+  const o = feEdits()[key] || {}, to = tk ? feEdits()[tk] || {} : {};
+  const vis = !!(el && feOpacity(el, g.fr.w) >= 0.05) || !!o.hide;
+  const sig = [key, tk, JSON.stringify(o), JSON.stringify(to), vis].join("|");
+  if (sig === IN.sig && IN.key === key) return;
+  if (IN.key !== key) inspCommit();
+  IN.key = key; IN.tk = tk; IN.sig = sig; IN.name = el ? feName(el) : key;
+  inspOpen(true);
+  $("#inspName").textContent = IN.name;
+  const tel = tk && g ? feResolve(tk, g.fr.d) : null;
+  $("#inspTextGrp").style.display = tk ? "" : "none"; $("#inspColGrp").style.display = tk ? "" : "none";
+  const setv = (sel, v) => { const i = $(sel); if (document.activeElement !== i) i.value = v; };
+  if (tk) {
+    const cur = to.text != null ? to.text : tel ? feText0(tel) : "";
+    setv("#inspText", cur); $("#inspWas").textContent = to.was != null ? to.was : cur;
+    $("#inspTextReset").disabled = to.text == null; $("#inspColReset").disabled = !to.color;
+    document.querySelectorAll("#inspCols button").forEach(b => b.classList.toggle("on", b.dataset.c === to.color));
+    $("#inspCols label").classList.toggle("on", !!to.color && !INSP_COLORS.includes(to.color));
+  }
+  setv("#inspX", Math.round(o.dx || 0)); setv("#inspY", Math.round(o.dy || 0));
+  setv("#inspS", Math.round((o.s || 1) * 100)); setv("#inspSR", Math.round((o.s || 1) * 100));
+  $("#inspPosReset").disabled = !o.dx && !o.dy; $("#inspSizeReset").disabled = !o.s || o.s === 1;
+  $("#inspShow").checked = !o.hide;
+  $("#inspOff").style.display = vis || o.hide ? "none" : "block";
+}
+$("#inspText").addEventListener("input", e => { const was = $("#inspWas").textContent, v = e.target.value.replace(/\s+/g, " ").trim(); inspEdit(IN.tk, v && v !== was ? { text: v, was } : { text: null, was: null }, true); });
+$("#inspText").addEventListener("change", inspCommit);
+$("#insp").addEventListener("focusout", () => setTimeout(() => { if (!$("#insp").contains(document.activeElement)) inspCommit(); }, 0));
+$("#inspText").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.target.blur(); } if (e.key === "Escape") e.target.blur(); });
+$("#inspTextReset").onclick = () => inspEdit(IN.tk, { text: null, was: null });
+for (const [id, k] of [["#inspX", "dx"], ["#inspY", "dy"]]) {
+  $(id).addEventListener("input", e => { const v = Math.round(+e.target.value || 0); inspEdit(IN.key, { [k]: v || null }, true); });
+  $(id).addEventListener("change", inspCommit);
+}
+const setS = (v, live) => { v = Math.max(10, Math.min(800, Math.round(+v || 100))); inspEdit(IN.key, { s: v === 100 ? null : v / 100 }, live); };
+$("#inspSR").addEventListener("input", e => { $("#inspS").value = e.target.value; setS(e.target.value, true); });
+$("#inspSR").addEventListener("change", inspCommit);
+$("#inspS").addEventListener("input", e => { $("#inspSR").value = e.target.value; setS(e.target.value, true); });
+$("#inspS").addEventListener("change", inspCommit);
+$("#inspPosReset").onclick = () => inspEdit(IN.key, { dx: null, dy: null });
+$("#inspSizeReset").onclick = () => inspEdit(IN.key, { s: null });
+$("#inspCols").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if (b) inspEdit(IN.tk, { color: b.dataset.c }); });
+$("#inspPick").addEventListener("input", e => inspEdit(IN.tk, { color: e.target.value }, true));
+$("#inspPick").addEventListener("change", inspCommit);
+$("#inspColReset").onclick = () => inspEdit(IN.tk, { color: null });
+$("#inspShow").onchange = e => inspEdit(IN.key, { hide: e.target.checked ? null : true });
+$("#inspResetAll").onclick = () => {
+  if (!IN.key) return;
+  tlBegin(); S.ed = S.ed || { segments: null, clips: {} }; S.ed.frame = S.ed.frame || {};
+  delete S.ed.frame[IN.key]; if (IN.tk) delete S.ed.frame[IN.tk]; tlCommit(); toast("Back to how it was built");
+};
+const inspClose = () => { inspCommit(); feSelect(null); renderInsp(); };
+$("#inspClose").onclick = inspClose; $("#inspDone").onclick = inspClose;
 ink.addEventListener("pointercancel", inkEnd);
 
 function paintShapes(c, shapes, W, H, alpha) {
@@ -1010,7 +1135,7 @@ function frame() {
     tc(); draw();
   }
   try { drawInk(); } catch (e) { console.error("drawInk", e); }
-  try { feDraw(); } catch (e) { console.error("feDraw", e); }
+  try { feDraw(); renderInsp(); } catch (e) { console.error("feDraw", e); }
   requestAnimationFrame(frame);
 }
 async function poll() {

@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutnote: review, mark up and cut videos in your browser</title>
+<meta name="description" content="A free, local video review player and timeline editor. Leave timestamped notes, draw on frames, cut and reframe, then hand the notes to Claude.">
+<meta property="og:title" content="Cutnote">
+<meta property="og:description" content="Review, mark up and cut videos in your browser, then hand the notes to Claude.">
+<meta property="og:image" content="img/hero-light.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f6f3; --panel: #ffffff; --ink: #121316; --dim: #5b6068; --faint: #8a8f97; --line: #e4e4df;
+    --lime: #c6f432; --lime-ink: #141a00; --lime-text: #4d6b00; --dark: #0f1013; --dark-2: #17191d;
+    --shadow: 0 30px 80px rgba(20,22,26,.16), 0 4px 14px rgba(20,22,26,.06);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 Inter, -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+  code, kbd, pre { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+
+  /* nav */
+  nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
+  nav.scrolled { border-color: var(--line); }
+  nav .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; text-decoration: none; }
+  .logo { width: 30px; height: 30px; border-radius: 9px; background: var(--lime); color: var(--lime-ink); display: grid; place-items: center; }
+  .logo svg { width: 17px; height: 17px; }
+  nav .links { display: flex; gap: 22px; margin-left: auto; font-size: 15px; color: var(--dim); }
+  nav .links a { text-decoration: none; } nav .links a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 22px; border-radius: 12px; font-weight: 600; font-size: 16px; text-decoration: none; border: 1px solid var(--line); background: var(--panel); transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; color: var(--ink); }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(20,22,26,.08); }
+  .btn.primary { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn svg { width: 18px; height: 18px; }
+  nav .btn { height: 38px; padding: 0 14px; font-size: 14px; }
+
+  /* hero */
+  .hero { padding: 72px 0 40px; text-align: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; color: var(--dim); }
+  .eyebrow b { background: var(--lime); color: var(--lime-ink); border-radius: 999px; padding: 2px 9px; font-size: 12px; }
+  h1 { font-size: clamp(42px, 7vw, 80px); line-height: 1.02; letter-spacing: -.045em; margin: 22px auto 0; max-width: 900px; font-weight: 800; }
+  h1 .hl { background: linear-gradient(transparent 62%, var(--lime) 62%, var(--lime) 92%, transparent 92%); padding: 0 .06em; }
+  .lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--dim); max-width: 660px; margin: 24px auto 0; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .note { font-size: 14px; color: var(--faint); margin-top: 16px; }
+  .shot { margin: 56px auto 0; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--line); background: var(--panel); }
+  .shot .bar { display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; background: #ecece8; border-bottom: 1px solid var(--line); }
+  .shot .bar i { width: 11px; height: 11px; border-radius: 50%; background: #d4d4ce; }
+  .shot .bar span { margin-left: 12px; font: 12px "JetBrains Mono", monospace; color: var(--faint); }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  /* sections */
+  section { padding: 96px 0; }
+  .sec-head { max-width: 720px; margin-bottom: 44px; }
+  .kicker { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lime-text); }
+  h2 { font-size: clamp(32px, 4.4vw, 50px); line-height: 1.06; letter-spacing: -.035em; margin: 10px 0 0; font-weight: 800; }
+  .sec-head p { color: var(--dim); font-size: 19px; margin: 16px 0 0; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px; }
+  .step .n { width: 36px; height: 36px; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 700; }
+  .step h3 { font-size: 21px; margin: 18px 0 6px; letter-spacing: -.02em; }
+  .step p { margin: 0; color: var(--dim); font-size: 16px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px; transition: transform .2s, box-shadow .2s; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(20,22,26,.07); }
+  .card .ic { width: 42px; height: 42px; border-radius: 12px; background: #f1f6dd; color: var(--lime-text); display: grid; place-items: center; }
+  .card .ic svg { width: 22px; height: 22px; }
+  .card h3 { font-size: 18px; margin: 16px 0 6px; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--dim); font-size: 15px; }
+
+  .dark-sec { background: var(--dark); color: #f2f2f0; }
+  .dark-sec .sec-head p, .dark-sec li { color: #a9adb4; }
+  .dark-sec .kicker { color: var(--lime); }
+  .split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; }
+  .split ul { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 14px; }
+  .split li { display: flex; gap: 12px; font-size: 17px; }
+  .split li::before { content: ""; flex: none; width: 20px; height: 20px; margin-top: 3px; border-radius: 50%; background: var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23141a00' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/13px no-repeat; }
+  .split li b { color: #fff; }
+  .dark-sec .shot { border-color: #2a2d33; background: var(--dark-2); }
+  .dark-sec .shot .bar { background: #1c1e22; border-color: #2a2d33; } .dark-sec .shot .bar i { background: #3a3d44; }
+
+  /* install */
+  .tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: #ebebe6; margin-bottom: 18px; flex-wrap: wrap; }
+  .tabs button { border: 0; background: transparent; padding: 9px 16px; border-radius: 9px; font: 600 15px Inter, sans-serif; color: var(--dim); cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .panel { display: none; } .panel.on { display: block; }
+  .panel > p { color: var(--dim); margin: 0 0 14px; }
+  .code { position: relative; background: var(--dark); color: #e9eaec; border-radius: 14px; padding: 18px 64px 18px 20px; font-size: 15px; overflow-x: auto; margin: 0 0 12px; white-space: pre; }
+  .code .c { color: #8a8f97; }
+  .copy { position: absolute; right: 10px; top: 10px; border: 1px solid #33363c; background: #1d1f24; color: #e9eaec; border-radius: 8px; height: 32px; padding: 0 10px; font: 600 12px Inter, sans-serif; cursor: pointer; }
+  .copy.ok { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+  .reqs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; }
+  .req { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; font-size: 15px; color: var(--dim); }
+  .req b { display: block; color: var(--ink); margin-bottom: 4px; }
+
+  /* keys */
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 36px; }
+  .k { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  kbd { display: inline-block; min-width: 26px; text-align: center; padding: 3px 7px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); border-bottom-width: 2px; font-size: 13px; }
+
+  /* faq */
+  .faq { max-width: 820px; }
+  details { border-bottom: 1px solid var(--line); padding: 18px 0; }
+  summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::after { content: "+"; font-weight: 400; font-size: 24px; line-height: 1; color: var(--faint); transition: transform .2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--dim); margin: 10px 0 0; }
+
+  .final { text-align: center; padding: 100px 0; }
+  .final h2 { max-width: 760px; margin: 0 auto; }
+  footer { border-top: 1px solid var(--line); padding: 30px 0; font-size: 14px; color: var(--faint); }
+  footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between; }
+
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+  @media (max-width: 900px) {
+    .steps, .grid, .reqs, .keys { grid-template-columns: 1fr; }
+    .split { grid-template-columns: 1fr; gap: 32px; }
+    nav .links { display: none; }
+    section { padding: 70px 0; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="blade" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></g></symbol>
+  <symbol id="gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 016 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .5z"/></symbol>
+</svg>
+
+<nav id="nav"><div class="wrap">
+  <a class="brand" href="#"><span class="logo"><svg><use href="#blade"/></svg></span>Cutnote</a>
+  <div class="links"><a href="#how">How it works</a><a href="#features">Features</a><a href="#install">Install</a><a href="#faq">FAQ</a></div>
+  <a class="btn" href="https://github.com/Jackd0127-dev/cutnote"><svg><use href="#gh"/></svg>GitHub</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="eyebrow"><b>Free</b> Open source · runs on your computer</span>
+  <h1>Review your videos. <span class="hl">Leave notes.</span> Let Claude fix them.</h1>
+  <p class="lede">Cutnote is a video review player and timeline editor that runs in your browser. Pause anywhere, write a note, draw on the frame, cut the footage, drag things around. Everything saves as plain files Claude Code can act on.</p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Install in one line</a>
+    <a class="btn dark" href="https://github.com/Jackd0127-dev/cutnote"><svg><use href="#gh"/></svg>View on GitHub</a>
+  </div>
+  <p class="note">macOS, Linux and Windows. Python and ffmpeg. No account, no uploads.</p>
+  <div class="shot reveal"><div class="bar"><i></i><i></i><i></i><span>localhost:4790</span></div><img src="img/hero-light.jpg" width="1440" height="900" alt="Cutnote with a video, a drawing on the frame, notes in the sidebar and a timeline with a cut"></div>
+</div></header>
+
+<section id="how"><div class="wrap">
+  <div class="sec-head reveal"><span class="kicker">How it works</span><h2>A review loop that doesn't need a render.</h2><p>No exporting drafts and no sending timestamps over chat. You watch the real thing, point at what's wrong, and it gets fixed in front of you.</p></div>
+  <div class="steps">
+    <div class="step reveal"><span class="n">1</span><h3>Open a folder</h3><p>Point Cutnote at a project. It finds your videos and HyperFrames compositions and plays them instantly.</p></div>
+    <div class="step reveal"><span class="n">2</span><h3>Note, draw, cut</h3><p>Press <kbd>N</kbd> to leave a note at that frame. Circle things, trim the footage, move a caption.</p></div>
+    <div class="step reveal"><span class="n">3</span><h3>Claude fixes it</h3><p>Your notes land in <code>review-notes.md</code>. Claude makes the changes, marks each note done with a reply, and the page reloads by itself.</p></div>
+  </div>
+</div></section>
+
+<section id="features" style="padding-top:0"><div class="wrap">
+  <div class="sec-head reveal"><span class="kicker">Features</span><h2>Everything you need to sign off a cut.</h2></div>
+  <div class="grid">
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/></svg></div><h3>Timestamped notes</h3><p>Fix, change or remember. Each note records the frame, an optional in/out range, and what was on screen.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 17c3-1 4-6 7-6s2 5 5 5 4-6 6-8"/></svg></div><h3>Draw on any frame</h3><p>Scribbles and boxes in any colour. Move, resize and delete marks. Each drawing saves as a PNG for Claude.</p></div>
+    <div class="card reveal"><div class="ic"><svg><use href="#blade"/></svg></div><h3>A real timeline</h3><p>Blade, split, ripple delete, trim to playhead, drag to reorder, snapping, undo, filmstrip and waveform.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg></div><h3>Edit what's on screen</h3><p>Click a caption or card on the frame. Drag it, resize it, recolour it, or change its words in the sidebar.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><rect x="2" y="7" width="20" height="10" rx="2" stroke-dasharray="3 3"/></svg></div><h3>Every format</h3><p>Reframe for 9:16, 4:5, 1:1, 16:9 or 4:3 by dragging a crop window over the frame.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6"/></svg></div><h3>Export the cut</h3><p>For plain video files, render your cut and reframe with ffmpeg. It writes a new file and never overwrites yours.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h3>Approval gate</h3><p>Approve the exact build you signed off. Render scripts can refuse anything that isn't approved.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg></div><h3>Light and dark</h3><p>Light by default, dark with one key. Custom dropdowns and editor-standard shortcuts.</p></div>
+    <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div><h3>Private by design</h3><p>Runs on 127.0.0.1. Serves only the folder you open and never touches Keys, private folders or .env files.</p></div>
+  </div>
+</div></section>
+
+<section class="dark-sec"><div class="wrap split">
+  <div class="reveal">
+    <span class="kicker">Edit on frame</span>
+    <h2>Click it. Move it. Retype it.</h2>
+    <p style="color:#a9adb4;font-size:19px;margin:16px 0 0">Select any overlay, card or caption, even ones a script builds while it plays. The sidebar opens with everything you can change.</p>
+    <ul>
+      <li><span><b>Text:</b> change the words. Word-by-word animation keeps working.</span></li>
+      <li><span><b>Position and size:</b> drag on the frame or type exact pixels.</span></li>
+      <li><span><b>Colour and visibility:</b> recolour text or hide it.</span></li>
+      <li><span><b>Layers:</b> drag clips up or down on the timeline to put them in front of or behind each other.</span></li>
+    </ul>
+  </div>
+  <div class="shot reveal"><div class="bar"><i></i><i></i><i></i><span>dark mode</span></div><img src="img/inspector-dark.jpg" width="1440" height="900" alt="Cutnote in dark mode with a card selected on the frame and the edit sidebar open"></div>
+</div></section>
+
+<section id="install"><div class="wrap">
+  <div class="sec-head reveal"><span class="kicker">Install</span><h2>Up and running in a minute.</h2><p>Pick whichever suits you. All three give you the same app.</p></div>
+  <div class="reveal">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-p="p1">With Claude Code</button>
+      <button role="tab" aria-selected="false" data-p="p2">One command</button>
+      <button role="tab" aria-selected="false" data-p="p3">By hand</button>
+    </div>
+    <div class="panel on" id="p1">
+      <p>Paste this into Claude Code. It installs Cutnote, checks Python and ffmpeg, opens your folder and gives you the link.</p>
+      <div class="code">Install Cutnote from https://github.com/Jackd0127-dev/cutnote (follow its AGENTS.md), then open it on the folder with my video.<button class="copy">Copy</button></div>
+      <p>When you've left notes, tell Claude <b>"I've left notes"</b>. It reads them, makes the changes and marks each one done.</p>
+    </div>
+    <div class="panel" id="p2">
+      <p>Clones Cutnote into <code>~/.cutnote</code> and adds a <code>cutnote</code> command.</p>
+      <div class="code">curl -fsSL https://raw.githubusercontent.com/Jackd0127-dev/cutnote/main/install.sh | sh<button class="copy">Copy</button></div>
+      <div class="code">cutnote ~/Videos/my-project<button class="copy">Copy</button></div>
+    </div>
+    <div class="panel" id="p3">
+      <p>No installer, just the code.</p>
+      <div class="code">git clone https://github.com/Jackd0127-dev/cutnote.git<button class="copy">Copy</button></div>
+      <div class="code">python3 cutnote/review.py cutnote/examples/demo<button class="copy">Copy</button></div>
+      <p>That opens the bundled demo. Point it at your own folder the same way.</p>
+    </div>
+    <div class="reqs">
+      <div class="req"><b>Python 3.8+</b>Standard library only. Nothing to pip install.</div>
+      <div class="req"><b>ffmpeg + ffprobe</b>For the filmstrip, waveform and Export cut. <code>brew install ffmpeg</code></div>
+      <div class="req"><b>Node.js 18+ (optional)</b>Only for HyperFrames compositions. Run <code>npx hyperframes --version</code> once.</div>
+    </div>
+  </div>
+</div></section>
+
+<section style="padding-top:0"><div class="wrap">
+  <div class="sec-head reveal"><span class="kicker">Keyboard</span><h2>Shortcuts you already know.</h2><p>The same keys as the big editors. Press <kbd>?</kbd> in the app for the full list.</p></div>
+  <div class="keys reveal">
+    <div class="k">Play / pause<span><kbd>Space</kbd></span></div><div class="k">Back, stop, play<span><kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span></div><div class="k">Step a frame<span><kbd>←</kbd> <kbd>→</kbd></span></div>
+    <div class="k">Blade tool<span><kbd>B</kbd></span></div><div class="k">Split at playhead<span><kbd>⌘B</kbd></span></div><div class="k">Delete (ripple)<span><kbd>⌫</kbd></span></div>
+    <div class="k">Trim to playhead<span><kbd>Q</kbd> <kbd>W</kbd></span></div><div class="k">Undo / redo<span><kbd>⌘Z</kbd> <kbd>⇧⌘Z</kbd></span></div><div class="k">Previous / next cut<span><kbd>↑</kbd> <kbd>↓</kbd></span></div>
+    <div class="k">New note<span><kbd>N</kbd></span></div><div class="k">Scribble / box<span><kbd>P</kbd> <kbd>R</kbd></span></div><div class="k">Light / dark<span><kbd>⇧D</kbd></span></div>
+  </div>
+</div></section>
+
+<section id="faq" style="padding-top:0"><div class="wrap faq">
+  <div class="sec-head reveal"><span class="kicker">FAQ</span><h2>Questions</h2></div>
+  <details class="reveal"><summary>Is it free?</summary><p>Yes. Cutnote is open source under the MIT licence. Use it for anything, including client work.</p></details>
+  <details class="reveal"><summary>Does it upload my videos anywhere?</summary><p>No. It's a small server on your own computer, listening on 127.0.0.1. Your files never leave your machine unless you choose to share them.</p></details>
+  <details class="reveal"><summary>Do I need Claude to use it?</summary><p>No. Notes are plain Markdown and JSON, so any editor can read them. Claude Code just makes the loop fast: it reads the notes, makes the changes and replies on each one.</p></details>
+  <details class="reveal"><summary>What is HyperFrames?</summary><p>HyperFrames builds videos out of HTML and animation code. Cutnote plays those compositions live without rendering them. If you only work with normal video files, you don't need it.</p></details>
+  <details class="reveal"><summary>Will it change my original files?</summary><p>Never. Timeline edits on a composition are saved as instructions for the rebuild. Export cut writes a new file next to the original.</p></details>
+  <details class="reveal"><summary>Which browsers work?</summary><p>Any recent Chrome, Edge, Arc, Brave or Safari. Chrome-based browsers play the most video formats.</p></details>
+</div></section>
+
+<section class="final"><div class="wrap reveal">
+  <h2>Stop sending timestamps in chat.</h2>
+  <div class="cta"><a class="btn primary" href="#install">Get Cutnote</a><a class="btn" href="https://github.com/Jackd0127-dev/cutnote"><svg><use href="#gh"/></svg>Star on GitHub</a></div>
+</div></section>
+
+<footer><div class="wrap"><span>Cutnote · MIT licence</span><span>Not affiliated with HyperFrames or Anthropic.</span></div></footer>
+
+<script>
+  const nav = document.getElementById("nav");
+  addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 8), { passive: true });
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === b.dataset.p));
+  });
+  document.querySelectorAll(".copy").forEach(btn => btn.onclick = () => {
+    const text = [...btn.parentNode.childNodes].filter(n => n !== btn).map(n => n.textContent).join("").trim();
+    navigator.clipboard.writeText(text).then(() => { btn.textContent = "Copied"; btn.classList.add("ok"); setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("ok"); }, 1600); });
+  });
+</script>
+</body>
+</html>

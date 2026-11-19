@@ -151,6 +151,7 @@ class State:
         return out
 
     def safe(self, rel):
+        rel = (rel or "").lstrip("/")
         base = os.path.realpath(self.video)
         full = os.path.realpath(os.path.join(self.video, rel))
         ok = full == base or full.startswith(base + os.sep)
@@ -470,10 +471,12 @@ def clean_frame(fr):
                 x[n] = round(float(v), 4)
         if o.get("hide") is True:
             x["hide"] = True
+        if isinstance(o.get("color"), str) and re.fullmatch(r"#[0-9a-fA-F]{6}", o["color"]):
+            x["color"] = o["color"]
         for n in ("text", "was", "name"):
             if isinstance(o.get(n), str):
                 x[n] = o[n][:2000]
-        if x.get("dx") or x.get("dy") or x.get("s", 1) != 1 or "text" in x or x.get("hide"):
+        if x.get("dx") or x.get("dy") or x.get("s", 1) != 1 or "text" in x or x.get("hide") or x.get("color"):
             out[k] = x
     return out or None
 
@@ -692,7 +695,7 @@ class H(BaseHTTPRequestHandler):
             if os.path.basename(d) == "out" and not os.path.exists(os.path.join(os.path.dirname(f), "assets")):
                 d = os.path.dirname(d)
             with open(f, encoding="utf-8", errors="replace") as fh:
-                body = inject(fh.read(), "/f/" + quote(d) + "/")
+                body = inject(fh.read(), "/f/" + (quote(d) + "/" if d else ""))
             return self.send(200, body, "text/html; charset=utf-8")
         if path.startswith("/f/"):
             f = st.safe(path[3:])

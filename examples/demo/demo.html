@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Cutnote demo composition</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0b0d12; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; color: #fff; }
+      #bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      #shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,0) 40%, rgba(0,0,0,.35)); }
+
+      /* title */
+      #title { position: absolute; left: 90px; right: 90px; top: 560px; text-align: center; }
+      #title .kick { display: inline-block; font-size: 34px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #c6f432; }
+      #title h1 { font-size: 168px; line-height: .95; font-weight: 800; letter-spacing: -.05em; margin-top: 18px; }
+      #title p { font-size: 46px; line-height: 1.25; color: rgba(255,255,255,.82); margin-top: 28px; }
+
+      /* stat card */
+      #stat { position: absolute; left: 110px; right: 110px; top: 560px; padding: 54px 60px; border-radius: 44px; background: rgba(255,255,255,.94); color: #111; box-shadow: 0 40px 90px rgba(0,0,0,.35); }
+      #stat .lbl { font-size: 30px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6b7280; }
+      #stat .big { font-size: 150px; font-weight: 800; letter-spacing: -.06em; line-height: 1; margin-top: 10px; }
+      #stat .big em { font-style: normal; color: #7aa800; }
+      #stat .sub { font-size: 40px; color: #374151; margin-top: 14px; }
+
+      /* lower third */
+      #lower { position: absolute; left: 70px; bottom: 230px; display: flex; align-items: center; gap: 26px; padding: 26px 40px 26px 26px; border-radius: 999px; background: rgba(12,14,20,.78); backdrop-filter: blur(10px); }
+      #lower .dot { width: 76px; height: 76px; border-radius: 50%; background: #c6f432; color: #141a00; display: grid; place-items: center; font-size: 40px; font-weight: 800; }
+      #lower b { display: block; font-size: 40px; }
+      #lower span { display: block; font-size: 30px; color: rgba(255,255,255,.7); }
+
+      /* end card */
+      #end { position: absolute; left: 90px; right: 90px; top: 620px; text-align: center; }
+      #end h2 { font-size: 120px; font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+      #end .pill { display: inline-block; margin-top: 46px; padding: 22px 44px; border-radius: 999px; background: #c6f432; color: #141a00; font-size: 44px; font-weight: 800; }
+
+      /* captions, one word at a time */
+      .cap { position: absolute; left: 80px; right: 80px; top: 1230px; display: flex; flex-wrap: wrap; justify-content: center; column-gap: 18px; }
+      .w { display: inline-block; font-size: 84px; font-weight: 800; letter-spacing: -.03em; text-shadow: 0 6px 26px rgba(0,0,0,.5); opacity: .25; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="12" data-width="1080" data-height="1920">
+      <video id="bg" class="clip" src="background.webm" data-start="0" data-duration="12" data-track-index="0" playsinline data-has-audio="true"></video>
+      <div id="shade"></div>
+
+      <div id="title" class="clip" data-start="0.3" data-duration="3.4" data-track-index="2">
+        <span class="kick">Demo composition</span>
+        <h1>Cutnote</h1>
+        <p>Review, mark up and cut videos in your browser.</p>
+      </div>
+
+      <div id="stat" class="clip" data-start="4" data-duration="3.6" data-track-index="3">
+        <div class="lbl">Notes left on this video</div>
+        <div class="big"><em>0</em> renders</div>
+        <div class="sub">Everything plays live from the code.</div>
+      </div>
+
+      <div id="lower" class="clip" data-start="4.6" data-duration="3" data-track-index="4">
+        <div class="dot">C</div>
+        <div><b>Try it</b><span>Click me, drag me, double-click my text</span></div>
+      </div>
+
+      <div id="end" class="clip" data-start="8.2" data-duration="3.8" data-track-index="5">
+        <h2>Leave a note.<br>Claude fixes it.</h2>
+        <span class="pill">Press N</span>
+      </div>
+
+      <div class="cap clip" id="cap1" data-start="0.6" data-duration="3.1" data-track-index="6">
+        <span class="w" id="w1">This</span> <span class="w" id="w2">is</span> <span class="w" id="w3">a</span> <span class="w" id="w4">caption</span>
+      </div>
+      <div class="cap clip" id="cap2" data-start="4.1" data-duration="3.6" data-track-index="6">
+        <span class="w" id="w5">Drag</span> <span class="w" id="w6">the</span> <span class="w" id="w7">card</span> <span class="w" id="w8">anywhere</span>
+      </div>
+      <div class="cap clip" id="cap3" data-start="8.3" data-duration="3.5" data-track-index="6">
+        <span class="w" id="w9">Cut</span> <span class="w" id="w10">with</span> <span class="w" id="w11">B</span>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const pop = (sel, at, out) => {
+        tl.fromTo(sel, { opacity: 0, y: 40, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: .45, ease: "power3.out", immediateRender: false }, at);
+        tl.to(sel, { opacity: 0, y: -20, duration: .3, ease: "power2.in" }, out);
+      };
+      gsap.set(["#title", "#stat", "#lower", "#end", ".cap"], { opacity: 0 });
+      pop("#title", 0.3, 3.4);
+      pop("#stat", 4.0, 7.3);
+      tl.fromTo("#lower", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: .5, ease: "power3.out", immediateRender: false }, 4.6);
+      tl.to("#lower", { opacity: 0, x: -40, duration: .3 }, 7.3);
+      pop("#end", 8.2, 11.6);
+      tl.fromTo("#stat .big em", { textContent: 9 }, { textContent: 0, duration: 1.2, snap: { textContent: 1 }, ease: "power1.out", immediateRender: false }, 4.3);
+      const caps = [["#cap1", 0.6, 3.6, [0.6, 1.0, 1.25, 1.5]], ["#cap2", 4.1, 7.6, [4.1, 4.6, 4.9, 5.3]], ["#cap3", 8.3, 11.7, [8.3, 8.8, 9.3]]];
+      let n = 1;
+      for (const [sel, a, b, words] of caps) {
+        tl.to(sel, { opacity: 1, duration: .15 }, a);
+        for (const t of words) tl.to("#w" + n++, { opacity: 1, duration: .12 }, t);
+        tl.to(sel, { opacity: 0, duration: .2 }, b);
+      }
+      tl.to("#bg", { scale: 1.08, duration: 12, ease: "none" }, 0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
