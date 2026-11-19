@@ -94,6 +94,10 @@
   #libBoxes { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
   .lb-box { position: absolute; border-radius: 10px; }
   .lb-box.drag { outline: 1.5px dashed rgba(255,255,255,.85); outline-offset: 2px; }
+  .lb-box.sel { outline: 2px solid #c6f432; outline-offset: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .lb-h { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 2px; background: #fff; border: 1.5px solid #6f8f00; pointer-events: auto; }
+  .lb-h.nw { left: 0; top: 0; cursor: nwse-resize; } .lb-h.ne { left: 100%; top: 0; cursor: nesw-resize; }
+  .lb-h.sw { left: 0; top: 100%; cursor: nesw-resize; } .lb-h.se { left: 100%; top: 100%; cursor: nwse-resize; }
 
   .lb-chip { position: absolute; left: -2px; bottom: calc(100% + 6px); max-width: 280px; pointer-events: auto; cursor: grab; display: flex; align-items: center; gap: 6px; padding: 4px 9px 4px 7px;
     border-radius: 9px; background: ${NEON}; color: #04210f; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
@@ -350,7 +354,7 @@
     const p = placements().find(q => q.id === id); if (!p) return;
     const def = VideoLibrary.components[p.c.id]; if (!def) return;
     const kind = p.cap ? "cap" : "lib";
-    D.editing = id;
+    D.editing = id; D.selected = p.cap ? null : id;
     SP.show(kind);
     ensureLoaded().then(() => {
       if (!P[kind].dataset.built) render(kind);
@@ -377,7 +381,7 @@
       buildForm(form, def, params, save, extra);
       let h = 0; form.addEventListener("input", e => { if (e.target.dataset.x) { clearTimeout(h); h = setTimeout(save, 350); } });
       body.querySelector(".back").onclick = () => { D.editing = null; D.detail[kind] = null; render(kind); };
-      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.detail[kind] = null; render(kind); };
+      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; render(kind); paintFrame(); };
       body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
       if (!p.cap) seek(Math.max(S.t, p.t));
     });
@@ -394,7 +398,8 @@
         const dur = cap ? null : +((c.params && c.params.duration) || (def && def.duration) || 3);
         const drag = D.drag && D.drag.id === n.id ? D.drag : null;
         return { id: n.id, n, c, cap, t: drag && drag.t != null ? drag.t : +n.t || 0, dur: drag && drag.dur != null ? drag.dur : dur,
-          dx: drag && drag.dx != null ? drag.dx : +c.dx || 0, dy: drag && drag.dy != null ? drag.dy : +c.dy || 0 };
+          dx: drag && drag.dx != null ? drag.dx : +c.dx || 0, dy: drag && drag.dy != null ? drag.dy : +c.dy || 0,
+          s: drag && drag.s != null ? drag.s : +c.scale || 1 };
       });
   }
   D.hasLane = () => placements().length > 0;
@@ -603,56 +608,64 @@
   });
 
   /* ---------- video: neon outlines while each one plays (drag the chip to move it) ---------- */
+  // where a placed component sits on the canvas (component px), with its move and size applied
+  function boxOf(p) {
+    const b = measureBox(p.c.id, p.c.params);
+    if (!b || b.whole || !(b.x1 > b.x0)) return { x0: 0, y0: 0, x1: VideoLibrary.W, y1: VideoLibrary.H, cx: VideoLibrary.W / 2, cy: VideoLibrary.H / 2, whole: true };
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, hw = (b.x1 - b.x0) / 2 * p.s, hh = (b.y1 - b.y0) / 2 * p.s;
+    return { x0: cx - hw + p.dx, y0: cy - hh + p.dy, x1: cx + hw + p.dx, y1: cy + hh + p.dy, cx, cy };
+  }
   function paintFrame() {
     frameBits();
     const box = $("#libBoxes"), fr = frEl.getBoundingClientRect();
     if (!fr.width || !window.VideoLibrary) { box.innerHTML = ""; return; }
-    const m = MAP(), fx = fr.width / S.W, sx = m.k * fx, sy = m.k * fx, ox = m.ox * fx, oy = m.oy * fx, html = [];
+    const m = MAP(), fx = fr.width / S.W, k = m.k * fx, ox = m.ox * fx, oy = m.oy * fx, html = [];
     for (const p of placements()) {
       if (p.cap || !(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
-      const b = measureBox(p.c.id, p.c.params);
-      let x0, y0, x1, y1;
-      if (!b || b.whole || !(b.x1 > b.x0)) { x0 = 14; y0 = 14; x1 = VideoLibrary.W - 14; y1 = VideoLibrary.H - 14; }
-      else { x0 = b.x0 + p.dx - 14; y0 = b.y0 + p.dy - 14; x1 = b.x1 + p.dx + 14; y1 = b.y1 + p.dy + 14; }
-      x0 = Math.max(4, x0); x1 = Math.min(VideoLibrary.W - 4, x1);
-      const low = y0 < 160;
-      // keep the chip inside the frame: as wide as the room to the frame's right edge (at least the box)
-      const room = Math.max((x1 - x0) * sx, fr.width - Math.max(0, ox + x0 * sx) - 4);
-      const chip = "";
-      html.push(`<div class="lb-box${p.cap ? " cap" : ""}${low ? " low" : ""}" data-id="${esc(p.id)}" style="left:${ox + x0 * sx}px;top:${oy + y0 * sy}px;width:${(x1 - x0) * sx}px;height:${(y1 - y0) * sy}px"></div>`);
+      const q = boxOf(p), pad = 10, sel = D.selected === p.id;
+      const L = ox + (q.x0 - pad) * k, T = oy + (q.y0 - pad) * k, W = (q.x1 - q.x0 + pad * 2) * k, H = (q.y1 - q.y0 + pad * 2) * k;
+      const hs = sel && !q.whole ? ["nw", "ne", "sw", "se"].map(c => `<i class="lb-h ${c}" data-h="${c}"></i>`).join("") : "";
+      html.push(`<div class="lb-box${sel ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${L.toFixed(1)}px;top:${T.toFixed(1)}px;width:${W.toFixed(1)}px;height:${H.toFixed(1)}px">${hs}</div>`);
     }
-    if (box.innerHTML !== html.join("")) box.innerHTML = html.join("");
+    const out = html.join("");
+    if (box._html !== out) { box.innerHTML = out; box._html = out; }
   }
-  // move a placed component: drag its chip, or (with the Select tool) the component itself
+  D.select = id => { D.selected = id || null; paintFrame(); };
+  // select, move (drag it) and resize (drag a corner) a placed component on the video, with the Select tool
   frEl.addEventListener("pointerdown", e => {
     if (e.button !== 0 || !window.VideoLibrary) return;
-    let boxEl = e.target.closest(".lb-chip") && e.target.closest(".lb-box");
+    const handle = e.target.closest(".lb-h");
+    let boxEl = handle && handle.closest(".lb-box");
     if (!boxEl && typeof INK !== "undefined" && INK.tool === "select") {
-      boxEl = [...frEl.querySelectorAll(".lb-box:not(.cap)")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
+      boxEl = [...frEl.querySelectorAll(".lb-box")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
     }
-    if (!boxEl) return;
-    const p = placements().find(q => q.id === boxEl.dataset.id);
+    if (!boxEl) { if (D.selected && typeof INK !== "undefined" && INK.tool === "select") D.select(null); return; }
+    const p = placements().find(q => q.id === boxEl.dataset.id); if (!p) return;
     e.preventDefault(); e.stopPropagation();
-    if (!p || p.cap) { if (p) openPlacement(p.id); return; }
-    const fr = frEl.getBoundingClientRect(), per = S.W / fr.width / MAP().k;   // screen px -> component px
-    D.drag = { id: p.id, x0: e.clientX, y0: e.clientY, dx0: p.dx, dy0: p.dy, moved: false };
+    if (D.selected !== p.id) { D.selected = p.id; openPlacement(p.id); paintFrame(); }
+    const fr = frEl.getBoundingClientRect(), m = MAP(), per = S.W / fr.width / m.k;   // screen px -> component px
+    const q = boxOf(p), ccx = fr.left + (m.ox + (q.cx + p.dx) * m.k) * fr.width / S.W, ccy = fr.top + (m.oy + (q.cy + p.dy) * m.k) * fr.width / S.W;
+    const r0 = Math.hypot(e.clientX - ccx, e.clientY - ccy) || 1;
+    D.drag = { id: p.id, mode: handle ? "size" : "move", x0: e.clientX, y0: e.clientY, dx0: p.dx, dy0: p.dy, s0: p.s, moved: false };
     trackDrag(ev => {
       const d = D.drag; if (!d) return;
-      d.dx = Math.round(d.dx0 + (ev.clientX - d.x0) * per); d.dy = Math.round(d.dy0 + (ev.clientY - d.y0) * per);
       if (Math.abs(ev.clientX - d.x0) + Math.abs(ev.clientY - d.y0) > 3) d.moved = true;
-      paintFrame(); liveMove(p.id, d.dx, d.dy);
-      const bx = frEl.querySelector(`.lb-box[data-id="${p.id}"]`); if (bx) bx.classList.add("drag");
+      if (d.mode === "move") { d.dx = Math.round(d.dx0 + (ev.clientX - d.x0) * per); d.dy = Math.round(d.dy0 + (ev.clientY - d.y0) * per); }
+      else d.s = Math.max(0.25, Math.min(4, +(d.s0 * Math.hypot(ev.clientX - ccx, ev.clientY - ccy) / r0).toFixed(3)));
+      paintFrame(); const z = placements().find(x => x.id === p.id); if (z) liveMove(p.id, z.dx, z.dy, z.s);
     }, async cancelled => {
       const d = D.drag;
-      if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy); paintFrame(); if (d && !cancelled) openPlacement(p.id); return; }
+      if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy, +p.c.scale || 1); paintFrame(); return; }
+      const c = Object.assign({}, p.c);
+      if (d.mode === "move") { c.dx = d.dx; c.dy = d.dy; } else c.scale = d.s;
       const b = measureBox(p.c.id, p.c.params);
-      const c = Object.assign({}, p.c, { dx: d.dx, dy: d.dy });
-      if (b && b.x1 > b.x0) { const m = MAP(); c.x = Math.round(m.ox + ((b.x0 + b.x1) / 2 + d.dx) * m.k); c.y = Math.round(m.oy + ((b.y0 + b.y1) / 2 + d.dy) * m.k); }
-      try { await noteOp("update", { id: p.id, component: c }); toast("Moved"); }
-      catch (err) { toast("Couldn't save the move"); }
+      if (b && b.x1 > b.x0) { c.x = Math.round(m.ox + ((b.x0 + b.x1) / 2 + (+c.dx || 0)) * m.k); c.y = Math.round(m.oy + ((b.y0 + b.y1) / 2 + (+c.dy || 0)) * m.k); }
+      try { await noteOp("update", { id: p.id, component: c }); toast(d.mode === "move" ? "Moved" : `Size ${Math.round(d.s * 100)}%`); }
+      catch (err) { toast("Couldn't save that"); }
       finally { D.drag = null; sync(true); }
     });
   }, true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && D.selected && !e.target.closest("input, textarea")) D.select(null); });
 
   /* ---------- live: placed components play on the video at once ----------
    * Mounted into the composition's own page and added to its GSAP timeline, so they play, scrub and loop with the edit.
@@ -663,7 +676,12 @@
     return fr && fr.w && fr.w.gsap && fr.w.__timelines && fr.w.__timelines.main ? fr : null;
   }
   function loadInto(w, src) { return new Promise(res => { const s = w.document.createElement("script"); s.src = src; s.onload = s.onerror = res; setTimeout(res, 6000); try { w.document.head.appendChild(s); } catch (e) { res(); } }); }
-  function liveT(dx, dy) { const m = MAP(); return `translate(${m.ox}px,${m.oy}px) scale(${m.k}) translate(${+dx || 0}px,${+dy || 0}px)`; }
+  function liveT(dx, dy, sc, cx, cy) {
+    const m = MAP(), z = +sc || 1;
+    const grow = z !== 1 && cx != null ? ` translate(${cx}px,${cy}px) scale(${z}) translate(${-cx}px,${-cy}px)` : "";
+    return `translate(${m.ox}px,${m.oy}px) scale(${m.k}) translate(${+dx || 0}px,${+dy || 0}px)${grow}`;
+  }
+  function centreOf(p) { const b = measureBox(p.c.id, p.c.params); return b && b.x1 > b.x0 && !b.whole ? [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2] : [null, null]; }
   function fixScrims(holder, dx, dy) {
     for (const sc of holder.querySelectorAll(".vl-scrim")) {
       if (sc.dataset.h0 == null) sc.dataset.h0 = parseFloat(sc.style.height) || 0;
@@ -671,13 +689,16 @@
       sc.style.height = (+sc.dataset.h0 + Math.max(0, -(+dy || 0)) + 200) + "px";
     }
   }
-  function liveMove(id, dx, dy) { for (const v of LIVE.items.values()) if (v.id === id) { v.holder.style.transform = liveT(dx, dy); fixScrims(v.holder, dx, dy); } }
+  function liveMove(id, dx, dy, sc) {
+    const p = placements().find(q => q.id === id); const [cx, cy] = p ? centreOf(p) : [null, null];
+    for (const v of LIVE.items.values()) if (v.id === id) { v.holder.style.transform = liveT(dx, dy, sc, cx, cy); fixScrims(v.holder, dx, dy); }
+  }
   async function liveSync(force) {
     if (LIVE.busy) { if (force) setTimeout(() => liveSync(true), 300); return; }
     const fr = liveFrame();
     if (!fr || !window.VideoLibrary) return;
     const want = placements().filter(p => !p.cap);
-    const keyOf = p => p.id + JSON.stringify([p.c.id, p.c.params, +p.n.t || 0, p.c.dx, p.c.dy]);
+    const keyOf = p => p.id + JSON.stringify([p.c.id, p.c.params, +p.n.t || 0, p.c.dx, p.c.dy, p.c.scale]);
     const sig = want.map(keyOf).join("|");
     if (fr.w === LIVE.win && sig === LIVE.sig && !force) return;
     LIVE.busy = true;
@@ -695,7 +716,7 @@
         if (LIVE.items.has(k) || !W.VideoLibrary.components[p.c.id]) continue;
         const holder = W.document.createElement("div");
         holder.className = "cutnote-live";
-        holder.style.cssText = `position:absolute;left:0;top:0;width:${W.VideoLibrary.W}px;height:${W.VideoLibrary.H}px;pointer-events:none;z-index:900;transform-origin:0 0;transform:${liveT(p.c.dx, p.c.dy)}`;
+        holder.style.cssText = `position:absolute;left:0;top:0;width:${W.VideoLibrary.W}px;height:${W.VideoLibrary.H}px;pointer-events:none;z-index:900;transform-origin:0 0;transform:${liveT(p.c.dx, p.c.dy, p.c.scale, ...centreOf(p))}`;
         root.appendChild(holder);
         const sub = W.gsap.timeline();
         try { W.VideoLibrary.mount(p.c.id, { root: holder, tl: sub, start: 0, params: p.c.params }); } catch (e) { holder.remove(); continue; }

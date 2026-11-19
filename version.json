@@ -1,11 +1,11 @@
 {
-  "version": "1.1.3",
+  "version": "1.1.4",
   "date": "2026-11-19",
   "notes": [
+    "Select a component on the video to see it outlined: drag it to move it, drag a corner to resize it, and its settings open in the sidebar.",
     "Click a component on the video or its block on the timeline to edit it in the sidebar: text, timing and style, with changes playing straight away.",
     "New components are centred on the frame, and their dark backing no longer gets clipped.",
     "Simpler settings panel; the tab underline slides between Notes, Library and Captions.",
-    "Components you add now just play on the video: no outlines or bands, and slim blocks on the timeline.",
-    "Fixed: some videos tinted components with a cream background."
+    "Components you add now just play on the video: no outlines or bands, and slim blocks on the timeline."
   ]
 }
