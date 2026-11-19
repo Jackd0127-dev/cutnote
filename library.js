@@ -181,14 +181,14 @@
   SP.setOpen = (on, quiet) => {
     const app = $("#app"); if (!app) return;
     app.classList.toggle("side-off", !on);
-    const b = $("#sideBtn"); if (b) { b.setAttribute("aria-pressed", String(on)); b.title = on ? "Hide the sidebar (⇧\\)" : "Show the sidebar (⇧\\)"; b.querySelector(".fill").style.opacity = on ? ".35" : "0"; }
     try { localStorage.setItem("cutnote:side", on ? "on" : "off"); } catch {}
     // the frame and timeline fit to the new width as the sidebar slides
     const t0 = performance.now(), tick = () => { dispatchEvent(new Event("resize")); if (performance.now() - t0 < 380) requestAnimationFrame(tick); };
     if (!quiet) requestAnimationFrame(tick); else dispatchEvent(new Event("resize"));
   };
   SP.isOpen = () => !$("#app").classList.contains("side-off");
-  $("#sideBtn") && $("#sideBtn").addEventListener("click", () => SP.setOpen(!SP.isOpen()));
+  $("#sideHide").addEventListener("click", e => { e.stopPropagation(); SP.setOpen(false); });
+  $("#sideShow").addEventListener("click", () => SP.setOpen(true));
   document.addEventListener("keydown", e => {
     if (e.key === "|" || (e.shiftKey && e.code === "Backslash")) { if (e.target.closest && e.target.closest("input, textarea, [contenteditable=true]")) return; e.preventDefault(); SP.setOpen(!SP.isOpen()); }
   });
@@ -400,7 +400,7 @@
     body.querySelector(".back").onclick = () => { D.detail[kind] = null; D.back = kind; render(kind); };
     const big = body.querySelector(".big");
     let pv = null;
-    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: big.clientWidth || 300, aspect: kind === "cap" ? 2.2 : 4 / 3, params, radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
+    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: big.clientWidth || 300, aspect: kind === "cap" ? 2.2 : 4 / 3, params: Object.assign({}, params, def.preview && def.preview.params), radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
     show();
     buildForm(body.querySelector(".form"), def, params, show);
     body.querySelector(".go").onclick = () => place(def, S.t, null, null, JSON.parse(JSON.stringify(params)));

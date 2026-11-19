@@ -69,7 +69,7 @@
         <a class="card" role="menuitem" href="${SITE}" target="_blank" rel="noopener"><span class="tile"><svg><use href="#i-blade"/></svg></span><span><b>Website</b><small>What Cutnote does, the demo and how to install it</small></span></a>
         <a class="card" role="menuitem" href="${GH}" target="_blank" rel="noopener"><span class="tile dark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg></span><span><b>GitHub</b><small>The code, every release and how to contribute</small></span></a>
       </div>
-      <div class="links"><a href="${GH}/commits/main" target="_blank" rel="noopener">What's new</a><a href="${GH}/issues/new" target="_blank" rel="noopener">Report a problem</a><a href="${GH}#install" target="_blank" rel="noopener">Install guide</a></div>
+      <div class="links"><a href="#" data-news>What's new</a><a href="${GH}/issues/new" target="_blank" rel="noopener">Report a problem</a><a href="${GH}#install" target="_blank" rel="noopener">Install guide</a></div>
     </div>`;
   chip.parentNode.insertBefore(menu, chip);
   // hover to open (with a little grace so the pointer can cross to the panel); click toggles; Esc closes
@@ -105,7 +105,7 @@
       + (fresh ? `<button class="go" type="button" data-a="go" ${U.can && !busy ? "" : "disabled"}>${busy ? "Updating…" : "Update now"}</button>` : "")
       + `<div class="row"><span>Update automatically<small>New versions install by themselves while Cutnote runs.</small></span>
           <span class="switch"><input type="checkbox" data-a="auto" ${U.auto ? "checked" : ""} ${U.can || !fresh ? "" : ""}><i></i></span></div>
-        <div class="foot"><button type="button" data-a="check">Check now</button><a href="${esc(U.repo)}/commits/main" target="_blank" rel="noopener">What changed</a></div>`;
+        <div class="foot"><button type="button" data-a="check">Check now</button><a href="#" data-news>What's new</a></div>`;
     bar.querySelector("span").textContent = `Cutnote ${U.latest} is available.`;
     bar.classList.toggle("on", fresh && U.can && !U.auto && !busy && !dismissed() && !pop.classList.contains("on"));
     // the server was updated (by auto-update or another tab) while this page was open
@@ -205,13 +205,19 @@
     if (k > 0 && k < 70) { const d2 = s2.slice(k + 2); return [s2.slice(0, k), d2.charAt(0).toUpperCase() + d2.slice(1)]; }
     const d = s2.search(/[.!?](\s|$)/); return d > 0 && d < s2.length - 2 ? [s2.slice(0, d + 1), s2.slice(d + 2)] : [s2, ""];
   };
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-news]"); if (!a) return;
+    e.preventDefault(); const pop2 = $("#updPop"); if (pop2) pop2.classList.remove("on"); const m = $("#cnMenu"); if (m) m.classList.remove("open");
+    whatsNew(null);
+  });
   async function whatsNew(fromV) {
+    if ($("#wnew")) return;
     let v;
     try { v = await fetch("/version.json", { cache: "no-store" }).then(r => r.json()); } catch { return; }
     if (!v || !(v.notes || []).length) return;
     document.body.insertAdjacentHTML("beforeend", `<div id="wnew" role="dialog" aria-modal="true" aria-labelledby="wnT"><div class="card">
       <div class="hero"><span class="logo"><svg><use href="#i-blade"/></svg></span><div class="eyebrow">What's new</div>
-        <h2 id="wnT">Cutnote ${esc(v.version)}</h2><div class="sub">${fromV ? "Updated from " + esc(fromV) : "Just updated"}${v.date ? " · " + esc(v.date) : ""}</div></div>
+        <h2 id="wnT">Cutnote ${esc(v.version)}</h2><div class="sub">${fromV ? "Updated from " + esc(fromV) : "The latest changes"}${v.date ? " · " + esc(v.date) : ""}</div></div>
       <ul>${v.notes.map((n, k) => { const [t, d] = splitNote(n); return `<li style="animation-delay:${0.12 + k * 0.07}s"><i>${CHECK}</i><div><b>${esc(t)}</b>${d ? `<span>${esc(d)}</span>` : ""}</div></li>`; }).join("")}</ul>
       <div class="foot"><a href="https://github.com/Jackd0127-dev/cutnote/commits/main" target="_blank" rel="noopener">See every change</a><button type="button">Let's go</button></div></div></div>`);
     const el = $("#wnew");

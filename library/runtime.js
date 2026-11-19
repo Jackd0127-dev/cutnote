@@ -153,7 +153,8 @@
     const k = sr.width / LIB.W || 1;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, full = false;
     const was = tl.time();
-    for (const f of [0.2, 0.35, 0.5, 0.65, 0.8, 0.92]) {
+    // sample once it has landed (entrances fly in from off to the side) and before it leaves
+    for (const f of [0.42, 0.55, 0.68, 0.8, 0.9]) {
       tl.time(t0 + dur * f, true);
       for (const el of stage.querySelectorAll(".vlib *")) {
         if (el.closest(".vl-scrim") || el.tagName === "STYLE") continue;
@@ -170,7 +171,13 @@
         if (o <= 0.05 || R - L < 1 || B - T < 1) continue;
         const a = { x0: (L - sr.left) / k, y0: (T - sr.top) / k, x1: (R - sr.left) / k, y1: (B - sr.top) / k };
         if (a.x1 - a.x0 > LIB.W * 0.9 && a.y1 - a.y0 > LIB.H * 0.8) { full = true; continue; }   // a dim layer / full-frame wash
-        if (el.children.length && !el.textContent.trim() && !/IMG|SVG|VIDEO|CANVAS/.test(el.tagName) && getComputedStyle(el).backgroundColor === "rgba(0, 0, 0, 0)" && getComputedStyle(el).backgroundImage === "none" && getComputedStyle(el).boxShadow === "none") continue;   // an empty layout wrapper
+        // count only what's painted: its own text, media, or a visible background, border or shadow (not layout wrappers)
+        if (!/^(IMG|SVG|VIDEO|CANVAS|PATH|CIRCLE|RECT|LINE|POLYLINE|POLYGON|ELLIPSE|svg|path|circle|rect|line|polyline|polygon|ellipse)$/.test(el.tagName)) {
+          const cs = getComputedStyle(el);
+          const ownText = [...el.childNodes].some(t => t.nodeType === 3 && t.textContent.trim());
+          const paints = cs.backgroundColor !== "rgba(0, 0, 0, 0)" || cs.backgroundImage !== "none" || cs.boxShadow !== "none" || parseFloat(cs.borderTopWidth) + parseFloat(cs.borderLeftWidth) > 0 || cs.outlineStyle !== "none";
+          if (!ownText && !paints) continue;
+        }
         x0 = Math.min(x0, a.x0); y0 = Math.min(y0, a.y0); x1 = Math.max(x1, a.x1); y1 = Math.max(y1, a.y1);
       }
     }
@@ -216,7 +223,7 @@
       }
       else {
         const bw = Math.max(40, b.x1 - b.x0), bh = Math.max(40, b.y1 - b.y0);
-        K = Math.min(w * 0.84 / bw, h * 0.8 / bh, (w / LIB.W) * 2.4);
+        K = Math.min(w * 0.82 / bw, h * 0.76 / bh, (w / LIB.W) * 3);
         cx = (b.x0 + b.x1) / 2; cy = (b.y0 + b.y1) / 2;
       }
       stage.style.transform = `translate(${(w / 2 - cx * K).toFixed(1)}px,${(h / 2 - cy * K).toFixed(1)}px) scale(${K.toFixed(4)})`;
@@ -235,6 +242,9 @@
       place(null);
       fit();
       if (document.fonts && document.fonts.status !== "loaded") document.fonts.ready.then(fit);
+      // images change the size of what's drawn once they load: fit again then
+      const imgs = [...stage.querySelectorAll("img")].filter(i => !i.complete);
+      if (imgs.length) Promise.all(imgs.map(i => new Promise(r => { i.addEventListener("load", r, { once: true }); i.addEventListener("error", r, { once: true }); }))).then(fit);
       if (o.autoplay !== false) tl.play(0);
       return tl;
     }
