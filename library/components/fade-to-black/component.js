@@ -6,7 +6,7 @@ VideoLibrary.register({
   category: "Transitions",
   collection: "Cinematic",
   order: 5,
-  preview: { background: "photo" },
+  preview: { background: "light", keepWash: true, frame: [0, 555, 1080, 1365] },
   source: "Day 19",
   description: "Full-canvas black fades in over a growing backdrop blur, holds for a beat, then fades out (the blur clears with it). Use between two takes.",
   tags: ["transition", "black", "fade", "blur", "cut"],

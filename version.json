@@ -1,8 +1,8 @@
 {
-  "version": "1.2.4",
+  "version": "1.2.5",
   "date": "19 Nov 2026",
   "notes": [
-    "See where captions go: once you pick a caption style, a pink outline marks the caption area on your video for the whole video.",
-    "A nicer captions pop-up: the 'Don't show this again' option is a proper custom checkbox."
+    "No more side bars: full-screen components like Storyline and Money rain fill their preview cards edge to edge.",
+    "Fade to black reads properly: its preview now shows the black fading in and out across the whole card."
   ]
 }

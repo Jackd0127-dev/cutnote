@@ -152,6 +152,7 @@
     const sr = stage.getBoundingClientRect();
     const k = sr.width / LIB.W || 1;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, full = false;
+    const washes = new Set();
     const was = tl.time();
     // sample once it has landed (entrances fly in from off to the side) and before it leaves
     for (const f of [0.42, 0.55, 0.68, 0.8, 0.9]) {
@@ -170,7 +171,12 @@
         }
         if (o <= 0.05 || R - L < 1 || B - T < 1) continue;
         const a = { x0: (L - sr.left) / k, y0: (T - sr.top) / k, x1: (R - sr.left) / k, y1: (B - sr.top) / k };
-        if (a.x1 - a.x0 > LIB.W * 0.9 && a.y1 - a.y0 > LIB.H * 0.8) { full = true; continue; }   // a dim layer / full-frame wash
+        if (a.x1 - a.x0 > LIB.W * 0.9 && a.y1 - a.y0 > LIB.H * 0.8) {   // a dim layer / full-frame wash
+          full = true;
+          const cs0 = getComputedStyle(el);
+          if (!el.children.length && (cs0.backgroundColor !== "rgba(0, 0, 0, 0)" || cs0.backgroundImage !== "none")) washes.add(el);
+          continue;
+        }
         // count only what's painted: its own text, media, or a visible background, border or shadow (not layout wrappers)
         if (!/^(IMG|SVG|VIDEO|CANVAS|PATH|CIRCLE|RECT|LINE|POLYLINE|POLYGON|ELLIPSE|svg|path|circle|rect|line|polyline|polygon|ellipse)$/.test(el.tagName)) {
           const cs = getComputedStyle(el);
@@ -182,8 +188,8 @@
       }
     }
     tl.time(was, true);
-    if (!isFinite(x0)) return full ? { full: true } : null;
-    const box = { x0: Math.max(-200, x0), y0: Math.max(-200, y0), x1: Math.min(LIB.W + 200, x1), y1: Math.min(LIB.H + 200, y1), full };
+    if (!isFinite(x0)) return full ? { full: true, washes } : null;
+    const box = { washes, x0: Math.max(-200, x0), y0: Math.max(-200, y0), x1: Math.min(LIB.W + 200, x1), y1: Math.min(LIB.H + 200, y1), full };
     // pieces that spread over most of the canvas read best as the whole frame
     if (full && (box.x1 - box.x0) * (box.y1 - box.y0) > LIB.W * LIB.H * 0.35) box.whole = true;
     if ((box.x1 - box.x0) > LIB.W * 0.85 && (box.y1 - box.y0) > LIB.H * 0.6) box.whole = true;
@@ -231,7 +237,10 @@
       if (!tl || !stage.isConnected) return;
       stage.style.transform = `scale(${w / LIB.W})`;   // measure at a known scale
       const fr = def.preview && def.preview.frame;
-      place(fr ? { x0: fr[0], y0: fr[1], x1: fr[2], y1: fr[3] } : LIB.measure(stage, tl, T0, dur));
+      const m = LIB.measure(stage, tl, T0, dur);
+      // full-screen tints stop at the 9:16 frame's edges, which shows as bars in a wider card: the card's backdrop stands in
+      if (m && m.washes && !(def.preview && def.preview.keepWash)) for (const el of m.washes) el.style.visibility = "hidden";
+      place(fr ? { x0: fr[0], y0: fr[1], x1: fr[2], y1: fr[3] } : m);
     }
     function build() {
       if (tl) tl.kill();
