@@ -38,12 +38,14 @@
   .lp-sec span { font-weight: 500; color: var(--faint); }
   .lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .lp-card { position: relative; border-radius: 12px; cursor: grab; user-select: none; }
-  .lp-card .pv { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 11px; overflow: hidden; background: var(--panel-2); box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s, transform .2s cubic-bezier(.22,1,.36,1); pointer-events: none; }
-  .lp-card:hover .pv { box-shadow: 0 0 0 1.5px var(--line-2), 0 8px 22px rgba(0,0,0,.12); transform: translateY(-1px); }
+  .lp-card .pv { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 11px; overflow: hidden; background: var(--panel-2); box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s; pointer-events: none; }
+  .lp-card:hover .pv { box-shadow: 0 0 0 1.5px var(--line-2), 0 8px 22px rgba(0,0,0,.12); }
   .lp-card:active { cursor: grabbing; }
   .lp-card b { display: block; font-size: 12.5px; font-weight: 600; margin: 7px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .lp-card small { display: block; font-size: 11px; color: var(--faint); margin: 1px 2px 0; }
-  .lp-card .add { position: absolute; right: 7px; top: 7px; z-index: 2; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 700; line-height: 28px; cursor: pointer;
+  .lp-card .add svg { width: 14px; height: 14px; display: block; }
+  .lp-card .add { position: absolute; right: 7px; top: 7px; z-index: 2; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer;
+    display: grid; place-items: center;
     box-shadow: 0 4px 12px rgba(0,0,0,.2); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; }
   .lp-card:hover .add, .lp-card .add:focus-visible { opacity: 1; transform: none; }
   .lp-list { display: grid; gap: 10px; }
@@ -89,7 +91,8 @@
   .lp-det .fl textarea { resize: vertical; } .lp-det .fl textarea.mono { font: 11.5px ui-monospace, Menlo, monospace; }
   .lp-det .fl input:focus, .lp-det .fl textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .lp-det .num { display: flex; align-items: center; gap: 6px; max-width: 140px; } .lp-det .num span { color: var(--dim); font-size: 12px; }
-  .lp-det .rng { display: flex; align-items: center; gap: 10px; } .lp-det .rng input { flex: 1; accent-color: #9cc20f; } .lp-det .rng output { min-width: 34px; text-align: right; font-size: 12px; color: var(--dim); }
+  .lp-det .rng { display: flex; align-items: center; gap: 12px; } .lp-det .rng input { flex: 1; }
+  .lp-det .rng output { min-width: 40px; height: 26px; padding: 0 6px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
   .lp-det .seg.sm { display: inline-flex; } .lp-det .seg.sm button { height: 28px; padding: 0 12px; text-transform: capitalize; }
   .lp-det .row2 { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .lp-det .row2 button { flex: 1; }
   .lp-det .ib.danger { color: var(--fix); }
@@ -300,7 +303,7 @@
     if (!sections.length) html += `<div class="lp-empty">Nothing matches “${esc(q)}”.</div>`;
     for (const [n, ds] of sections) {
       html += `<div class="lp-sec">${esc(n)}<span>${ds.length}</span></div>`;
-      if (kind === "lib") html += `<div class="lp-grid">${ds.map(d => `<div class="lp-card" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><button class="add" type="button" data-act="add" title="Add at the playhead" aria-label="Add ${esc(d.name)} at the playhead">+</button><b>${esc(d.name)}</b><small>${esc(d.source || "")}</small></div>`).join("")}</div>`;
+      if (kind === "lib") html += `<div class="lp-grid">${ds.map(d => `<div class="lp-card" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><button class="add" type="button" data-act="add" title="Add at the playhead" aria-label="Add ${esc(d.name)} at the playhead"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button><b>${esc(d.name)}</b><small>${esc(d.source || "")}</small></div>`).join("")}</div>`;
       else html += `<div class="lp-list">${ds.map(d => { const on = curCap && curCap.c.id === d.id; return `<div class="lp-row${on ? " on" : ""}" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><div class="foot"><span><b>${esc(short(d.name))}</b><br><small>${esc(d.source || "")}</small></span><button type="button" data-act="use">${on ? "In use" : "Use"}</button></div></div>`; }).join("")}</div>`;
     }
     body.innerHTML = html;

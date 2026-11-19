@@ -1,11 +1,11 @@
 {
-  "version": "1.1.5",
+  "version": "1.1.6",
   "date": "2026-11-19",
   "notes": [
+    "Crisp custom sliders with a lime fill, a centred + on cards, and a plain black gradient behind white-text previews.",
     "Redesigned Library and Captions tabs: search, collection chips, clear wide previews, a + button to add at the playhead, and a simple caption list with Use.",
     "Overlapping components get their own rows on the timeline.",
     "Select a component on the video to see it outlined: drag it to move it, drag a corner to resize it, and its settings open in the sidebar.",
-    "Click a component on the video or its block on the timeline to edit it in the sidebar: text, timing and style, with changes playing straight away.",
-    "New components are centred on the frame, and their dark backing no longer gets clipped."
+    "Click a component on the video or its block on the timeline to edit it in the sidebar: text, timing and style, with changes playing straight away."
   ]
 }

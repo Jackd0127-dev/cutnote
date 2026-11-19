@@ -161,7 +161,18 @@
   #insp label.num:focus-within { border-color: var(--accent); }
   #insp label.num input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
   #insp .slide { display: flex; align-items: center; gap: 10px; }
-  #insp input[type=range] { flex: 1; accent-color: var(--accent); }
+  #insp input[type=range] { flex: 1; }
+  /* sliders: drawn in CSS (crisp at any zoom), lime fill up to the thumb (--p is set by script) */
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 20px; margin: 0; background: transparent; cursor: pointer; --p: 50%; }
+  input[type=range]:focus { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--accent) var(--p), var(--line-2) var(--p)); }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--line-2); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; background: #fff; border: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.25); transition: transform .12s, box-shadow .12s; }
+  input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.25); }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.08); }
+  input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 0 1px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.25); }
   #insp .slide label.num { width: 92px; flex: none; }
   #insp .sws { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   #insp .sws button, #insp .sws label { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(127,127,127,.4) inset; cursor: pointer; padding: 0; position: relative; overflow: hidden; }
@@ -1274,6 +1285,15 @@ async function init() {
 document.addEventListener("DOMContentLoaded", init);
 </script>
 <script src="/timeline.js"></script>
+<script>
+  (function () {   // slider fill: keep --p in step with every range input's value
+    const fill = el => { const lo = +el.min || 0, hi = +el.max || 100, v = +el.value; el.style.setProperty("--p", ((v - lo) / ((hi - lo) || 1) * 100) + "%"); };
+    document.addEventListener("input", e => { if (e.target.type === "range") fill(e.target); }, true);
+    new MutationObserver(() => document.querySelectorAll("input[type=range]").forEach(fill)).observe(document.body, { childList: true, subtree: true });
+    document.querySelectorAll("input[type=range]").forEach(fill);
+    setInterval(() => document.querySelectorAll("input[type=range]").forEach(el => { if (el.offsetParent && el._v !== el.value) { el._v = el.value; fill(el); } }), 400);
+  })();
+</script>
 <script src="/library.js"></script>
 <script src="/update.js"></script>
 </body>
