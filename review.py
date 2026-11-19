@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.1.8"
+VERSION = "1.1.9"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -695,6 +695,9 @@ class H(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(HERE, "review.html"), "rb") as f:
                 return self.send(200, f.read(), "text/html; charset=utf-8")
+        if path == "/version.json":   # this install's own release notes (the What's new screen reads them)
+            with open(os.path.join(HERE, "version.json"), "rb") as f:
+                return self.send(200, f.read(), "application/json")
         if path in ("/timeline.js", "/library.js", "/update.js"):
             with open(os.path.join(HERE, path[1:]), "rb") as f:
                 return self.send(200, f.read(), "text/javascript; charset=utf-8")

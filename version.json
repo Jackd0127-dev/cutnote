@@ -1,11 +1,11 @@
 {
-  "version": "1.1.8",
-  "date": "2026-11-19",
+  "version": "1.1.9",
+  "date": "19 Nov 2026",
   "notes": [
-    "Notes are cleaner cards, with a tidy Done / Edit / Delete toolbar on hover.",
-    "Header menus open on hover, with a new Cutnote menu for the website and GitHub.",
-    "Smoother opening and going back in the Library and Captions tabs, keeping your place.",
-    "Crisp custom sliders with a lime fill, a centred + on cards, and a plain black gradient behind white-text previews.",
-    "Redesigned Library and Captions tabs: search, collection chips, clear wide previews, a + button to add at the playhead, and a simple caption list with Use."
+    "A proper What's new screen: after every update, Cutnote shows what changed, once.",
+    "Cleaner notes: each note is a card, with Done, Edit and Delete in a tidy toolbar on hover.",
+    "Hover menus: header menus with more than one option open as you hover, and the new Cutnote menu links to the website and GitHub.",
+    "Smoother Library: opening a component and going back slides in and out, and keeps your place.",
+    "Crisper controls: sliders are redrawn with a lime fill, and white-text previews sit on a plain black gradient."
   ]
 }
