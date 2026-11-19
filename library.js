@@ -120,6 +120,8 @@
   #libBoxes { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
   .lb-box { position: absolute; border-radius: 10px; }
   .lb-box.drag { outline: 1.5px dashed rgba(255,255,255,.85); outline-offset: 2px; }
+  .lb-box.cap { border: 2px dashed ${PINK}; border-radius: 12px; box-shadow: 0 0 14px rgba(255,63,216,.55), inset 0 0 10px rgba(255,63,216,.25); }
+  .lb-box.cap .lb-tag { position: absolute; left: 8px; top: -9px; padding: 1px 7px; border-radius: 6px; background: ${PINK}; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; pointer-events: none; }
   .lb-box.sel { outline: 2px solid #c6f432; outline-offset: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   .lb-h { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 2px; background: #fff; border: 1.5px solid #6f8f00; pointer-events: auto; }
   .lb-h.nw { left: 0; top: 0; cursor: nwse-resize; } .lb-h.ne { left: 100%; top: 0; cursor: nesw-resize; }
@@ -167,7 +169,17 @@
   #capInfo .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; }
   #capInfo .steps i { flex: none; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,63,216,.14); color: ${PINK}; font-style: normal; font-weight: 800; font-size: 11px; display: grid; place-items: center; }
   #capInfo .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  #capInfo label { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  #capInfo label.ck { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 6px 12px 6px 7px; border-radius: 10px; cursor: pointer; user-select: none; transition: background .15s; }
+  #capInfo label.ck:hover { background: var(--hover); }
+  #capInfo label.ck input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  #capInfo label.ck .box { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-2); background: var(--panel); display: grid; place-items: center; color: transparent;
+    transition: background .18s, border-color .18s, color .18s, transform .18s cubic-bezier(.22,1,.36,1); }
+  #capInfo label.ck .box svg { width: 12px; height: 12px; stroke-dasharray: 16; stroke-dashoffset: 16; transition: stroke-dashoffset .25s ease .05s; }
+  #capInfo label.ck input:checked + .box { background: ${PINK}; border-color: ${PINK}; color: #fff; transform: scale(1.05); }
+  #capInfo label.ck input:checked + .box svg { stroke-dashoffset: 0; }
+  #capInfo label.ck input:focus-visible + .box { box-shadow: 0 0 0 3px rgba(255,63,216,.3); }
+  #capInfo label.ck .t { font-size: 12.5px; font-weight: 600; color: var(--dim); }
+  #capInfo label.ck input:checked ~ .t { color: var(--ink); }
   #capInfo button { height: 34px; padding: 0 18px; border-radius: 9px; border: 0; background: ${PINK}; color: #fff; font-weight: 700; cursor: pointer; }
   @media (prefers-reduced-motion: reduce) { .lp-card, #libUndo { transition: none; } }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
@@ -557,7 +569,7 @@
         <ul class="steps"><li><i>1</i><span>Your pick is saved as a note for the <b>whole video</b> (the pink band on the timeline).</span></li>
           <li><i>2</i><span>When you ask Claude to work through your notes, it restyles <b>every caption</b> in this style, timed to your words.</span></li>
           <li><i>3</i><span>The page reloads with the new captions on, ready to check.</span></li></ul>
-        <div class="row"><label><input type="checkbox"> Don't show this again</label><button type="button">Got it</button></div></div></div>`);
+        <div class="row"><label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg></span><span class="t">Don't show this again</span></label><button type="button">Got it</button></div></div></div>`);
       el = $("#capInfo");
       const close = () => { if (el.querySelector("input").checked) { try { localStorage.setItem("cutnote:capInfo", "off"); } catch {} } el.classList.remove("on"); };
       el.querySelector("button").onclick = close;
@@ -709,7 +721,13 @@
     if (!fr.width || !window.VideoLibrary) { box.innerHTML = ""; return; }
     const m = MAP(), fx = fr.width / S.W, k = m.k * fx, ox = m.ox * fx, oy = m.oy * fx, html = [];
     for (const p of placements()) {
-      if (p.cap || !(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
+      if (p.cap) {
+        const q = boxOf(Object.assign({}, p, { s: 1, dx: 0, dy: 0 })); if (q.whole) continue;
+        const L = ox + (q.x0 - 30) * k, T = oy + (q.y0 - 18) * k, W = (q.x1 - q.x0 + 60) * k, H = (q.y1 - q.y0 + 36) * k;
+        html.push(`<div class="lb-box cap" data-id="${esc(p.id)}" style="left:${L.toFixed(1)}px;top:${T.toFixed(1)}px;width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><span class="lb-tag">${esc(short(p.c.name))} captions</span></div>`);
+        continue;
+      }
+      if (!(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
       const q = boxOf(p), pad = 10, sel = D.selected === p.id;
       const L = ox + (q.x0 - pad) * k, T = oy + (q.y0 - pad) * k, W = (q.x1 - q.x0 + pad * 2) * k, H = (q.y1 - q.y0 + pad * 2) * k;
       const hs = sel && !q.whole ? ["nw", "ne", "sw", "se"].map(c => `<i class="lb-h ${c}" data-h="${c}"></i>`).join("") : "";
@@ -725,7 +743,7 @@
     const handle = e.target.closest(".lb-h");
     let boxEl = handle && handle.closest(".lb-box");
     if (!boxEl && typeof INK !== "undefined" && INK.tool === "select") {
-      boxEl = [...frEl.querySelectorAll(".lb-box")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
+      boxEl = [...frEl.querySelectorAll(".lb-box:not(.cap)")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
     }
     if (!boxEl) { if (D.selected && typeof INK !== "undefined" && INK.tool === "select") D.select(null); return; }
     const p = placements().find(q => q.id === boxEl.dataset.id); if (!p) return;
