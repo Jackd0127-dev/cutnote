@@ -84,6 +84,8 @@
   .dd.up .dd-pop { top: auto; bottom: calc(100% + 6px); transform-origin: bottom left; transform: translateY(4px) scale(.98); }
   .dd.right .dd-pop { left: auto; right: 0; transform-origin: top right; }
   .dd.open .dd-pop { opacity: 1; transform: none; pointer-events: auto; }
+  header .dd-pop { border-radius: 14px; padding: 6px; box-shadow: 0 18px 50px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08); }
+  header .dd-pop::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; }
   .dd-g { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); padding: 8px 9px 4px; }
   .dd-o { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 7px; padding: 7px 9px; cursor: pointer; color: var(--ink); white-space: nowrap; }
   .dd-o .h { margin-left: auto; color: var(--faint); font-size: 11px; padding-left: 16px; }
@@ -482,6 +484,12 @@ function Dropdown(root, { prefix = "", onChange }) {
     pop.innerHTML = parts.join(""); me.set(v === undefined ? me.value : v);
   };
   btn.addEventListener("click", () => open(!root.classList.contains("open")));
+  // header menus open on hover (like a site nav), but only when there's more than one thing to pick
+  if (root.closest("header")) {
+    let hT = 0;
+    root.addEventListener("mouseenter", () => { clearTimeout(hT); if (me.items.length < 2) return; hT = setTimeout(() => { if (!root.classList.contains("open")) open(true); }, 90); });
+    root.addEventListener("mouseleave", () => { clearTimeout(hT); hT = setTimeout(() => open(false), 220); });
+  }
   pop.addEventListener("click", e => { const o = e.target.closest(".dd-o"); if (o) pickV(o.dataset.v); });
   pop.addEventListener("mousemove", e => { const o = e.target.closest(".dd-o"); if (o) { const k = opts().indexOf(o); if (k !== me.act) mark(k); } });
   root.addEventListener("keydown", e => {
