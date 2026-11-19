@@ -177,8 +177,25 @@
   /* ---------- sidebar tabs ---------- */
   const P = { notes: $("#pNotes"), lib: $("#pLib"), cap: $("#pCap") };
   const SP = (window.SidePane = { cur: "notes" });
+  // hide / show the whole sidebar (header button, or ⇧\); remembered per browser
+  SP.setOpen = (on, quiet) => {
+    const app = $("#app"); if (!app) return;
+    app.classList.toggle("side-off", !on);
+    const b = $("#sideBtn"); if (b) { b.setAttribute("aria-pressed", String(on)); b.title = on ? "Hide the sidebar (⇧\\)" : "Show the sidebar (⇧\\)"; b.querySelector(".fill").style.opacity = on ? ".35" : "0"; }
+    try { localStorage.setItem("cutnote:side", on ? "on" : "off"); } catch {}
+    // the frame and timeline fit to the new width as the sidebar slides
+    const t0 = performance.now(), tick = () => { dispatchEvent(new Event("resize")); if (performance.now() - t0 < 380) requestAnimationFrame(tick); };
+    if (!quiet) requestAnimationFrame(tick); else dispatchEvent(new Event("resize"));
+  };
+  SP.isOpen = () => !$("#app").classList.contains("side-off");
+  $("#sideBtn") && $("#sideBtn").addEventListener("click", () => SP.setOpen(!SP.isOpen()));
+  document.addEventListener("keydown", e => {
+    if (e.key === "|" || (e.shiftKey && e.code === "Backslash")) { if (e.target.closest && e.target.closest("input, textarea, [contenteditable=true]")) return; e.preventDefault(); SP.setOpen(!SP.isOpen()); }
+  });
+  try { if (localStorage.getItem("cutnote:side") === "off") SP.setOpen(false, true); } catch {}
   SP.show = name => {
     if (!P[name]) return;
+    if (!SP.isOpen()) SP.setOpen(true);
     SP.cur = name;
     document.querySelectorAll("#sideTabs button").forEach(b => { const on = b.dataset.p === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     for (const k in P) P[k].classList.toggle("on", k === name);

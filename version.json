@@ -1,11 +1,8 @@
 {
-  "version": "1.1.9",
+  "version": "1.2.0",
   "date": "19 Nov 2026",
   "notes": [
-    "A proper What's new screen: after every update, Cutnote shows what changed, once.",
-    "Cleaner notes: each note is a card, with Done, Edit and Delete in a tidy toolbar on hover.",
-    "Hover menus: header menus with more than one option open as you hover, and the new Cutnote menu links to the website and GitHub.",
-    "Smoother Library: opening a component and going back slides in and out, and keeps your place.",
-    "Crisper controls: sliders are redrawn with a lime fill, and white-text previews sit on a plain black gradient."
+    "Hide the sidebar: the new button by the top right (or ⇧\\) slides it away so the video and timeline get the whole window, and brings it back.",
+    "A tidier toolbar: the drawing tools lose the confusing X button; Undo still takes back a mark."
   ]
 }
