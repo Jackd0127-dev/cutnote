@@ -121,7 +121,9 @@
   .lb-box { position: absolute; border-radius: 10px; }
   .lb-box.drag { outline: 1.5px dashed rgba(255,255,255,.85); outline-offset: 2px; }
   .lb-box.cap { border: 2px dashed ${PINK}; border-radius: 12px; box-shadow: 0 0 14px rgba(255,63,216,.55), inset 0 0 10px rgba(255,63,216,.25); }
-  .lb-box.cap .lb-tag { position: absolute; left: 8px; top: -9px; padding: 1px 7px; border-radius: 6px; background: ${PINK}; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; pointer-events: none; }
+  .lb-box.cap .lb-tag { position: absolute; left: 8px; top: -9px; padding: 1px 7px; border-radius: 6px; background: ${PINK}; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; pointer-events: auto; cursor: pointer; }
+  .lb-box.cap.sel { border-style: solid; box-shadow: 0 0 0 1px rgba(0,0,0,.3), 0 0 18px rgba(255,63,216,.7); cursor: move; }
+  .lb-box.cap .lb-h { border-color: ${PINK}; }
   .lb-box.sel { outline: 2px solid #c6f432; outline-offset: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   .lb-h { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 2px; background: #fff; border: 1.5px solid #6f8f00; pointer-events: auto; }
   .lb-h.nw { left: 0; top: 0; cursor: nwse-resize; } .lb-h.ne { left: 100%; top: 0; cursor: nesw-resize; }
@@ -426,7 +428,7 @@
     const p = placements().find(q => q.id === id); if (!p) return;
     const def = VideoLibrary.components[p.c.id]; if (!def) return;
     const kind = p.cap ? "cap" : "lib";
-    D.editing = id; D.selected = p.cap ? null : id;
+    D.editing = id; D.selected = id;
     SP.show(kind);
     ensureLoaded().then(() => {
       if (!P[kind].dataset.built) render(kind);
@@ -721,10 +723,12 @@
     if (!fr.width || !window.VideoLibrary) { box.innerHTML = ""; return; }
     const m = MAP(), fx = fr.width / S.W, k = m.k * fx, ox = m.ox * fx, oy = m.oy * fx, html = [];
     for (const p of placements()) {
-      if (p.cap) {
-        const q = boxOf(Object.assign({}, p, { s: 1, dx: 0, dy: 0 })); if (q.whole) continue;
+      if (p.cap) {   // where the captions will sit, for the whole video: select it (tag or timeline block) to move or resize it
+        const q = boxOf(p); if (q.whole) continue;
+        const sel = D.selected === p.id;
         const L = ox + (q.x0 - 30) * k, T = oy + (q.y0 - 18) * k, W = (q.x1 - q.x0 + 60) * k, H = (q.y1 - q.y0 + 36) * k;
-        html.push(`<div class="lb-box cap" data-id="${esc(p.id)}" style="left:${L.toFixed(1)}px;top:${T.toFixed(1)}px;width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><span class="lb-tag">${esc(short(p.c.name))} captions</span></div>`);
+        const hs = sel ? ["nw", "ne", "sw", "se"].map(c => `<i class="lb-h ${c}" data-h="${c}"></i>`).join("") : "";
+        html.push(`<div class="lb-box cap${sel ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${L.toFixed(1)}px;top:${T.toFixed(1)}px;width:${W.toFixed(1)}px;height:${H.toFixed(1)}px"><span class="lb-tag" title="Select to move or resize the captions">${esc(short(p.c.name))} captions</span>${hs}</div>`);
         continue;
       }
       if (!(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
@@ -741,14 +745,15 @@
   frEl.addEventListener("pointerdown", e => {
     if (e.button !== 0 || !window.VideoLibrary) return;
     const handle = e.target.closest(".lb-h");
-    let boxEl = handle && handle.closest(".lb-box");
+    let boxEl = (handle || e.target.closest(".lb-tag")) && e.target.closest(".lb-box");
     if (!boxEl && typeof INK !== "undefined" && INK.tool === "select") {
-      boxEl = [...frEl.querySelectorAll(".lb-box:not(.cap)")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
+      boxEl = [...frEl.querySelectorAll(".lb-box:not(.cap), .lb-box.cap.sel")].reverse().find(b => { const r = b.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; });
     }
     if (!boxEl) { if (D.selected && typeof INK !== "undefined" && INK.tool === "select") D.select(null); return; }
     const p = placements().find(q => q.id === boxEl.dataset.id); if (!p) return;
     e.preventDefault(); e.stopPropagation();
     if (D.selected !== p.id) { D.selected = p.id; openPlacement(p.id); paintFrame(); }
+    if (p.cap && !boxOf(p).cx) return;
     const fr = frEl.getBoundingClientRect(), m = MAP(), per = S.W / fr.width / m.k;   // screen px -> component px
     const q = boxOf(p), ccx = fr.left + (m.ox + (q.cx + p.dx) * m.k) * fr.width / S.W, ccy = fr.top + (m.oy + (q.cy + p.dy) * m.k) * fr.width / S.W;
     const r0 = Math.hypot(e.clientX - ccx, e.clientY - ccy) || 1;

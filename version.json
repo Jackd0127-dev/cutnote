@@ -1,8 +1,8 @@
 {
-  "version": "1.2.5",
+  "version": "1.2.6",
   "date": "19 Nov 2026",
   "notes": [
-    "No more side bars: full-screen components like Storyline and Money rain fill their preview cards edge to edge.",
-    "Fade to black reads properly: its preview now shows the black fading in and out across the whole card."
+    "Move your captions: click the pink captions tag on the video (or the captions block on the timeline) to select it, then drag it to move the captions or pull a corner to resize them.",
+    "Claude follows your layout: the new caption position and size go into your notes, so the captions are built exactly there."
   ]
 }
