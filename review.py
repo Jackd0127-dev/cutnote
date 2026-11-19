@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.2.5"
+VERSION = "1.2.6"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -585,6 +585,14 @@ def render_md(data, st):
                     where += f", on layer {int(cp['layer']) + 1} from the top of the Library lane (the top layer plays in front)"
                 if cp.get("captions"):
                     where = " for the WHOLE video: restyle every caption in this style (keep the real word timings)"
+                    try:
+                        mv = (float(cp.get("dx") or 0), float(cp.get("dy") or 0), float(cp.get("scale") or 1))
+                    except (TypeError, ValueError):
+                        mv = (0.0, 0.0, 1.0)
+                    if abs(mv[0]) > 1 or abs(mv[1]) > 1:
+                        where += f"; the caption block was moved by ({round(mv[0])}, {round(mv[1])}) px from the style's own position (1080x1920 canvas)"
+                    if abs(mv[2] - 1) > 0.01:
+                        where += f"; captions at {round(mv[2] * 100)}% of the style's size"
                 lines.append(f"  - library component: `{cp['id']}` ({cp.get('name', '')}){where}. Build it from "
                              f"`{os.path.join(LIB, 'components', cp['id'], 'component.js')}` (contract: `{os.path.join(LIB, 'SPEC.md')}`), "
                              f"retimed onto the speaker's words and restyled to this video; params chosen: `{json.dumps(cp.get('params') or {})}`")
