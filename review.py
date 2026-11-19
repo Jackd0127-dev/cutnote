@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.2.9"
+VERSION = "1.3.0"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -245,7 +245,9 @@ class State:
                 e = body.get("edits")
                 fmt_ = clean_format(e.get("format")) if isinstance(e, dict) else None
                 frame_ = clean_frame(e.get("frame")) if isinstance(e, dict) else None
-                if comp and isinstance(e, dict) and (e.get("segments") or e.get("clips") or fmt_ or frame_):
+                sfx_ = clean_sfx(e.get("sfx")) if isinstance(e, dict) else []
+                lanes_ = clean_lanes(e.get("lanes")) if isinstance(e, dict) else {}
+                if comp and isinstance(e, dict) and (e.get("segments") or e.get("clips") or fmt_ or frame_ or sfx_ or lanes_):
                     eds[comp] = {"segments": e.get("segments"), "clips": e.get("clips") or {},
                                  "summary": [str(x) for x in (body.get("summary") or [])][:200],
                                  "label": body.get("label", comp), "updated": datetime.now().isoformat(timespec="seconds")}
@@ -253,6 +255,10 @@ class State:
                         eds[comp]["format"] = fmt_
                     if frame_:
                         eds[comp]["frame"] = frame_
+                    if sfx_:
+                        eds[comp]["sfx"] = sfx_
+                    if lanes_:
+                        eds[comp]["lanes"] = lanes_
                     if body.get("kind") in ("code", "video"):
                         eds[comp]["kind"] = body["kind"]
                 else:
@@ -404,17 +410,55 @@ class State:
                 except (KeyError, TypeError, ValueError):
                     continue
                 if b - a > 0.01:
-                    segs.append((a, b))
+                    segs.append((a, b, seg_speed(s_)))
             if not segs:
                 raise ValueError("no valid segments")
-            total = sum(b - a for a, b in segs)
+            total = sum((b - a) / sp for a, b, sp in segs)
+            lanes = e.get("lanes") or {}
+            sfx = [x for x in (e.get("sfx") or []) if not (lanes.get(f"sfx:{x.get('row', 0)}") or {}).get("mute")]
+            sfx = [x for x in sfx if os.path.isfile(os.path.join(LIB, x["file"]))]
+            mute_main = bool((lanes.get("wave") or {}).get("mute"))
             parts = []
-            for i, (a, b) in enumerate(segs):
-                parts.append(f"[0:v]trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS[v{i}]")
+            for i, (a, b, sp) in enumerate(segs):
+                vf = f"[0:v]trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS"
+                if abs(sp - 1) > 1e-3:
+                    vf += f",setpts=PTS/{sp:.6f}" + (",fps=30" if sp < 1 else "")
+                parts.append(vf + f"[v{i}]")
                 if has_audio:
-                    parts.append(f"[0:a]atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS[a{i}]")
+                    af = f"[0:a]atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS"
+                    if abs(sp - 1) > 1e-3:
+                        af += "," + atempo_chain(sp)
+                    parts.append(af + f"[a{i}]")
             ins = "".join(f"[v{i}]" + (f"[a{i}]" if has_audio else "") for i in range(len(segs)))
-            parts.append(f"{ins}concat=n={len(segs)}:v=1:a={1 if has_audio else 0}[vc]" + ("[ao]" if has_audio else ""))
+            parts.append(f"{ins}concat=n={len(segs)}:v=1:a={1 if has_audio else 0}[vc]" + ("[ac]" if has_audio else ""))
+            # source time -> program time (for sound effects placed in source time)
+            def to_prog(t):
+                E, best = 0.0, None
+                for a, b, sp in segs:
+                    if a - 1e-6 <= t < b - 1e-6:
+                        return E + (t - a) / sp
+                    if a >= t and (best is None or a < best[0]):
+                        best = (a, E)
+                    E += (b - a) / sp
+                return best[1] if best else None
+            mix = []
+            if has_audio:
+                parts.append("[ac]volume=0[am]" if mute_main else "[ac]anull[am]")
+                mix.append("[am]")
+            for k, x in enumerate(sfx):
+                at = to_prog(float(x["start"]))
+                if at is None or at >= total:
+                    continue
+                d = min(float(x["dur"]), total - at)
+                parts.append(f"[{k + 1}:a]atrim=start={float(x.get('off', 0)):.4f}:duration={d:.4f},asetpts=PTS-STARTPTS,"
+                             f"volume={float(x.get('vol', 1)):.3f},aresample=48000,aformat=channel_layouts=stereo,adelay={int(at * 1000)}:all=1[s{k}]")
+                mix.append(f"[s{k}]")
+            has_out_audio = bool(mix)
+            if not has_audio and mix:
+                parts.append(f"anullsrc=r=48000:cl=stereo,atrim=duration={total:.4f}[sil]")
+                mix.insert(0, "[sil]")
+            if has_out_audio:
+                parts.append(f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0[ao]" if len(mix) > 1 else f"{mix[0]}anull[ao]")
             fm = clean_format(e.get("format"))
             if fm:
                 r = fm["w"] / fm["h"]
@@ -425,6 +469,8 @@ class State:
                 parts.append(f"[vc]crop={cw}:{ch}:{cx}:{cy},scale={fm['w'] // 2 * 2}:{fm['h'] // 2 * 2},setsar=1[vo]")
             else:
                 parts.append("[vc]scale=trunc(iw/2)*2:trunc(ih/2)*2[vo]")
+            if (lanes.get("prog") or {}).get("hide"):   # footage switched off: keep the timing, show black
+                parts[-1] = parts[-1].replace("[vo]", ",drawbox=x=0:y=0:w=iw:h=ih:color=black:t=fill[vo]")
             stem, n = os.path.splitext(f)[0], 1
             while out is None:   # reserve a fresh name; never overwrite
                 cand = f"{stem} (edited{'' if n == 1 else ' ' + str(n)}).mp4"
@@ -433,10 +479,13 @@ class State:
                     out = cand
                 except FileExistsError:
                     n += 1
-            cmd = ["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", f, "-filter_complex", ";".join(parts), "-map", "[vo]"]
-            cmd += ["-map", "[ao]"] if has_audio else ["-an"]
+            cmd = ["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", f]
+            for x in sfx:
+                cmd += ["-i", os.path.join(LIB, x["file"])]
+            cmd += ["-filter_complex", ";".join(parts), "-map", "[vo]"]
+            cmd += ["-map", "[ao]"] if has_out_audio else ["-an"]
             cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"]
-            cmd += ["-c:a", "aac", "-b:a", "192k"] if has_audio else []
+            cmd += ["-c:a", "aac", "-b:a", "192k"] if has_out_audio else []
             cmd += ["-movflags", "+faststart", "-progress", "pipe:1", out]
             with tempfile.TemporaryFile() as err:
                 p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True)
@@ -479,6 +528,57 @@ class State:
                 with open(f, "wb") as fh:
                     fh.write(raw)
                 dr["image"] = os.path.relpath(f, self.video)
+
+
+def clean_sfx(items):
+    """Sound effects placed on the timeline: [{u, id, name, file, start, dur, off, vol, row}] (times in source seconds)."""
+    out = []
+    for it in items if isinstance(items, list) else []:
+        if not isinstance(it, dict):
+            continue
+        try:
+            f = str(it.get("file") or "")
+            if not re.fullmatch(r"sfx/sounds/[a-z0-9-]+\.(mp3|m4a|wav|ogg)", f):
+                continue
+            out.append({"u": str(it.get("u") or uuid.uuid4().hex[:8])[:16], "id": str(it.get("id") or "")[:60],
+                        "name": str(it.get("name") or "")[:80], "file": f,
+                        "start": round(max(0.0, float(it.get("start", 0))), 4), "dur": round(max(0.02, float(it.get("dur", 0.5))), 4),
+                        "len": round(max(0.02, float(it.get("len", it.get("dur", 0.5)))), 4),
+                        "off": round(max(0.0, float(it.get("off", 0) or 0)), 4), "vol": round(min(2.0, max(0.0, float(it.get("vol", 1)))), 3),
+                        "row": int(min(7, max(0, int(it.get("row", 0) or 0))))})
+        except (TypeError, ValueError):
+            continue
+    return out[:500]
+
+
+def clean_lanes(d):
+    """Per-track switches from the timeline headers: {"prog": {"hide": true}, "wave": {"mute": true}, "video:0": {...}}."""
+    out = {}
+    for k, v in (d or {}).items() if isinstance(d, dict) else []:
+        if isinstance(k, str) and re.fullmatch(r"(prog|wave|lib|(video|other|cap|audio|sfx):\d{1,2})", k) and isinstance(v, dict):
+            o = {x: True for x in ("mute", "hide") if v.get(x) is True}
+            if o:
+                out[k] = o
+    return out
+
+
+def seg_speed(s_):
+    try:
+        v = float(s_.get("sp", 1) or 1)
+    except (TypeError, ValueError):
+        v = 1.0
+    return min(16.0, max(0.1, v))
+
+
+def atempo_chain(sp):
+    """atempo takes 0.5–2 per stage: chain stages for anything outside that."""
+    parts, r = [], sp
+    while r > 2.0:
+        parts.append("atempo=2.0"); r /= 2.0
+    while r < 0.5:
+        parts.append("atempo=0.5"); r /= 0.5
+    parts.append(f"atempo={r:.6f}")
+    return ",".join(parts)
 
 
 def clean_frame(fr):
@@ -607,7 +707,8 @@ def render_md(data, st):
                   "Rebuild it to play like this: re-cut the footage from source (clean joins), retime captions, overlays and sound,",
                   "then rebuild and remove this version's entry from `edits` in review-notes.json. Render stays blocked until then.",
                   "Edits can also include a delivery format (reframe/crop: aspect, size, centre x/y). For video files the player can",
-                  "export the cut itself (next to the source, as \"<name> (edited).mp4\"), so no rebuild is needed.", ""]
+                  "export the cut itself (next to the source, as \"<name> (edited).mp4\"), so no rebuild is needed.",
+                  f"They can also hold speed changes (slow motion / speed up), sound effects (files in {LIB}) and muted or hidden tracks.", ""]
         lines += [f"- {x}" for x in e.get("summary") or []]
         lines.append("")
     appr = data.get("approved") or {}
@@ -708,7 +809,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/version.json":   # this install's own release notes (the What's new screen reads them)
             with open(os.path.join(HERE, "version.json"), "rb") as f:
                 return self.send(200, f.read(), "application/json")
-        if path in ("/timeline.js", "/library.js", "/update.js"):
+        if path in ("/timeline.js", "/library.js", "/update.js", "/sfx.js"):
             with open(os.path.join(HERE, path[1:]), "rb") as f:
                 return self.send(200, f.read(), "text/javascript; charset=utf-8")
         if path == "/api/version":

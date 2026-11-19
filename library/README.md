@@ -15,10 +15,11 @@ or any AI that reads `SPEC.md`.
 | `fonts/` | Open-licence fonts (Archivo, IBM Plex Mono, Playfair Display) |
 | `preview/` | Sample images the components show by default (before/after pairs, scenes, a product, a made-up wordmark) and the soft-focus room behind on-footage pieces. All rendered from our own mockups: no real brands or people |
 | `vendor/` | GSAP |
+| `sfx/` | 50 original sound effects (`sounds/*.mp3`, listed in `sounds.json`), synthesized by `make_sfx.py`. The review player's **Sounds** tab |
 
 ## Using it while editing
 
-In the review player (Cutnote), the sidebar has **Notes**, **Library** and **Captions** tabs:
+In the review player (Cutnote), the sidebar has **Notes**, **Library**, **Captions** and **Sounds** tabs:
 
 - every card plays on loop; pick a collection from the dropdown; click a card to change its text, numbers and timings;
 - drag it onto the video (placed there, at the playhead) or onto the timeline (at that time), or press **Add at playhead**. It is saved at once, plays live on the video inside a neon outline, and gets a neon block on the timeline's Library lane: drag the block to retime it, its right edge to change the length, the outline's chip (or the component, with the Select tool) to move it;
