@@ -122,4 +122,33 @@
   } catch {}
   refresh();
   setInterval(() => refresh(), 10 * 60 * 1000);
+
+  // When Cutnote restarts (an update, or someone restarts it), the page's video connections are cut and would freeze.
+  // Watch for a new server and reload in place: same version, same moment, paused or playing as before.
+  let boot = null;
+  const resumeKey = "cutnote:resume";
+  setInterval(async () => {
+    let v;
+    try { v = await fetch("/api/version", { cache: "no-store" }).then(r => r.json()); } catch { return; }   // down: try again
+    if (!boot) { boot = v.boot; return; }
+    if (v.boot !== boot) {
+      try { sessionStorage.setItem(resumeKey, JSON.stringify({ comp: S.comp && S.comp.id, t: S.t, playing: !!S.playing })); } catch {}
+      location.reload();
+    }
+  }, 3000);
+  try {
+    const r = JSON.parse(sessionStorage.getItem(resumeKey) || "null");
+    if (r) {
+      sessionStorage.removeItem(resumeKey);
+      const until = Date.now() + 20000;
+      const go = () => {
+        if (S.player && S.player.ready && S.comp) {
+          const p = r.comp && S.comp.id !== r.comp && typeof loadComp === "function" ? loadComp(r.comp) : Promise.resolve();
+          p.then(() => setTimeout(() => { seek(r.t || 0); if (r.playing) play(); }, 300));
+          if (typeof toast === "function") toast("Cutnote restarted: back where you were");
+        } else if (Date.now() < until) setTimeout(go, 300);
+      };
+      go();
+    }
+  } catch {}
 })();

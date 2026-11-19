@@ -1,11 +1,11 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "date": "2026-11-19",
   "notes": [
+    "If Cutnote restarts (after an update, or when you restart it), open pages now reload by themselves at the same moment, so the video never freezes.",
     "Sidebar tabs: Notes, Library and Captions.",
     "Library: animated components in collections. Drag one onto the video and it plays there right away, with a neon block on the timeline you can drag to retime.",
     "Captions: pick a caption style for the whole video.",
-    "Updates: this button tells you when a new Cutnote is out and updates it in one click, or automatically.",
-    "Setup installs everything Cutnote needs (ffmpeg, Node.js, HyperFrames) and `cutnote --doctor` checks it."
+    "Updates: this button tells you when a new Cutnote is out and updates it in one click, or automatically."
   ]
 }
