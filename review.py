@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -1041,6 +1041,7 @@ class H(BaseHTTPRequestHandler):
 PROJECTS = os.path.join(os.path.dirname(SETTINGS), "projects.json")
 THUMBS = os.path.join(os.path.dirname(SETTINGS), "thumbs")
 HUB_LOCK = threading.Lock()
+CONTENT_HOME = os.environ.get("CUTNOTE_CONTENT_URL", "https://content.novasagency.com")   # Content OS: where finished videos are planned and posted
 MEDIA_EXTS = VIDEO_EXTS + (".mkv", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".png", ".jpg", ".jpeg", ".heic", ".webp", ".gif")
 
 
@@ -1104,7 +1105,12 @@ def private_path(p):
     return any(x.casefold() in {n.casefold() for n in PRIVATE_NAMES} for x in os.path.normpath(p).split(os.sep))
 
 
-def hub_add(path, name=None, opened=False):
+def clean_url(u):
+    u = str(u or "").strip()
+    return u if re.fullmatch(r"https?://[^\s<>\"']{3,500}", u) else None
+
+
+def hub_add(path, name=None, opened=False, content=None):
     """Remember a project folder (the video folder, not a file inside it). Returns its entry."""
     path = os.path.abspath(path)
     if os.path.isfile(path):
@@ -1123,6 +1129,11 @@ def hub_add(path, name=None, opened=False):
             e["name"] = name
         if opened:
             e["opened"] = now
+        if content is not None:
+            if content:
+                e["content"] = content
+            else:
+                e.pop("content", None)
         d["hidden"] = [h for h in d["hidden"] if os.path.realpath(h) != rp]
         hub_save(d)
         return dict(e)
@@ -1330,10 +1341,11 @@ def _hub_list(current):
         seen.add(rp)
         x = {"id": pid_of(e["path"]), "path": e["path"], "name": e.get("name") or os.path.basename(e["path"]),
              "folder": os.path.basename(e["path"]), "added": e.get("added"), "opened": e.get("opened"), "found": bool(e.get("found")),
-             "current": rp == os.path.realpath(current)}
+             "current": rp == os.path.realpath(current), "content": e.get("content")}
         x.update(project_info(e["path"]))
         out.append(x)
-    return {"projects": out, "roots": d["roots"], "newIn": d.get("newIn") or default_new_in(), "platform": sys.platform}
+    return {"projects": out, "roots": d["roots"], "newIn": d.get("newIn") or default_new_in(), "platform": sys.platform,
+            "contentHome": d.get("contentHome") or CONTENT_HOME}
 
 
 def hub_name(path):
@@ -1413,6 +1425,12 @@ def hub_action(body):
         H.st = st
         H.gen += 1
         hub_add(x["path"], opened=True)
+        return 200, {"ok": True}
+    if act == "content":   # link this project to its page in Content OS (empty removes the link)
+        u = str(body.get("url") or "").strip()
+        if u and not clean_url(u):
+            return 400, {"error": "Paste a link that starts with https://"}
+        hub_add(x["path"], content=clean_url(u) or "")
         return 200, {"ok": True}
     if act == "rename":
         name = clean_name(body.get("name"))
@@ -1611,9 +1629,13 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--doctor":
         sys.exit(doctor())
     if len(sys.argv) >= 3 and sys.argv[1] == "--add":   # remember a project in the Cutnote Hub (for scripts and AI agents)
-        if not os.path.isdir(sys.argv[2]):
+        if not os.path.isdir(sys.argv[2]) or sys.argv[2].startswith("--"):
             sys.exit(f"No such folder: {sys.argv[2]}")
-        e = hub_add(sys.argv[2], name=sys.argv[3] if len(sys.argv) > 3 else None)
+        args = sys.argv[2:]
+        link = None
+        if "--content" in args:   # review.py --add <folder> [name] --content <Content OS link>
+            k = args.index("--content"); link = clean_url(args[k + 1] if k + 1 < len(args) else ""); del args[k:k + 2]
+        e = hub_add(args[0], name=args[1] if len(args) > 1 else None, content=link)
         print(f"Added to the Cutnote Hub: {e['name']} ({e['path']})")
         sys.exit(0)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

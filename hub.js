@@ -69,9 +69,12 @@
   #hub .hb-sort button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
   #hub .hb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; max-width: 1400px; margin: 0 auto; }
   .hb-card { position: relative; display: flex; flex-direction: column; border-radius: 16px; background: var(--panel); box-shadow: 0 0 0 1px var(--line); cursor: pointer; text-align: left;
-    transition: box-shadow .18s, transform .25s cubic-bezier(.22,1,.36,1); animation: hbIn .35s cubic-bezier(.22,1,.36,1) both; }
-  .hb-card:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 16px 40px rgba(0,0,0,.12); transform: translateY(-2px); }
+    transition: box-shadow .45s cubic-bezier(.22,1,.36,1), transform .55s cubic-bezier(.22,1,.36,1); animation: hbIn .35s cubic-bezier(.22,1,.36,1) both; will-change: transform; }
+  /* hover: a slow lift and a lime neon edge */
+  .hb-card:hover, .hb-card:focus-visible { outline: none; transform: translateY(-6px);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px rgba(198,244,50,.55), 0 0 46px 6px rgba(198,244,50,.22), 0 22px 44px rgba(0,0,0,.16); }
   .hb-card.cur { box-shadow: 0 0 0 2px var(--accent); }
+  .hb-card.missing:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 16px 40px rgba(0,0,0,.12); }
   .hb-card.missing { opacity: .6; }
   @keyframes hbIn { from { opacity: 0; transform: translateY(8px); } }
   .hb-pic { position: relative; aspect-ratio: 4 / 5; border-radius: 16px 16px 0 0; overflow: hidden; background: linear-gradient(150deg, var(--panel-2), var(--raise)); }
@@ -82,13 +85,22 @@
   .hb-badge { position: absolute; z-index: 2; top: 10px; left: 10px; height: 22px; padding: 0 9px; border-radius: 11px; display: inline-flex; align-items: center; gap: 5px; font: 700 11px -apple-system, system-ui, sans-serif; }
   .hb-badge.cur { background: var(--accent); color: var(--accent-ink); }
   .hb-badge.miss { background: rgba(20,20,20,.75); color: #fff; }
-  .hb-open { position: absolute; z-index: 2; left: 50%; bottom: 14px; transform: translate(-50%, 6px); opacity: 0; height: 32px; padding: 0 16px; border-radius: 16px; border: 0; background: #fff; color: #111;
-    font: 700 12px -apple-system, system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.25); transition: opacity .16s, transform .22s cubic-bezier(.22,1,.36,1); pointer-events: none; white-space: nowrap; }
-  .hb-card:hover .hb-open { opacity: 1; transform: translate(-50%, 0); }
-  .hb-more { position: absolute; z-index: 3; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 9px; border: 0; display: grid; place-items: center; background: rgba(255,255,255,.92); color: #111;
-    cursor: pointer; opacity: 0; transition: opacity .15s; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
-  .hb-card:hover .hb-more, .hb-more[aria-expanded="true"] { opacity: 1; }
-  .hb-more svg { width: 15px; height: 15px; }
+  /* the Open button: a neon pill in the middle of the picture */
+  .hb-open { position: absolute; z-index: 2; left: 50%; top: 50%; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 112px; height: 40px; padding: 0 20px;
+    border-radius: 20px; background: var(--accent); color: #141a00; font: 800 13px -apple-system, system-ui, sans-serif; letter-spacing: .01em; text-align: center; white-space: nowrap; pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.55) inset, 0 0 22px 3px rgba(198,244,50,.75), 0 0 60px 10px rgba(198,244,50,.3), 0 10px 24px rgba(0,0,0,.3);
+    opacity: 0; transform: translate(-50%, -50%) scale(.86); transition: opacity .3s ease, transform .45s cubic-bezier(.22,1,.36,1); }
+  .hb-open svg { width: 14px; height: 14px; }
+  .hb-card:hover .hb-open, .hb-card:focus-visible .hb-open { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .hb-card:hover .hb-pic::before { opacity: 1; }
+  .hb-pic::before { content: ""; position: absolute; inset: 0; z-index: 1; background: radial-gradient(60% 50% at 50% 50%, rgba(0,0,0,.28), transparent 75%); opacity: 0; transition: opacity .35s; pointer-events: none; }
+  .hb-more, .hb-cos { position: absolute; z-index: 3; top: 9px; width: 30px; height: 30px; border-radius: 9px; border: 0; display: grid; place-items: center; background: rgba(255,255,255,.94); color: #111;
+    cursor: pointer; opacity: 0; transform: translateY(-4px); transition: opacity .25s, transform .35s cubic-bezier(.22,1,.36,1), background .15s; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  .hb-more { right: 9px; } .hb-cos { right: 45px; transition-delay: .03s; text-decoration: none; }
+  .hb-more:hover, .hb-cos:hover { background: #fff; }
+  .hb-card:hover .hb-more, .hb-card:hover .hb-cos, .hb-more[aria-expanded="true"], .hb-more[aria-expanded="true"] ~ .hb-cos { opacity: 1; transform: none; }
+  .hb-more svg { width: 15px; height: 15px; } .hb-cos svg { width: 17px; height: 17px; }
+  .hb-cos.linked::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 3px; background: #2bd96b; box-shadow: 0 0 0 1.5px #fff; }
   .hb-body { padding: 12px 14px 14px; display: grid; gap: 4px; min-width: 0; }
   .hb-name { font-size: 14px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none; border-radius: 5px; }
   .hb-name[contenteditable="true"] { white-space: normal; box-shadow: 0 0 0 2px var(--accent); padding: 1px 4px; margin: -1px -4px; cursor: text; background: var(--panel); }
@@ -100,7 +112,13 @@
   .hb-new i { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
   .hb-new i svg { width: 20px; height: 20px; }
   .hb-empty { max-width: 460px; margin: 60px auto; text-align: center; color: var(--dim); font-size: 14px; line-height: 1.5; }
-  .hb-menu { position: fixed; z-index: 320; min-width: 210px; padding: 6px; border-radius: 13px; background: var(--panel); border: 1px solid var(--line-2); box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+  .hb-menu { position: fixed; z-index: 320; min-width: 220px; padding: 6px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line-2); box-shadow: 0 18px 50px rgba(0,0,0,.22);
+    opacity: 0; transform: translateY(-6px) scale(.95); transform-origin: top right; transition: opacity .18s ease, transform .3s cubic-bezier(.22,1,.36,1); }
+  .hb-menu.up { transform-origin: bottom right; transform: translateY(6px) scale(.95); }
+  .hb-menu.on { opacity: 1; transform: none; }
+  .hb-menu > * { opacity: 0; transform: translateY(-3px); transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
+  .hb-menu.on > * { opacity: 1; transform: none; }
+  ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => `.hb-menu.on > :nth-child(${i}) { transition-delay: ${i * 0.022}s; }`).join(" ")}
   .hb-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 500 13px -apple-system, system-ui, sans-serif; text-align: left; cursor: pointer; }
   .hb-menu button:hover { background: var(--raise); }
   .hb-menu button svg { width: 15px; height: 15px; color: var(--dim); }
@@ -146,6 +164,8 @@
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+    cos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M10 13.5l4 2-4 2z" fill="currentColor"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg>',
     dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
     folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
     open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4"/></svg>',
@@ -204,7 +224,7 @@
     $("#brandPop").querySelectorAll("[data-go]").forEach(b => b.setAttribute("aria-current", String((b.dataset.go === "hub") === on)));
     if (on) {
       if (typeof S !== "undefined" && S.playing && typeof pause === "function") pause();
-      if (!noTour && !toured()) H.tour(false); else load();   // the first visit offers the tour
+      if (!noTour && !toured() && !tourEl) H.tour(false); else load();   // the first visit offers the tour
       if (location.hash !== "#hub") history.replaceState(null, "", "#hub");
     }
     else if (location.hash === "#hub") history.replaceState(null, "", location.pathname + location.search);
@@ -230,7 +250,7 @@
     const d = H.data; if (!d) return;
     const q = H.q.toLowerCase();
     let ps = d.projects.filter(p => !q || (p.name + " " + p.path).toLowerCase().includes(q));
-    const key = p => H.sort === "name" ? p.name.toLowerCase() : (H.sort === "changed" ? p.changed : (p.opened || p.added || p.changed)) || "";
+    const key = p => H.sort === "name" ? p.name.toLowerCase() : (H.sort === "changed" ? p.changed : [p.opened, p.changed].filter(Boolean).sort().pop()) || "";
     ps.sort((a, b) => b.current - a.current || (H.sort === "name" ? key(a).localeCompare(key(b)) : String(key(b)).localeCompare(String(key(a)))));
     hub.querySelector("[data-sub]").textContent = d.projects.length ? `${d.projects.length} project${d.projects.length === 1 ? "" : "s"} on this computer` : "No projects yet";
     const card = p => {
@@ -244,6 +264,7 @@
         <div class="hb-pic"><span class="ph">${init}</span>${p.exists ? `<img alt="" loading="lazy" src="/api/hub/thumb?id=${p.id}&v=${encodeURIComponent(p.changed || "")}" onerror="this.remove()">` : ""}
           ${p.current ? `<span class="hb-badge cur">Open now</span>` : p.exists ? "" : `<span class="hb-badge miss">Folder missing</span>`}
           <button type="button" class="hb-more" data-a="more" aria-label="More for ${esc(p.name)}" aria-expanded="false">${I.dots}</button>
+          <a class="hb-cos${p.content ? " linked" : ""}" data-a="cos" href="${esc(p.content || H.data.contentHome)}" target="_blank" rel="noopener" title="${p.content ? "Open it in Content OS" : "Open Content OS (not linked yet: ⋯ › Link to Content OS)"}" aria-label="${p.content ? "Open in Content OS" : "Open Content OS"}">${I.cos}</a>
           ${p.exists ? `<span class="hb-open">${p.current ? "Back to it" : "Open"}</span>` : ""}</div>
         <div class="hb-body"><div class="hb-name" data-name>${esc(p.name)}</div><div class="hb-meta">${meta.join("<span>·</span>")}</div><div class="hb-path" title="${esc(p.path)}">${esc(where(p.path))}</div></div></div>`;
     };
@@ -259,6 +280,7 @@
     if (a && a.dataset.a === "roots") return roots();
     if (a && a.dataset.a === "tour") { e.preventDefault(); return H.tour(false); }
     if (a && a.dataset.a === "more" && c) { e.stopPropagation(); return menu(a, proj(c.dataset.id)); }
+    if (a && a.dataset.a === "cos") { e.stopPropagation(); return; }   // the link opens Content OS in a new tab
     if (c && !e.target.closest("[contenteditable=true]")) open(proj(c.dataset.id));
   });
   hub.addEventListener("keydown", e => { const c = e.target.closest && e.target.closest(".hb-card"); if (c && e.target === c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(proj(c.dataset.id)); } });
@@ -273,17 +295,24 @@
     location.replace(location.pathname);
   }
   let menuEl = null;
-  function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; hub.querySelectorAll('.hb-more[aria-expanded="true"]').forEach(b => b.setAttribute("aria-expanded", "false")); } }
+  function closeMenu() {
+    if (!menuEl) return;
+    const m = menuEl; menuEl = null; m.classList.remove("on"); setTimeout(() => m.remove(), 220);
+    hub.querySelectorAll('.hb-more[aria-expanded="true"]').forEach(b => b.setAttribute("aria-expanded", "false"));
+  }
   function menu(btn, p) {
     closeMenu(); if (!p) return;
     const where = H.data.platform === "darwin" ? "Show in Finder" : H.data.platform === "win32" ? "Show in Explorer" : "Show the folder";
     menuEl = document.createElement("div"); menuEl.className = "hb-menu"; menuEl.setAttribute("role", "menu");
-    menuEl.innerHTML = `${p.exists ? `<button data-m="open">${I.open}${p.current ? "Back to the editor" : "Open"}</button>` : ""}<button data-m="rename">${I.pen}Rename</button>${p.exists ? `<button data-m="reveal">${I.folder}${where}</button>` : ""}<hr>
+    menuEl.innerHTML = `${p.exists ? `<button data-m="open">${I.open}${p.current ? "Back to the editor" : "Open"}</button>` : ""}<button data-m="rename">${I.pen}Rename</button>${p.exists ? `<button data-m="reveal">${I.folder}${where}</button>` : ""}
+      <button data-m="cos">${I.link}${p.content ? "Change Content OS link…" : "Link to Content OS…"}</button><hr>
       <button data-m="remove">${I.minus}Remove from Hub</button>${p.exists && !p.current ? `<button data-m="trash" class="danger">${I.trash}Move to Trash…</button>` : ""}`;
     document.body.appendChild(menuEl); btn.setAttribute("aria-expanded", "true");
     const r = btn.getBoundingClientRect(), w = menuEl.offsetWidth, h = menuEl.offsetHeight;
     menuEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.right - w)) + "px";
-    menuEl.style.top = (r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6) + "px";
+    const up = r.bottom + 6 + h > innerHeight - 8;
+    menuEl.style.top = (up ? r.top - h - 6 : r.bottom + 6) + "px"; menuEl.classList.toggle("up", up);
+    requestAnimationFrame(() => requestAnimationFrame(() => menuEl && menuEl.classList.add("on")));
     menuEl.addEventListener("click", async e => {
       const m = e.target.closest("[data-m]"); if (!m) return; closeMenu();
       if (m.dataset.m === "open") open(p);
@@ -291,6 +320,7 @@
       else if (m.dataset.m === "reveal") api({ action: "reveal", id: p.id }).catch(err => say(err.message));
       else if (m.dataset.m === "remove") { try { await api({ action: "remove", id: p.id }); say(`Removed "${p.name}" from the Hub. Its folder is untouched.`); load(); } catch (err) { say(err.message); } }
       else if (m.dataset.m === "trash") trash(p);
+      else if (m.dataset.m === "cos") linkContent(p);
     });
   }
   document.addEventListener("pointerdown", e => { if (menuEl && !menuEl.contains(e.target) && !e.target.closest(".hb-more")) closeMenu(); });
@@ -320,6 +350,17 @@
     document.addEventListener("keydown", key, true);
     m.addEventListener("pointerdown", e => { if (e.target === m) close(); });
     return { el: m.firstElementChild, close };
+  }
+  function linkContent(p) {
+    const d = modal(`<h3>Link to Content OS</h3><p>Paste the link to this video's page in Content OS. The Content OS button on its card then opens that page.</p>
+      <label class="f">Link<input type="text" data-u placeholder="${esc(H.data.contentHome)}/content/…" value="${esc(p.content || "")}" autocomplete="off"></label><div class="hb-err" data-e></div>
+      <div class="hb-acts">${p.content ? `<button type="button" class="hb-btn ghost" data-rm>Remove link</button>` : ""}<span style="flex:1"></span><button type="button" class="hb-btn ghost" data-x>Cancel</button><button type="button" class="hb-btn primary" data-ok>Save</button></div>`);
+    const inp = d.el.querySelector("[data-u]"); setTimeout(() => inp.focus(), 30);
+    const save = async url => { try { await api({ action: "content", id: p.id, url }); d.close(); say(url ? "Linked to Content OS" : "Link removed"); load(); } catch (e) { d.el.querySelector("[data-e]").textContent = e.message; } };
+    inp.onkeydown = e => { e.stopPropagation(); if (e.key === "Enter") save(inp.value.trim()); };
+    d.el.querySelector("[data-x]").onclick = d.close;
+    d.el.querySelector("[data-ok]").onclick = () => save(inp.value.trim());
+    const rm = d.el.querySelector("[data-rm]"); if (rm) rm.onclick = () => save("");
   }
   function trash(p) {
     const d = modal(`<h3>Delete "${esc(p.name)}"?</h3><p>Move its folder to the Trash, or just take it off this list. Trashed folders can be put back from the Trash.</p>
@@ -397,6 +438,7 @@
     box-shadow: 0 30px 80px rgba(0,0,0,.35), 0 0 0 1px var(--line); transition: left .45s cubic-bezier(.22,1,.36,1), top .45s cubic-bezier(.22,1,.36,1); animation: hbPop .3s cubic-bezier(.22,1,.36,1) both; }
   #hbTour .tip .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--ink); color: var(--accent); margin-bottom: 12px; }
   #hbTour .tip .ic svg { width: 24px; height: 24px; } #hbTour .tip .ic .mk-hub path { fill: var(--ink); }
+  #hbTour .tip .ic.lime { background: var(--accent); color: var(--accent-ink); }
   #hbTour .tip small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text, var(--dim)); margin-bottom: 4px; }
   #hbTour .tip h4 { margin: 0 0 6px; font-size: 17px; letter-spacing: -.01em; }
   #hbTour .tip p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.5; }
@@ -421,24 +463,40 @@
     { el: () => hub.querySelector(".hb-search"), pad: 6, k: "Search", t: "Find anything fast", p: "Search by name or folder, and sort by recent, last edited or name. <kbd>⌘F</kbd> jumps here." },
     { el: () => hub.querySelector('[data-a="back"]'), pad: 6, k: "Back to editing", t: "Getting back to the editor", p: "Click <b>Back to the editor</b>, press <kbd>Esc</kbd>, or hover <b>Cutnote Editor</b> at the top left any time to switch between the editor and the Hub.", next: "Got it", lime: true },
   ];
-  let tourEl = null, tourK = 0;
+  // the editor's walk-round: new people see this first, and it hands over to the Hub tour at the end
+  const side = name => { if (window.SidePane) { if (!SidePane.isOpen()) SidePane.setOpen(true, true); if (name) SidePane.show(name); } };
+  const EDITOR_STEPS = [
+    { ic: LOGO_EDITOR, icLime: true, k: "Cutnote Editor", t: "Welcome to Cutnote", p: "Review a video, leave notes and cut it, then your AI assistant builds the changes. Here's a one-minute look round, or skip and explore.", next: "Show me round", lime: true },
+    { el: () => $("#frame"), k: "The video", t: "It plays live, right here", p: "Your edit plays as it really is. With the select tool, click anything on it to move it, resize it from a corner, or double-click to change its words." },
+    { el: () => $("#tools"), pad: 6, k: "Drawing", t: "Point at things", p: "Scribble <kbd>P</kbd> or draw a box <kbd>R</kbd> on any frame, in any colour. Drawings are saved with your note." },
+    { el: () => $("#transport"), pad: 4, k: "Playback", t: "Play, step and loop", p: "<kbd>Space</kbd> plays, <kbd>←</kbd> <kbd>→</kbd> step a frame, <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> work too. Change the speed or loop the whole video." },
+    { el: () => $("#tlbar"), pad: 4, k: "Editing tools", t: "Cut like a real editor", p: "Select, Slip, Roll and Blade; split at the playhead, trim the start or end, change speed for slow motion, and set snapping or the magnetic timeline." },
+    { el: () => $("#tlwrap"), pad: 0, k: "Timeline", t: "Everything on its own track", p: "Drag clips to move them, pull their edges to trim, drag up or down to layer. The eye hides a track and the speaker mutes it." },
+    { el: () => $("#sideTabs"), pad: 4, before: () => side(), k: "Sidebar", t: "Notes, Library, Captions, Sounds", p: "Animated overlays, caption styles and 50 sound effects: drag any of them onto the video or the timeline." },
+    { el: () => $("#compose"), pad: 6, before: () => side("notes"), k: "Notes", t: "Tell your AI what to change", p: "Press <kbd>N</kbd> at any moment, type what should change and press <kbd>Enter</kbd>. Your AI assistant reads the notes and makes the changes." },
+    { el: () => $("#approve"), pad: 6, k: "Approve", t: "Sign off when it's right", p: "Approve the exact version you're happy with. Nothing gets rendered until you do." },
+    { el: () => $("#brandBtn"), pad: 6, k: "Your projects", t: "Every project lives in the Hub", p: "Hover <b>Cutnote Editor</b> any time to switch to <b>Cutnote Hub</b>, your project manager. Want a quick look at it now?", next: "Show me the Hub", lime: true, last: "Finish" },
+  ];
+  let tourEl = null, tourK = 0, tourKind = "hub", tourSteps = STEPS;
   function tourDone(skipped) {
     if (!tourEl) return;
     tourEl.remove(); tourEl = null; hub.classList.remove("touring");
-    try { localStorage.setItem("cutnote:hubtour", "done"); } catch {}
-    if (skipped) say("Tour skipped. To get back to the editor: Back to the editor at the top left, or Esc");
+    try { localStorage.setItem(tourKind === "editor" ? "cutnote:edtour" : "cutnote:hubtour", "done"); } catch {}
+    if (skipped) say(tourKind === "editor" ? "Tour skipped. Replay it from the Cutnote menu: Take the tour" : "Tour skipped. To get back to the editor: Back to the editor at the top left, or Esc");
   }
   function tourPaint() {
+    const STEPS = tourSteps;
     const st = STEPS[tourK], hole = tourEl.querySelector(".hole"), tip = tourEl.querySelector(".tip");
+    if (st.before) st.before();
     const el = st.el && st.el();
     if (el) el.scrollIntoView({ block: "nearest" });
     const r = el ? el.getBoundingClientRect() : null, pad = st.pad != null ? st.pad : 8;
     if (r) Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px", borderRadius: (st.pad ? 12 : 20) + "px" });
     else Object.assign(hole.style, { left: innerWidth / 2 + "px", top: innerHeight / 2 + "px", width: "0px", height: "0px" });
     hole.classList.toggle("none", !r);
-    tip.innerHTML = `${st.ic ? `<div class="ic">${st.ic}</div>` : ""}<small>${st.k}</small><h4>${st.t}</h4><p>${st.p}</p>
+    tip.innerHTML = `${st.ic ? `<div class="ic${st.icLime ? " lime" : ""}">${st.ic}</div>` : ""}<small>${st.k}</small><h4>${st.t}</h4><p>${st.p}</p>
       <div class="row"><div class="dots">${STEPS.map((_, i) => `<i class="${i === tourK ? "on" : ""}"></i>`).join("")}</div>
-      ${tourK < STEPS.length - 1 ? `<button type="button" class="skip" data-t="skip">Skip tour</button>` : `<button type="button" class="skip" data-t="prev">Back</button>`}
+      ${tourK < STEPS.length - 1 ? `<button type="button" class="skip" data-t="skip">Skip tour</button>` : st.last ? `<button type="button" class="skip" data-t="finish">${st.last}</button>` : `<button type="button" class="skip" data-t="prev">Back</button>`}
       <button type="button" class="next${st.lime ? " lime" : ""}" data-t="next">${st.next || "Next"}</button></div>`;
     // the card sits beside the spotlight, wherever it fits
     const tw = tip.offsetWidth, th = tip.offsetHeight, m = 16;
@@ -450,23 +508,47 @@
     tip.style.left = Math.max(m, Math.min(innerWidth - tw - m, x)) + "px"; tip.style.top = Math.max(m, Math.min(innerHeight - th - m, y)) + "px";
     setTimeout(() => { const b = tip.querySelector(".next"); b && b.focus({ preventScroll: true }); }, 50);
   }
-  H.tour = async (open) => {
-    if (open && !document.body.classList.contains("hub-on")) H.show(true, true);
-    await load();
+  function startTour(kind) {
     if (tourEl) tourEl.remove();
-    tourK = 0; hub.classList.add("touring");
-    tourEl = document.createElement("div"); tourEl.id = "hbTour"; tourEl.innerHTML = `<div class="hole none"></div><div class="tip" role="dialog" aria-modal="true" aria-label="Cutnote Hub tour"></div>`;
+    tourKind = kind; tourSteps = kind === "editor" ? EDITOR_STEPS : STEPS; tourK = 0;
+    hub.classList.toggle("touring", kind === "hub");
+    tourEl = document.createElement("div"); tourEl.id = "hbTour";
+    tourEl.innerHTML = `<div class="hole none"></div><div class="tip" role="dialog" aria-modal="true" aria-label="${kind === "editor" ? "Cutnote Editor" : "Cutnote Hub"} tour"></div>`;
     document.body.appendChild(tourEl);
     tourEl.addEventListener("click", e => {
       const b = e.target.closest("[data-t]"); if (!b) return;
       if (b.dataset.t === "skip") return tourDone(true);
+      if (b.dataset.t === "finish") return tourDone(false);
       if (b.dataset.t === "prev") { tourK = Math.max(0, tourK - 1); return tourPaint(); }
-      if (tourK >= STEPS.length - 1) return tourDone(false);
+      if (tourK >= tourSteps.length - 1) {
+        const handOver = tourKind === "editor";
+        tourDone(false);
+        if (handOver) H.tour(true);   // the editor tour ends by walking into the Hub
+        return;
+      }
       tourK++; tourPaint();
     });
     tourPaint();
+  }
+  H.tour = async (open) => {
+    if (open && !document.body.classList.contains("hub-on")) H.show(true, true);
+    await load();
+    startTour("hub");
   };
+  H.editorTour = () => { if (document.body.classList.contains("hub-on")) H.show(false); if (typeof S !== "undefined" && S.playing && typeof pause === "function") pause(); startTour("editor"); };
+  // someone new: the editor tour first (the Hub tour follows from its last step)
+  (() => {
+    let fresh = false; try { fresh = !localStorage.getItem("cutnote:seen") && localStorage.getItem("cutnote:edtour") !== "done"; } catch {}
+    if (!fresh || location.hash === "#hub") return;
+    const until = Date.now() + 20000;
+    const go = () => {
+      if (typeof S !== "undefined" && S.player && S.player.ready && !document.querySelector("#wnew")) setTimeout(() => !tourEl && H.editorTour(), 700);
+      else if (Date.now() < until) setTimeout(go, 400);
+    };
+    go();
+  })();
   addEventListener("resize", () => tourEl && tourPaint());
+  document.addEventListener("click", e => { const a = e.target.closest("[data-tour]"); if (!a) return; e.preventDefault(); document.querySelectorAll(".open").forEach(x => x.classList.remove("open")); H.editorTour(); });
   document.addEventListener("keydown", e => {
     if (!tourEl) return;
     if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); tourDone(true); }
