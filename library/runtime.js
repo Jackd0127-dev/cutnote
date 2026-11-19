@@ -137,14 +137,14 @@
    * The component on its own: a plain backdrop, no footage. It is measured over its whole animation, then centred and
    * scaled to fill the card; full-frame pieces (rain, storyline, transitions) show the whole canvas. Loops forever.
    *   opts: width, aspect (w/h, default 4/5), background ("light" | "photo" | "dark" | any CSS background), autoplay, gap, radius
-   * Backdrops: "light" (the default) is a clean near-white; "photo" is a soft-focus dark room (preview/backdrop-scene.jpg)
-   * for white type and glow made to sit on footage; "dark" is the plain dark gradient. A component picks one with
+   * Backdrops: "light" (the default) is a clean near-white; "dark" (also "photo") is a plain black gradient
+   * for white type and glow made to sit on footage. A component picks one with
    * `preview: { background }`.
    * Returns { tl, stage, box, restart, destroy, fit }. */
   const BGS = {
     light: "radial-gradient(130% 95% at 50% 26%, #fbfaf8 0%, #f7f6f3 42%, #efede8 100%)",
-    dark: "radial-gradient(120% 90% at 50% 30%, #2b2824 0%, #181614 55%, #0e0d0c 100%)",
-    photo: () => `radial-gradient(120% 95% at 50% 42%, rgba(10,8,6,.14) 35%, rgba(10,8,6,.5) 100%), #17120e url("${LIB.base}preview/backdrop-scene.jpg") center / cover no-repeat`,
+    dark: "linear-gradient(180deg, #26262a 0%, #111113 60%, #08080a 100%)",
+    photo: "linear-gradient(180deg, #26262a 0%, #111113 60%, #08080a 100%)",   // same plain black gradient (was a blurred room photo)
   };
   LIB.backdrop = function (name) { const b = BGS[name || "light"]; return typeof b === "function" ? b() : b || name; };
   // visible area a component draws over its run, in canvas px; null when nothing (or only full-canvas layers) shows
