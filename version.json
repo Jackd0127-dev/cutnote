@@ -1,7 +1,8 @@
 {
-  "version": "1.2.7",
+  "version": "1.2.8",
   "date": "19 Nov 2026",
   "notes": [
-    "No more hunting on the timeline: when you add a component or caption style, or open one from the sidebar, the timeline moves to show it and the video jumps to its moment."
+    "Ready to edit straight away: whatever you add is selected at once, outlined on the video and timeline with its settings open, so you can move, resize or tweak it without hunting for it.",
+    "See it, not a blank frame: adding or selecting a component shows it part-way through its animation, not at its empty first frame."
   ]
 }

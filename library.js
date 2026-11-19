@@ -458,7 +458,7 @@
       body.querySelector(".back").onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
       body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
       body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
-      if (!p.cap) { if (!(S.t >= p.t && S.t <= p.t + p.dur)) seek(p.t); reveal(p.t, p.dur); }
+      if (!p.cap) { if (!(S.t >= p.t && S.t <= p.t + p.dur)) seek(p.t + Math.min(1.4, p.dur * 0.55)); reveal(p.t, p.dur); }
     });
   }
   D.openPlacement = openPlacement;
@@ -566,6 +566,14 @@
     if (!cap && Math.abs(S.t - t) > 0.02) seek(t);
     layoutLanes(); draw(); sync(true);
     reveal(cap ? 0 : t, cap ? 0 : dur);
+    // select what you just added: outlined on the video and timeline, its settings open, and shown mid-way through
+    // (at its very start it hasn't animated in yet)
+    if (added) {
+      D.measured.clear();
+      openPlacement(added.id);
+      if (!cap) setTimeout(() => { seek(t + Math.min(1.4, dur * 0.55)); sync(true); paintFrame(); }, 120);
+      else { D.selected = added.id; paintFrame(); }
+    }
     if (cap && P.cap.dataset.built) render("cap");
     if (cap) capExplainer(short(def.name));
     undoBar(added, replaced, cap ? `${short(def.name)} captions for the whole video. Claude builds them on the next run.` : `${def.name} added at ${fmt(t)}. Claude builds it on the next run.`, cap);
