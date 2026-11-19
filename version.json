@@ -1,8 +1,9 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "date": "19 Nov 2026",
   "notes": [
-    "Hide the sidebar: the new button by the top right (or ⇧\\) slides it away so the video and timeline get the whole window, and brings it back.",
-    "A tidier toolbar: the drawing tools lose the confusing X button; Undo still takes back a mark."
+    "Clearer sidebar toggle: hide the sidebar with the arrow at the end of its tabs, and bring it back with the Notes · Library · Captions tab on the right edge.",
+    "Better previews: every component and caption style is centred and sized to fill its card, in the list and when you open it.",
+    "What's new, anytime: the What's new links in the Cutnote menu and the version panel open this screen."
   ]
 }
