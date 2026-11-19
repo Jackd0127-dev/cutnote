@@ -20,29 +20,46 @@
 
   /* ---------- styles ---------- */
   const css = `
-  .lp-head { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); flex: none; }
-  .lp-head .row { display: flex; gap: 8px; align-items: center; }
-  .lp-head .dd { flex: 1; min-width: 0; }
-  .lp-head .dd .dd-btn { width: 100%; }
-  .lp-head input[type=search] { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
-  .lp-head .hint { margin: 0; font-size: 11.5px; color: var(--dim); }
-  .lp-body { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+  .lp-head { display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); flex: none; }
+  .lp-search { position: relative; }
+  .lp-search svg { position: absolute; left: 10px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .lp-search input { width: 100%; height: 34px; padding: 0 10px 0 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 13px; }
+  .lp-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--panel); }
+  .lp-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; -webkit-mask: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 18px), transparent); }
+  .lp-chips::-webkit-scrollbar { display: none; }
+  .lp-chips button { flex: none; height: 28px; padding: 0 11px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s; }
+  .lp-chips button:hover { color: var(--ink); border-color: var(--line-2); }
+  .lp-chips button.on { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+  .lp-chips button i { font-style: normal; font-weight: 500; opacity: .6; margin-left: 4px; }
+  .lp-body { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 16px; }
+  .lp-tip { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; padding: 9px 10px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); font-size: 12px; line-height: 1.4; }
+  .lp-tip button { margin-left: auto; border: 0; background: none; color: var(--dim); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .lp-sec { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; gap: 6px; margin: 0 -12px; padding: 14px 14px 8px; background: var(--panel); font-size: 12px; font-weight: 700; color: var(--ink); }
+  .lp-sec span { font-weight: 500; color: var(--faint); }
   .lp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .lp-sec { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; margin: 6px 2px 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
-  .lp-sec:first-child { margin-top: 0; }
-  .lp-sec span { font-weight: 500; letter-spacing: 0; text-transform: none; }
-  .lp-card { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 6px; background: var(--panel); cursor: grab; user-select: none;
-    transition: border-color .15s, transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s; }
-  .lp-card:hover { border-color: var(--line-2); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .lp-card { position: relative; border-radius: 12px; cursor: grab; user-select: none; }
+  .lp-card .pv { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 11px; overflow: hidden; background: var(--panel-2); box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s, transform .2s cubic-bezier(.22,1,.36,1); pointer-events: none; }
+  .lp-card:hover .pv { box-shadow: 0 0 0 1.5px var(--line-2), 0 8px 22px rgba(0,0,0,.12); transform: translateY(-1px); }
   .lp-card:active { cursor: grabbing; }
-  .lp-card .pv { width: 100%; aspect-ratio: 4/5; pointer-events: none; border-radius: 9px; overflow: hidden; background: var(--panel-2); }
-  .lp-card b { display: block; font-size: 12.5px; font-weight: 600; margin: 7px 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lp-card small { display: block; font-size: 11px; color: var(--dim); margin: 1px 3px 2px; }
-  .lp-card.on { border-color: ${PINK}; box-shadow: 0 0 0 2px rgba(255,63,216,.25); }
-  .lp-card .tag { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 3px 8px; border-radius: 10px; background: ${PINK}; color: #fff; font-size: 10.5px; font-weight: 700; }
+  .lp-card b { display: block; font-size: 12.5px; font-weight: 600; margin: 7px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lp-card small { display: block; font-size: 11px; color: var(--faint); margin: 1px 2px 0; }
+  .lp-card .add { position: absolute; right: 7px; top: 7px; z-index: 2; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 700; line-height: 28px; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; }
+  .lp-card:hover .add, .lp-card .add:focus-visible { opacity: 1; transform: none; }
+  .lp-list { display: grid; gap: 10px; }
+  .lp-row { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); cursor: grab; background: var(--panel); transition: box-shadow .15s; }
+  .lp-row:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 8px 22px rgba(0,0,0,.1); }
+  .lp-row .pv { width: 100%; aspect-ratio: 2.2/1; pointer-events: none; }
+  .lp-row .foot { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; }
+  .lp-row .foot b { font-size: 12.5px; } .lp-row .foot small { color: var(--faint); font-size: 11px; }
+  .lp-row .foot button { margin-left: auto; height: 28px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-weight: 600; font-size: 12px; cursor: pointer; }
+  .lp-row .foot button:hover { border-color: var(--line-2); }
+  .lp-row.on { box-shadow: 0 0 0 2px #f3a6e6; }
+  .lp-row.on .foot button { background: #f3a6e6; border-color: #f3a6e6; color: #3a0632; }
   .lp-empty { color: var(--dim); text-align: center; padding: 36px 10px; }
-  .lp-det .back { margin-bottom: 12px; }
-  .lp-det .big { width: 220px; margin: 0 auto 14px; }
+  .lp-det { padding-top: 12px; }
+  .lp-det .back { height: 28px; padding: 0 10px 0 8px; margin-bottom: 12px; font-size: 12px; }
+  .lp-det .big { width: 100%; margin: 0 0 14px; }
   .lp-det h2 { margin: 0 0 4px; font-size: 15px; }
   .lp-det p { margin: 0 0 12px; color: var(--dim); font-size: 12.5px; }
   .lp-det .f { margin: 0 0 9px; }
@@ -76,7 +93,7 @@
   .lp-det .seg.sm { display: inline-flex; } .lp-det .seg.sm button { height: 28px; padding: 0 12px; text-transform: capitalize; }
   .lp-det .row2 { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .lp-det .row2 button { flex: 1; }
   .lp-det .ib.danger { color: var(--fix); }
-  .lp-cur { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; margin: 0 0 12px; border-radius: 12px; border: 1.5px solid ${PINK}; background: rgba(255,63,216,.07); }
+  .lp-cur { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; margin: 12px 0 0; border-radius: 12px; border: 1.5px solid ${PINK}; background: rgba(255,63,216,.07); }
   .lp-cur b { font-size: 12.5px; } .lp-cur small { display: block; color: var(--dim); font-size: 11.5px; }
   .lp-cur button { margin-left: auto; }
 
@@ -213,8 +230,8 @@
     for (const [host, pv] of D.previews) if (P[pane].contains(host)) { pv.destroy(); D.previews.delete(host); }
     if (D.ed && P[pane].contains(D.ed.host)) { D.ed.api.destroy(); D.ed = null; }
   }
-  function mkPreview(host, def, width) {
-    const pv = VideoLibrary.preview(host, def.id, { width, autoplay: false, radius: 9 });
+  function mkPreview(host, def, width, aspect) {
+    const pv = VideoLibrary.preview(host, def.id, { width, aspect: aspect || 4 / 5, autoplay: false, radius: 0 });
     if (!pv) return;
     D.previews.set(host, pv);
     if (!io) io = new IntersectionObserver(es => { es.forEach(e => { e.target._vis = e.isIntersecting; }); playVisible(); });
@@ -238,6 +255,8 @@
     for (const d of list) { const c = d.collection || d.category || "Other"; if (!by.has(c)) by.set(c, []); by.get(c).push(d); }
     return { list, by };
   }
+  const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  const tipOff = k => { try { return localStorage.getItem("cutnote:tip:" + k) === "off"; } catch { return false; } };
   function render(kind) {
     const pane = P[kind];
     if (!window.VideoLibrary) return;
@@ -245,37 +264,48 @@
     const { list, by } = collections(kind);
     if (!pane.dataset.built) {
       pane.dataset.built = "1";
-      pane.innerHTML = `<div class="lp-head"><div class="row"><div class="dd" data-dd></div></div>
-        ${kind === "lib" ? `<div class="row"><input type="search" placeholder="Search components" data-q></div>` : ""}
-        <p class="hint">${kind === "lib" ? "Drag onto the video or the timeline. It's added at once, and Claude builds it properly on the next run." : "One caption style for the whole video. Drag one onto the video, or open it and press Use."}</p></div>
-        <div class="lp-body" data-body></div>`;
-      DD[kind] = Dropdown(pane.querySelector("[data-dd]"), { prefix: "Collection", onChange: v => { D.coll[kind] = v; D.detail[kind] = null; render(kind); } });
+      pane.innerHTML = `<div class="lp-head">${kind === "lib" ? `<label class="lp-search">${ICON_SEARCH}<input type="search" data-q placeholder="Search ${list.length} components" aria-label="Search components"></label>` : ""}
+        <div class="lp-chips" role="tablist" data-chips></div></div><div class="lp-body" data-body></div>`;
       const q = pane.querySelector("[data-q]");
       if (q) q.addEventListener("input", () => { D.q = q.value.trim().toLowerCase(); D.detail.lib = null; render("lib"); });
+      pane.querySelector("[data-chips]").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if (!b) return; D.coll[kind] = b.dataset.c; D.detail[kind] = null; render(kind); });
       const body = pane.querySelector("[data-body]");
       body.addEventListener("click", e => {
+        const tipX = e.target.closest("[data-act=tipx]");
+        if (tipX) { try { localStorage.setItem("cutnote:tip:" + kind, "off"); } catch {} tipX.closest(".lp-tip").remove(); return; }
         const r = e.target.closest("[data-act=removecap]");
         if (r) { removePlacement(r.dataset.id); return; }
-        const c = e.target.closest(".lp-card");
+        const add = e.target.closest("[data-act=add], [data-act=use]");
+        if (add) { const def = VideoLibrary.components[add.closest("[data-id]").dataset.id]; if (def) place(def, S.t, null, null, null); return; }
+        const c = e.target.closest(".lp-card, .lp-row");
         if (c) { D.detail[kind] = c.dataset.id; render(kind); }
       });
       body.addEventListener("dragstart", onDragStart);
     }
-    const names = [...by.keys()];
     if (D.coll[kind] && !by.has(D.coll[kind])) D.coll[kind] = "";
-    DD[kind].setItems([{ value: "", label: "All collections", hint: String(list.length) }, ...names.map(n => ({ value: n, label: n, hint: String(by.get(n).length) }))], D.coll[kind]);
+    const names = [...by.keys()];
+    pane.querySelector("[data-chips]").innerHTML = [["", "All", list.length], ...names.map(n => [n, n, by.get(n).length])]
+      .map(([v, l, c]) => `<button type="button" role="tab" data-c="${esc(v)}" class="${v === D.coll[kind] ? "on" : ""}" aria-selected="${v === D.coll[kind]}">${esc(l)}<i>${c}</i></button>`).join("");
     const body = pane.querySelector("[data-body]");
     const det = D.detail[kind] && VideoLibrary.components[D.detail[kind]];
+    pane.querySelector(".lp-head").style.display = det ? "none" : "";
     if (det) return openDetail(kind, det, body);
     const q = kind === "lib" ? D.q : "";
     const curCap = kind === "cap" ? placements().find(p => p.cap) : null;
     let html = "";
+    if (!tipOff(kind)) html += `<div class="lp-tip"><span>${kind === "lib" ? "Drag a component onto your video, or press <b>+</b> to add it at the playhead. Click one to set it up first." : "One caption style for the whole video. Press <b>Use</b>, or drag it onto your video."}</span><button type="button" data-act="tipx" aria-label="Hide tip">×</button></div>`;
     if (curCap) html += `<div class="lp-cur"><span><b>${esc(short(curCap.c.name))} captions</b><small>For the whole video · Claude builds them on the next run</small></span><button class="ib" type="button" data-act="removecap" data-id="${esc(curCap.id)}">Remove</button></div>`;
-    const sections = (D.coll[kind] ? [D.coll[kind]] : names).map(n => [n, by.get(n).filter(d => !q || (d.name + " " + (d.description || "") + " " + (d.tags || []).join(" ") + " " + n).toLowerCase().includes(q))]).filter(([, ds]) => ds.length);
-    if (!sections.length) html += `<div class="lp-empty">Nothing matches.</div>`;
-    else html += `<div class="lp-grid">${sections.map(([n, ds]) => `<div class="lp-sec">${esc(n)}<span>${ds.length}</span></div>` + ds.map(d => `<div class="lp-card${curCap && curCap.c.id === d.id ? " on" : ""}" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}">${curCap && curCap.c.id === d.id ? '<span class="tag">In use</span>' : ""}<div class="pv"></div><b>${esc(kind === "cap" ? short(d.name) : d.name)}</b><small>${esc(d.source || d.category || "")}</small></div>`).join("")).join("")}</div>`;
+    const match = (d, n) => !q || (d.name + " " + (d.description || "") + " " + (d.tags || []).join(" ") + " " + n).toLowerCase().includes(q);
+    const sections = (D.coll[kind] ? [D.coll[kind]] : names).map(n => [n, by.get(n).filter(d => match(d, n))]).filter(([, ds]) => ds.length);
+    if (!sections.length) html += `<div class="lp-empty">Nothing matches “${esc(q)}”.</div>`;
+    for (const [n, ds] of sections) {
+      html += `<div class="lp-sec">${esc(n)}<span>${ds.length}</span></div>`;
+      if (kind === "lib") html += `<div class="lp-grid">${ds.map(d => `<div class="lp-card" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><button class="add" type="button" data-act="add" title="Add at the playhead" aria-label="Add ${esc(d.name)} at the playhead">+</button><b>${esc(d.name)}</b><small>${esc(d.source || "")}</small></div>`).join("")}</div>`;
+      else html += `<div class="lp-list">${ds.map(d => { const on = curCap && curCap.c.id === d.id; return `<div class="lp-row${on ? " on" : ""}" draggable="true" data-id="${esc(d.id)}" title="${esc(d.description || "")}"><div class="pv"></div><div class="foot"><span><b>${esc(short(d.name))}</b><br><small>${esc(d.source || "")}</small></span><button type="button" data-act="use">${on ? "In use" : "Use"}</button></div></div>`; }).join("")}</div>`;
+    }
     body.innerHTML = html;
-    body.querySelectorAll(".lp-card").forEach(el => mkPreview(el.querySelector(".pv"), VideoLibrary.components[el.dataset.id], (el.clientWidth || 160) - 12));
+    body.querySelectorAll(".lp-card .pv").forEach(el => mkPreview(el, VideoLibrary.components[el.closest("[data-id]").dataset.id], el.clientWidth || 160, 4 / 3));
+    body.querySelectorAll(".lp-row .pv").forEach(el => mkPreview(el, VideoLibrary.components[el.closest("[data-id]").dataset.id], el.clientWidth || 330, 2.2));
     playVisible();
   }
   /* ---------- the settings form: simple fields, grouped, the fiddly ones tucked under "More" ---------- */
@@ -343,7 +373,7 @@
     body.querySelector(".back").onclick = () => { D.detail[kind] = null; render(kind); };
     const big = body.querySelector(".big");
     let pv = null;
-    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: 220, params, radius: 14 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
+    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: big.clientWidth || 300, aspect: kind === "cap" ? 2.2 : 4 / 3, params, radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
     show();
     buildForm(body.querySelector(".form"), def, params, show);
     body.querySelector(".go").onclick = () => place(def, S.t, null, null, JSON.parse(JSON.stringify(params)));
@@ -359,6 +389,7 @@
     ensureLoaded().then(() => {
       if (!P[kind].dataset.built) render(kind);
       dropPreviews(kind);
+      P[kind].querySelector(".lp-head").style.display = "none";
       const body = P[kind].querySelector("[data-body]");
       const params = Object.assign(VideoLibrary.defaults(def.id), JSON.parse(JSON.stringify(p.c.params || {})));
       body.innerHTML = `<div class="lp-det pl"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
@@ -404,7 +435,17 @@
   }
   D.hasLane = () => placements().length > 0;
   // the lane holds a row for components and a thin row under it for the caption style, when there are both
-  D.laneH = () => { const ps = placements(); const a = ps.some(p => !p.cap), b = ps.some(p => p.cap); return a && b ? 44 : a ? 26 : 18; };
+  // components that overlap in time (including their floating labels) get their own rows; captions take a thin row under them
+  const ROW = 24, CAPROW = 16;
+  function laneRows() {
+    const rows = [], at = new Map(), lab = 2.4;   // keep ~2.4 s clear after each block for its label
+    for (const p of placements().filter(q => !q.cap).sort((a, b) => a.t - b.t)) {
+      let r = rows.findIndex(end => p.t >= end); if (r < 0) { r = rows.length; rows.push(0); }
+      rows[r] = p.t + Math.max(p.dur, 0) + lab; at.set(p.id, r);
+    }
+    return { n: rows.length, at };
+  }
+  D.laneH = () => { const n = laneRows().n, cap = placements().some(p => p.cap); return Math.max(18, n * (ROW + 2) + (cap ? CAPROW + 2 : 0)); };
 
   // where a component draws (canvas px), over its whole run; cached per component + params
   function measureBox(id, params) {
@@ -510,7 +551,7 @@
 
   /* ---------- drag and drop from the sidebar ---------- */
   function onDragStart(e) {
-    const c = e.target.closest(".lp-card"); if (!c) return;
+    const c = e.target.closest(".lp-card, .lp-row"); if (!c) return;
     const def = VideoLibrary.components[c.dataset.id];
     e.dataTransfer.setData("application/x-cutnote-component", c.dataset.id);
     e.dataTransfer.setData("text/plain", def ? def.name : c.dataset.id);
@@ -562,6 +603,7 @@
     const ps = window.VideoLibrary ? placements() : [];
     if (!g || !ps.length) { if (lane._html) { lane.innerHTML = ""; lane._html = ""; } paintFrame(); return; }
     const w = $("#tl").clientWidth;
+    D._rows = laneRows();
     const html = [];
     for (const p of ps) {
       const a = p.cap ? 0 : toE(p.t), b = p.cap ? progDur() : toE(p.t + p.dur);
@@ -569,7 +611,8 @@
       if (x1 < G || x0 > w) continue;
       x0 = Math.max(G, x0); x1 = Math.min(w, x1);
       const label = p.cap ? `Captions · ${esc(short(p.c.name))} <i>whole video</i>` : `${esc(p.c.name)} <i>${fmt(p.t)}</i>`;
-      const both = g.h > 30, by = p.cap && both ? g.y + 28 : g.y, bh = p.cap ? (both ? 16 : g.h) : (both ? 26 : g.h);
+      const LR = D._rows || (D._rows = laneRows());
+      const by = p.cap ? g.y + LR.n * (ROW + 2) : g.y + (LR.at.get(p.id) || 0) * (ROW + 2), bh = p.cap ? CAPROW : ROW;
       const narrow = !p.cap && x1 - x0 < 150;
       html.push(`<div class="ll-blk${p.cap ? " cap" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${narrow ? "" : label}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
       if (narrow) html.push(`<div class="ll-lbl" style="left:${Math.max(x0, Math.min(w - 230, x1 + 6))}px;top:${by + bh / 2}px">${label}</div>`);
