@@ -34,6 +34,9 @@ It runs on your machine and needs no account or upload. It is one Python file pl
 - **Layers.** Drag overlays, b-roll, captions and sounds up or down on the timeline to move them to another row. The top row plays in front.
 - **Formats.** Reframe for 9:16, 4:5, 1:1, 16:9 or 4:3. Drag a crop window over the frame to choose what stays in the shot.
 - **Export cut.** For plain video files, Cutnote renders your cut and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
+- **Component library.** The sidebar has three tabs: **Notes**, **Library** and **Captions**. Library holds animated overlays (stat tiles, kinetic type, a customer crowd, before/after cards, price sliders, break-even graphs, storylines, series cards and more), grouped into collections you switch with a dropdown. Every card loops a live preview. Drag one onto the video or the timeline and it's added at once: it plays on the video at that moment inside a neon outline, and a neon block on the timeline's **Library** lane shows how long it plays. Drag the block to retime it, pull its right edge to change the length, or drag the outline's chip to move it on the frame. Each one is saved as a note, so your AI assistant builds it properly on the next run.
+- **Caption styles.** The Captions tab lists caption styles (classic, highlight, one word, boxed, typewriter…). Drop one on the video and it applies to the whole video, marked in magenta across the timeline.
+- **Updates.** A version chip in the header turns lime when a new Cutnote is out. **Update now** installs it and restarts in place, or switch on **Update automatically**.
 - **Approval gate.** For compositions, an *Approve* button records the exact build you signed off. A render script can refuse anything that isn't approved.
 - **Light mode by default, dark mode with <kbd>⇧D</kbd>**, custom dropdowns, and editor-standard shortcuts. Press <kbd>?</kbd> in the app for the full list.
 
@@ -51,11 +54,19 @@ Claude clones the repo, checks for Python and ffmpeg, starts Cutnote and gives y
 
 ### One command
 
+macOS and Linux:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Jackd0127-dev/cutnote/main/install.sh | sh
 ```
 
-This clones Cutnote to `~/.cutnote` and adds a `cutnote` command in `~/.local/bin`. Then:
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/Jackd0127-dev/cutnote/main/install.ps1 | iex
+```
+
+The setup checks for everything Cutnote uses and offers to install what's missing: git, Python, ffmpeg, Node.js and the HyperFrames player (Homebrew on macOS, your package manager on Linux, winget on Windows). It asks before installing anything (`--yes` skips the questions). Then it clones Cutnote to `~/.cutnote`, adds a `cutnote` command, and runs `cutnote --doctor` to show that everything works. Run it again any time to update. Then:
 
 ```bash
 cutnote ~/Videos/my-project
@@ -72,6 +83,8 @@ python3 cutnote/review.py ~/Videos/my-project
 ```
 
 ### Requirements
+
+The setup installs these for you. `cutnote --doctor` shows what's there.
 
 - **Python 3.8+**, standard library only.
 - **ffmpeg and ffprobe**, used for the filmstrip, the waveform and Export cut. Install with `brew install ffmpeg`, `sudo apt install ffmpeg` or `winget install ffmpeg`.
@@ -93,6 +106,7 @@ Play it, press <kbd>N</kbd> to leave a note, and click the card on the frame to 
 
 ```text
 cutnote [folder] [--port 4790] [--host 127.0.0.1] [--no-open]
+cutnote --doctor
 ```
 
 Cutnote looks up to four levels down for:
@@ -149,7 +163,7 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 - Cutnote listens on `127.0.0.1` only, unless you pass `--host`.
 - It serves files from the folder you opened and nothing outside it.
 - It refuses any path through a `Keys` or `private` folder, and any `.env` file.
-- Nothing is uploaded anywhere.
+- Nothing is uploaded anywhere. The only request Cutnote makes is reading `version.json` from GitHub to check for updates (set `CUTNOTE_NO_UPDATE_CHECK=1` to turn that off).
 
 ## Project layout
 
@@ -160,7 +174,11 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | `timeline.js` | The timeline editor and on-frame editing. |
 | `examples/demo/` | A demo composition and video to try it on. |
 | `docs/` | The project website (GitHub Pages). |
-| `install.sh` | The one-command installer. |
+| `library.js` | The Library and Captions tabs: browsing, drag and drop, the Library lane and the live preview on the video. |
+| `update.js` | The version chip, **Update now** and **Update automatically**. |
+| `library/` | The component library: one folder per component in `library/components/`, the runtime, and `SPEC.md` (how components are written and used). |
+| `version.json` | The newest version and what changed. Installs check it to offer updates. |
+| `install.sh`, `install.ps1` | The setup for macOS/Linux and Windows. |
 | `AGENTS.md` | Instructions for AI agents installing, using or changing Cutnote. |
 
 ## License

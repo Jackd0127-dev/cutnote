@@ -8,7 +8,7 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
    - `python3 --version` must be 3.8 or newer.
    - `ffmpeg -version` and `ffprobe -version` must work. If they're missing, give the install command for their system (`brew install ffmpeg`, `sudo apt install ffmpeg`, `winget install ffmpeg`) and ask before running it.
 2. Get the code:
-   - `git clone https://github.com/Jackd0127-dev/cutnote.git ~/.cutnote`, or run `install.sh`, which also adds a `cutnote` command.
+   - Best: run `install.sh` (macOS/Linux) or `install.ps1` (Windows). It offers to install whatever is missing (git, Python, ffmpeg, Node.js, the HyperFrames player), asks first, clones Cutnote to `~/.cutnote`, adds a `cutnote` command and runs `cutnote --doctor`. Or `git clone https://github.com/Jackd0127-dev/cutnote.git ~/.cutnote`.
    - Don't install anything system-wide without asking.
 3. If they review HyperFrames compositions (HTML files with `data-composition-id`), run `npx hyperframes --version` once so the player files are on the machine.
 4. Start it in the background on their folder: `python3 ~/.cutnote/review.py "<folder>" --no-open`.
@@ -30,11 +30,16 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
    - rebuild the composition, or re-export the video
    - in `review-notes.json`, set that note's `status` to `"done"` and add a short `"reply"` saying what you did
    - the player picks up both changes live
-5. Notes of kind *remember* are lasting preferences. Save them wherever durable rules live for this person or project.
-6. **Timeline edits**: the `edits` entries in the JSON, shown as "Timeline edits to bake" in the `.md`.
+5. **Library components and caption styles.** A note with a `component` (shown as "library component" in the `.md`) was dragged in from the Library or Captions tab.
+   - Build it from `library/components/<id>/component.js` with the params in the note (the contract is `library/SPEC.md`), at the note's time and for its length. Time its beats to the words being said there and fit it to the video.
+   - `x`/`y` is the centre of where it should sit on the canvas; `dx`/`dy` is how far the person moved it from the component's own default position. The player showed it there live, so match that.
+   - `captions: true` means restyle **every** caption in the video in that style, keeping the real word timings.
+   - Mark the note done when it's built; the player then stops showing its live preview, so it isn't doubled.
+6. Notes of kind *remember* are lasting preferences. Save them wherever durable rules live for this person or project.
+7. **Timeline edits**: the `edits` entries in the JSON, shown as "Timeline edits to bake" in the `.md`.
    - On a composition they are an edit list: the spans of the main footage to keep, in order; overlay and caption moves or retimes; removals; optionally a delivery format with a crop window; and on-frame changes. On-frame changes move an element by dx/dy pixels (CSS translate), scale it (CSS scale), hide it, recolour its text, or change its text; layer changes put a clip on another row of its track (the top row is in front), and name the element by `#id` or by its child path from the composition root. Re-cut and rebuild from the source footage so it plays like that, then delete that version's entry from `edits`.
    - On a plain video file the person can press **Export cut** themselves.
-7. Never render a final version they haven't approved in the player, if the project uses the approval gate (`review.py --gate`).
+8. Never render a final version they haven't approved in the player, if the project uses the approval gate (`review.py --gate`).
 
 ## Working on Cutnote's code
 
