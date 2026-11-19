@@ -515,7 +515,9 @@ const S = {
 };
 const showDone = () => S.filter !== "open";
 const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return m + ":" + (t - m * 60).toFixed(2).padStart(5, "0"); };
-const api = (p, body) => fetch(p, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}).then(r => r.json());
+// every write says which project this page is showing: if another tab switched project in the Hub, the server refuses it and we reload
+const api = (p, body) => fetch(p, body ? { method: "POST", headers: { "Content-Type": "application/json", "X-Cutnote-Project": (S.info && S.info.project) || "" }, body: JSON.stringify(body) } : {})
+  .then(r => { if (r.status === 409 && r.headers.get("X-Cutnote-Stale")) { location.replace(location.pathname); throw new Error("This tab was showing another project"); } return r.json(); });
 function toast(msg) { const el = $("#toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 1800); }
 function err(msg) { const el = $("#err"); el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1168,6 +1170,7 @@ DD.speed.setItems(RATES.map(r => ({ value: r, label: r + "×", hint: r === 1 ? "
 $("#loop").onclick = () => { S.loop = !S.loop; $("#loop").classList.toggle("on", S.loop); };
 
 document.addEventListener("keydown", e => {
+  if (document.body.classList.contains("hub-on") || document.querySelector(".hb-modal")) return;   // the Hub has its own keys
   const tag = (e.target.tagName || "").toLowerCase();
   if (tag === "textarea" || tag === "input" || tag === "select" || e.target.isContentEditable || (e.target.closest && e.target.closest(".dd.open"))) return;
   const k = e.key, K = k.length === 1 ? k.toLowerCase() : k, cmd = e.metaKey || e.ctrlKey;
@@ -1346,7 +1349,7 @@ RF.el.firstElementChild.addEventListener("pointerdown", e => {
 async function init() {
   S.info = await api("/api/info");
   setTheme(document.documentElement.dataset.theme === "light" ? "light" : "dark"); setFilter();
-  $("#title").textContent = S.info.video; document.title = S.info.video + " · Cutnote";
+  $("#title").textContent = S.info.name || S.info.video; document.title = (S.info.name || S.info.video) + " · Cutnote";
   if (!S.info.hf) err("HyperFrames player not found on this Mac. Run `npx hyperframes --version` once, then reload.");
   fillComps(); fmtItems();
   if (!S.info.comps.length) err("No compositions or video files found in " + (S.info.root || S.info.video) + ".");
@@ -1370,6 +1373,7 @@ document.addEventListener("DOMContentLoaded", init);
 </script>
 <script src="/library.js"></script>
 <script src="/sfx.js"></script>
+<script src="/hub.js"></script>
 <script src="/update.js"></script>
 </body>
 </html>

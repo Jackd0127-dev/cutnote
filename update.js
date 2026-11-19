@@ -243,15 +243,16 @@
 
   // When Cutnote restarts (an update, or someone restarts it), the page's video connections are cut and would freeze.
   // Watch for a new server and reload in place: same version, same moment, paused or playing as before.
-  let boot = null;
+  let boot = null, proj = null;
   const resumeKey = "cutnote:resume";
   setInterval(async () => {
     let v;
     try { v = await fetch("/api/version", { cache: "no-store" }).then(r => r.json()); } catch { return; }   // down: try again
-    if (!boot) { boot = v.boot; return; }
+    if (!boot) { boot = v.boot; proj = v.project; return; }
     if (v.boot !== boot) {
-      try { sessionStorage.setItem(resumeKey, JSON.stringify({ comp: S.comp && S.comp.id, t: S.t, playing: !!S.playing })); } catch {}
-      location.reload();
+      // another tab switched project in the Hub: open the new one from the start; otherwise come back to the same moment
+      if (v.project === proj) { try { sessionStorage.setItem(resumeKey, JSON.stringify({ comp: S.comp && S.comp.id, t: S.t, playing: !!S.playing })); } catch {} }
+      location.replace(location.pathname + (document.body.classList.contains("hub-on") ? "#hub" : ""));
     }
   }, 3000);
   try {
