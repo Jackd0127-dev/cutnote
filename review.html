@@ -208,6 +208,16 @@
   #notesFilters { display: flex; gap: 8px; padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
   #notesFilters .seg { flex: 1; } #notesFilters .seg button { flex: 1; justify-content: center; padding: 0 6px; }
   #notes { flex: 1; overflow: auto; padding: 8px; }
+  #sideTabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--line); flex: none; }
+  #sideTabs button { position: relative; flex: 1; height: 34px; border: 0; background: none; color: var(--dim); font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .15s, background .15s; }
+  #sideTabs button:hover { color: var(--ink); background: var(--hover); }
+  #sideTabs button.on { color: var(--ink); }
+  #sideTabs button.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+  #sideTabs .badge:empty { display: none; }
+  aside .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  aside .pane.on { display: flex; animation: paneIn .22s cubic-bezier(.22,1,.36,1); }
+  @keyframes paneIn { from { opacity: 0; transform: translateY(4px); } }
   .note { position: relative; padding: 10px 12px; border-radius: 10px; margin-bottom: 4px; cursor: pointer; border: 1px solid transparent; transition: background .12s, border-color .12s; }
   .note:hover { background: var(--hover); }
   .note.sel { background: var(--panel-2); border-color: var(--line-2); }
@@ -342,6 +352,12 @@
       </div>
       <footer><button class="ib" id="inspResetAll" type="button">Reset all</button><button class="ib primary" id="inspDone" type="button">Done</button></footer>
     </section>
+    <nav id="sideTabs" role="tablist" aria-label="Sidebar">
+      <button type="button" role="tab" data-p="notes" class="on" aria-selected="true">Notes<span class="badge" id="tabCount"></span></button>
+      <button type="button" role="tab" data-p="lib" aria-selected="false">Library</button>
+      <button type="button" role="tab" data-p="cap" aria-selected="false">Captions</button>
+    </nav>
+    <div class="pane on" id="pNotes" role="tabpanel">
     <div id="compose">
       <div class="top"><b>New note</b><span class="tcchip mono" id="atLabel">0:00.00</span><span class="keys"><kbd>N</kbd> new <kbd>⏎</kbd> save</span></div>
       <textarea id="text" placeholder="What should change here? Typing pauses the video. Draw on the frame with P or R."></textarea>
@@ -364,6 +380,9 @@
       <div class="seg" id="fScope"><button data-s="this" class="on">This version</button><button data-s="all">All</button></div>
     </div>
     <div id="notes"></div>
+    </div>
+    <div class="pane" id="pLib" role="tabpanel" aria-label="Library"></div>
+    <div class="pane" id="pCap" role="tabpanel" aria-label="Captions"></div>
   </aside>
   <section id="bottom">
     <div id="transport">
@@ -517,6 +536,7 @@ function videoAdapter(src) {
 
 /* ---------- loading a version ---------- */
 async function loadComp(id, keepTime) {
+  // a library component waiting in the note box belongs to the version it was dropped on
   const c = S.info.comps.find(x => x.id === id) || S.info.comps[0];
   if (!c) { err("No versions found in this video's Project folder yet."); return; }
   const resume = keepTime ? { t: S.t, playing: S.playing } : null;
@@ -615,6 +635,7 @@ function renderNotes() {
   const list = visibleNotes(), box = $("#notes");
   const open = S.notes.filter(n => n.status !== "done" && (!S.comp || n.comp === S.comp.id)).length;
   $("#count").textContent = open; $("#count").classList.toggle("hot", open > 0);
+  const tc = $("#tabCount"); if (tc) tc.textContent = open || "";
   $("#count").title = open + " open notes" + (S.comp ? " on " + S.comp.label : "");
   if (!list.length) {
     const msg = S.filter === "done" ? "Nothing marked done yet." : S.notes.length && S.filter === "open" ? "All caught up: no open notes here." : "No notes yet.<br>Pause anywhere and press <kbd>N</kbd>, or draw on the frame with <kbd>P</kbd>.";
@@ -626,7 +647,8 @@ function renderNotes() {
     d.dataset.k = k; d.dataset.id = n.id; d.tabIndex = 0;
     const range = n.end != null ? "–" + fmt(n.end) : "";
     const stale = S.comp && n.comp === S.comp.id && !done && n.compMtime && S.mtime > n.compMtime + 1 ? '<span class="pill stale" title="This version was rebuilt after the note was written">rebuilt</span>' : "";
-    const inkTag = n.drawing && n.drawing.shapes && n.drawing.shapes.length ? '<span class="pill ink" title="Has a drawing: click to see it on the frame">✎ drawing</span>' : "";
+    const inkTag = (n.drawing && n.drawing.shapes && n.drawing.shapes.length ? '<span class="pill ink" title="Has a drawing: click to see it on the frame">✎ drawing</span>' : "")
+      + (n.component && n.component.id ? `<span class="pill ink" title="Library component: Claude builds it here">▦ ${esc(n.component.name || n.component.id)}</span>` : "");
     const other = S.allVer && S.comp && n.comp !== S.comp.id ? `<div class="ver">${esc(n.label || n.comp)}</div>` : "";
     d.innerHTML = `<div class="meta"><span class="dot ${done ? "done" : k}"></span><span class="when mono">${fmt(n.t)}${range}</span><span class="kind">${esc(k)}</span>${inkTag}${stale}
       <span class="acts"><button data-a="done" title="${done ? "Reopen" : "Mark done"}">${ico(done ? "undo" : "check")}</button><button data-a="edit" title="Edit text">${ico("edit")}</button><button data-a="del" title="Delete">${ico("trash")}</button></span></div>
@@ -642,6 +664,7 @@ async function noteOp(op, note) {
   const st = await api("/api/stat"); S.notesMtime = st.__notes;
 }
 function startNote() {
+  if (window.SidePane) SidePane.show("notes");
   if (FE.sel) { inspCommit(); feSelect(null); }
   pause(); if (!INK.draft.length) S.noteAt = S.t; updateAt(); $("#text").focus();
 }
@@ -1247,5 +1270,7 @@ async function init() {
 document.addEventListener("DOMContentLoaded", init);
 </script>
 <script src="/timeline.js"></script>
+<script src="/library.js"></script>
+<script src="/update.js"></script>
 </body>
 </html>

@@ -256,6 +256,7 @@ function feHit(cx, cy) {
   let best = null;
   for (const e of feRoot(d).querySelectorAll("*")) {
     if (e.closest("svg") && e.tagName.toLowerCase() !== "svg") continue;
+    if (e.closest(".cutnote-live")) continue;   // library previews aren't part of the build: library.js moves those
     const b = e.getBoundingClientRect();
     if (b.width < 2 || b.height < 2 || px < b.left || px > b.right || py < b.top || py > b.bottom) continue;
     if (best && b.width * b.height >= best.a) continue;
@@ -552,6 +553,8 @@ function layoutLanes() {
     return rows;
   };
   TL.lanes = [
+    // library components and caption styles placed from the sidebar (library.js draws their blocks over this lane)
+    ...(window.LibDrawer && LibDrawer.hasLane() ? [{ type: "lib", label: "Library", h: LibDrawer.laneH(), clips: [] }] : []),
     ...(main ? [{ type: "prog", label: "Footage", h: PROG_H }, { type: "wave", label: "Audio", h: WAVE_H }] : []),
     ...rowsOf("video", 3).map((r, i) => ({ ...r, label: i ? "" : "B-roll", h: ROW_H, row: i })),
     ...rowsOf("other", 6).map((r, i) => ({ ...r, label: i ? "" : "Overlays", h: ROW_H, row: i })),
@@ -643,6 +646,7 @@ function draw() {
   // razor preview
   if (TL.tool === "razor" && TL.hoverX != null && TL.hoverX > G) { ctx.strokeStyle = TC.blade; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(TL.hoverX + .5, RULER); ctx.lineTo(TL.hoverX + .5, h); ctx.stroke(); }
   ctx.restore();
+  if (window.LibDrawer) LibDrawer.paintLane();
 
   // ruler
   ctx.fillStyle = TC["tl-ruler"]; ctx.fillRect(0, 0, w, RULER);
@@ -666,7 +670,7 @@ function draw() {
   const noteCount = S.notes.filter(n => S.comp && n.comp === S.comp.id && n.status !== "done").length;
   head(RULER + 2, NOTES_H, TC.fix, "Notes" + (noteCount ? " · " + noteCount : ""));
   for (const g of geom) {
-    const t = g.ln.type, col = t === "prog" ? TC.video : t === "wave" ? TC.audio : t === "cap" ? TC.cap : TC[t] || TC.dim;
+    const t = g.ln.type, col = t === "prog" ? TC.video : t === "wave" ? TC.audio : t === "cap" ? TC.cap : t === "lib" ? "#39ff88" : TC[t] || TC.dim;
     const sub2 = t === "prog" ? (segs().length > 1 ? segs().length + " pieces" : "1 piece") : "";
     head(g.y, g.h, col, g.ln.label, sub2);
   }

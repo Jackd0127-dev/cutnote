@@ -1,0 +1,174 @@
+{
+  "components": [
+    {
+      "id": "before-after-pair",
+      "script": "components/before-after-pair/component.js",
+      "mtime": 1795116181
+    },
+    {
+      "id": "before-after-wipe",
+      "script": "components/before-after-wipe/component.js",
+      "mtime": 1795116157
+    },
+    {
+      "id": "break-even-graph",
+      "script": "components/break-even-graph/component.js",
+      "mtime": 1795116207
+    },
+    {
+      "id": "captions-boxed",
+      "script": "components/captions-boxed/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "captions-classic",
+      "script": "components/captions-classic/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "captions-highlight",
+      "script": "components/captions-highlight/component.js",
+      "mtime": 1795116427
+    },
+    {
+      "id": "captions-ink",
+      "script": "components/captions-ink/component.js",
+      "mtime": 1795116427
+    },
+    {
+      "id": "captions-one-word",
+      "script": "components/captions-one-word/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "captions-scrim",
+      "script": "components/captions-scrim/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "captions-speaker",
+      "script": "components/captions-speaker/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "captions-typewriter",
+      "script": "components/captions-typewriter/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "customer-crowd",
+      "script": "components/customer-crowd/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "cutout-row",
+      "script": "components/cutout-row/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "day-page",
+      "script": "components/day-page/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "email-card",
+      "script": "components/email-card/component.js",
+      "mtime": 1795116427
+    },
+    {
+      "id": "end-card",
+      "script": "components/end-card/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "fade-to-black",
+      "script": "components/fade-to-black/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "free-pack",
+      "script": "components/free-pack/component.js",
+      "mtime": 1795116157
+    },
+    {
+      "id": "kinetic-type",
+      "script": "components/kinetic-type/component.js",
+      "mtime": 1795116427
+    },
+    {
+      "id": "logo-pop",
+      "script": "components/logo-pop/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "money-rain",
+      "script": "components/money-rain/component.js",
+      "mtime": 1795116157
+    },
+    {
+      "id": "persona-cards",
+      "script": "components/persona-cards/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "photo-scatter",
+      "script": "components/photo-scatter/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "price-slider",
+      "script": "components/price-slider/component.js",
+      "mtime": 1795116157
+    },
+    {
+      "id": "product-pop",
+      "script": "components/product-pop/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "prompt-quote",
+      "script": "components/prompt-quote/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "reference-fan",
+      "script": "components/reference-fan/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "selection-box",
+      "script": "components/selection-box/component.js",
+      "mtime": 1795116157
+    },
+    {
+      "id": "series-badge",
+      "script": "components/series-badge/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "skill-tile",
+      "script": "components/skill-tile/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "stat-tiles",
+      "script": "components/stat-tiles/component.js",
+      "mtime": 1795116008
+    },
+    {
+      "id": "storyline",
+      "script": "components/storyline/component.js",
+      "mtime": 1795116427
+    },
+    {
+      "id": "video-card",
+      "script": "components/video-card/component.js",
+      "mtime": 1795116035
+    },
+    {
+      "id": "voice-waveform",
+      "script": "components/voice-waveform/component.js",
+      "mtime": 1795116008
+    }
+  ]
+}

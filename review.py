@@ -6,6 +6,7 @@ as review-notes.md (and .json) for the editor (or an AI assistant) to work throu
 Usage:
   python3 review.py [folder] [--port 4790] [--host 127.0.0.1] [--no-open]
   python3 review.py --version
+  python3 review.py --doctor        check that everything Cutnote uses is installed
 
 Two layouts, picked from the folder you give:
   studio  a folder with (or below) a video folder that has a Project/ folder: compositions are found in
@@ -25,7 +26,17 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote, quote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VERSION = "1.0.0"
+# the component library: one folder per component, served at /lib/ for the library drawer. A Cutnote install ships it as
+# ./library (a development checkout may keep it two folders up).
+LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
+                        os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
+           os.path.join(HERE, "library"))
+VERSION = "1.1.0"
+# updates: the published version.json on the main branch says what the newest version is and what changed
+REPO = "Jackd0127-dev/cutnote"
+UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
+SETTINGS = os.path.join(os.path.expanduser(os.environ.get("CUTNOTE_CONFIG", "~/.config/cutnote")), "settings.json")
+CHECK_EVERY = 6 * 3600
 VIDEO_EXTS = (".mp4", ".mov", ".m4v", ".webm")
 PRIVATE_NAMES = ("Keys", "private")
 SKIP_DIRS = {"node_modules", ".git", "snap", "s1", "s2", "s3", "qa-trial1", "qa-trial2", "qa-trial3", "Drafts"}
@@ -57,13 +68,24 @@ def find_hf_dist(root=None):
     """The newest hyperframes install found (CLI cache, env, project, cwd, global npm) ships the player + runtime."""
     name = "hyperframes-player.global.js"
     cands = glob.glob(os.path.expanduser("~/.npm/_npx/*/node_modules/hyperframes/dist/" + name))
+    if os.name == "nt":   # npm's cache lives in %LocalAppData%\npm-cache on Windows
+        for base in (os.environ.get("LOCALAPPDATA"), os.environ.get("APPDATA")):
+            if base:
+                cands += glob.glob(os.path.join(base, "npm-cache", "_npx", "*", "node_modules", "hyperframes", "dist", name))
     cands += glob.glob("/opt/homebrew/lib/node_modules/hyperframes/dist/" + name)
     dirs = [os.environ.get("HYPERFRAMES_DIST"), root and os.path.join(root, "node_modules", "hyperframes", "dist"),
             os.path.join(os.getcwd(), "node_modules", "hyperframes", "dist")]
+    npm = "npm.cmd" if os.name == "nt" else "npm"
     try:
-        g = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=5).stdout.strip()
+        g = subprocess.run([npm, "root", "-g"], capture_output=True, text=True, timeout=5).stdout.strip()
         if g:
             dirs.append(os.path.join(g, "hyperframes", "dist"))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:   # npx keeps packages in npm's cache folder, wherever npm is configured to put it
+        c = subprocess.run([npm, "config", "get", "cache"], capture_output=True, text=True, timeout=5).stdout.strip()
+        if c and os.path.isdir(c):
+            cands += glob.glob(os.path.join(c, "_npx", "*", "node_modules", "hyperframes", "dist", name))
     except (OSError, subprocess.SubprocessError):
         pass
     cands += [os.path.join(d, name) for d in dirs if d]
@@ -127,12 +149,14 @@ class State:
                     continue
                 full = os.path.join(root, f)
                 try:
-                    if os.path.getsize(full) < 4000:
-                        continue  # the empty starter index.html
                     with open(full, "rb") as fh:
                         head = fh.read(200000)
                     if b"data-composition-id" not in head:
                         continue
+                    if head.lstrip().startswith(b"<template"):
+                        continue  # a scene file mounted by another composition, not playable on its own
+                    if os.path.getsize(full) < 4000 and b"data-composition-src" not in head and b"<audio" not in head and b"<video" not in head:
+                        continue  # the empty starter index.html
                 except OSError:
                     continue
                 rel = os.path.relpath(full, self.video)
@@ -546,6 +570,16 @@ def render_md(data, st):
                 lines.append(f"  - on screen: \"{ctx['captions']}\"")
             if ctx.get("clips"):
                 lines.append(f"  - clips: {', '.join(ctx['clips'][:12])}")
+            cp = n.get("component")
+            if isinstance(cp, dict) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,60}", str(cp.get("id") or "")):
+                where = f" at x {cp['x']}, y {cp['y']} (canvas px: the centre of where it should sit)" if cp.get("x") is not None else ""
+                if cp.get("dx") or cp.get("dy"):
+                    where += f", shown in the player moved by ({cp.get('dx', 0)}, {cp.get('dy', 0)}) px from the component's own position"
+                if cp.get("captions"):
+                    where = " for the WHOLE video: restyle every caption in this style (keep the real word timings)"
+                lines.append(f"  - library component: `{cp['id']}` ({cp.get('name', '')}){where}. Build it from "
+                             f"`{os.path.join(LIB, 'components', cp['id'], 'component.js')}` (contract: `{os.path.join(LIB, 'SPEC.md')}`), "
+                             f"retimed onto the speaker's words and restyled to this video; params chosen: `{json.dumps(cp.get('params') or {})}`")
             lines += drawing_md(n, st)
             if n.get("reply"):
                 lines.append(f"  - reply: {n['reply']}")
@@ -618,6 +652,9 @@ def inject(src_html, base_href):
 
 class H(BaseHTTPRequestHandler):
     st: State = None
+    srv = None
+    port = None
+    local = True   # listening on loopback only (no --host)
 
     def log_message(self, *a):
         pass
@@ -652,13 +689,30 @@ class H(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(HERE, "review.html"), "rb") as f:
                 return self.send(200, f.read(), "text/html; charset=utf-8")
-        if path == "/timeline.js":
-            with open(os.path.join(HERE, "timeline.js"), "rb") as f:
+        if path in ("/timeline.js", "/library.js", "/update.js"):
+            with open(os.path.join(HERE, path[1:]), "rb") as f:
                 return self.send(200, f.read(), "text/javascript; charset=utf-8")
+        if path == "/api/update":
+            if q.get("check"):
+                UPD.check(force=True)
+            return self.jsend(UPD.status())
+        if path == "/api/library":
+            comps = []
+            cdir = os.path.join(LIB, "components")
+            for name in sorted(os.listdir(cdir)) if os.path.isdir(cdir) else []:
+                f = os.path.join(cdir, name, "component.js")
+                if os.path.isfile(f):
+                    comps.append({"id": name, "script": f"/lib/components/{quote(name)}/component.js", "mtime": int(os.path.getmtime(f))})
+            return self.jsend({"base": "/lib/", "components": comps, "available": os.path.isdir(LIB)})
+        if path.startswith("/lib/"):
+            f = os.path.normpath(os.path.join(LIB, path[len("/lib/"):]))
+            if not f.startswith(LIB + os.sep) or not os.path.isfile(f):
+                return self.send(404, "not found")
+            return self.file(f)
         if path == "/api/media":
             return self.jsend(st.media(q.get("comp", [""])[0], q.get("src", [""])[0]))
         if path == "/api/info":
-            return self.jsend({"video": os.path.basename(st.video), "edit": st.edit, "notes": st.notes_md,
+            return self.jsend({"version": VERSION, "video": os.path.basename(st.video), "edit": st.edit, "notes": st.notes_md,
                                "comps": st.comps(), "hf": bool(st.hf), "layout": st.layout, "root": st.root})
         if path == "/api/export":
             return self.jsend(st.export_status(q.get("comp", [""])[0]))
@@ -706,13 +760,17 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/api/notes", "/api/export"):
+        if path not in ("/api/notes", "/api/export", "/api/update"):
             return self.send(404)
         # only the player's own page may write: JSON content type (forces a CORS preflight we never answer) and same origin
         if "application/json" not in (self.headers.get("Content-Type") or ""):
             return self.send(415, "json only")
         org = self.headers.get("Origin")
         if org and urlparse(org).netloc != (self.headers.get("Host") or ""):
+            return self.send(403, "forbidden")
+        # a page on another site that points its own hostname at 127.0.0.1 (DNS rebinding) sends its own Host: refuse it
+        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
+        if H.local and host not in ("127.0.0.1", "localhost", "::1"):
             return self.send(403, "forbidden")
         n = int(self.headers.get("Content-Length") or 0)
         try:
@@ -724,6 +782,17 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/export":
             code, obj = self.st.export_start(body.get("comp", ""))
             return self.send(code, json.dumps(obj), "application/json")
+        if path == "/api/update":
+            act = body.get("action")
+            if act == "auto":
+                d = load_settings(); d["autoUpdate"] = bool(body.get("on")); save_settings(d)
+            elif act == "check":
+                UPD.check(force=True)
+            elif act == "apply":
+                ok, why = UPD.apply()
+                if not ok:
+                    return self.send(409, json.dumps({"error": why}), "application/json")
+            return self.jsend(UPD.status())
         self.jsend(self.st.op(body))
 
     def file(self, f):
@@ -773,9 +842,170 @@ class H(BaseHTTPRequestHandler):
             pass
 
 
+# ---------- updates ----------
+def vtuple(v):
+    return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3]) or (0,)
+
+
+def load_settings():
+    try:
+        with open(SETTINGS) as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings(d):
+    os.makedirs(os.path.dirname(SETTINGS), exist_ok=True)
+    tmp = SETTINGS + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump(d, fh, indent=2)
+    os.replace(tmp, SETTINGS)
+
+
+def git(*args, timeout=60):
+    return subprocess.run(["git", "-C", HERE, *args], capture_output=True, text=True, timeout=timeout)
+
+
+class Updater:
+    """Checks version.json on GitHub every few hours. 'Update now' (or auto-update) pulls the install's git checkout
+    (fast-forward only) and restarts the server on the same port; the page then reloads itself."""
+
+    def __init__(self):
+        self.latest, self.notes, self.date, self.error, self.checked = None, [], None, None, 0
+        self.state = "idle"   # idle | checking | updating | restarting
+        self.lock = threading.Lock()
+
+    def install(self):
+        """Can this copy update itself? Only a clean git clone of the Cutnote repo whose root is this folder."""
+        try:
+            top = git("rev-parse", "--show-toplevel", timeout=10)
+            if top.returncode != 0:
+                return False, "This copy isn't a git install. Run the installer again to update."
+            if os.path.realpath(top.stdout.strip()) != os.path.realpath(HERE):
+                return False, "This is a development copy inside another repo; update it from there."
+            url = git("remote", "get-url", "origin", timeout=10).stdout.strip()
+            if REPO.lower() not in url.lower():
+                return False, "This copy doesn't come from the Cutnote repo."
+            if git("status", "--porcelain", "--untracked-files=no", timeout=20).stdout.strip():
+                return False, "This copy has local changes, so it won't be overwritten. Commit or discard them, then update."
+            return True, ""
+        except (OSError, subprocess.SubprocessError):
+            return False, "git isn't available, so Cutnote can't update itself here."
+
+    def check(self, force=False):
+        if not force and time.time() - self.checked < CHECK_EVERY:
+            return
+        import urllib.request
+        self.state = "checking"
+        try:
+            req = urllib.request.Request(UPDATE_URL, headers={"User-Agent": f"Cutnote/{VERSION}", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                d = json.loads(r.read(200_000).decode("utf-8"))
+            self.latest = str(d.get("version") or "") or None
+            self.notes = [str(x)[:300] for x in (d.get("notes") or [])][:20]
+            self.date = str(d.get("date") or "")[:20] or None
+            self.error = None
+        except Exception as ex:   # offline, GitHub down, bad JSON: try again later, never break the player
+            self.error = (str(ex) or ex.__class__.__name__)[:160]
+        self.checked = time.time()
+        self.state = "idle"
+
+    def available(self):
+        return bool(self.latest) and vtuple(self.latest) > vtuple(VERSION)
+
+    def status(self):
+        can, why = self.install()
+        return {"current": VERSION, "latest": self.latest, "available": self.available(), "notes": self.notes,
+                "date": self.date, "auto": bool(load_settings().get("autoUpdate")), "can": can, "reason": why,
+                "checked": self.checked, "error": self.error, "state": self.state, "repo": f"https://github.com/{REPO}"}
+
+    def apply(self):
+        with self.lock:
+            if self.state in ("updating", "restarting"):
+                return False, "Already updating"
+            can, why = self.install()
+            if not can:
+                return False, why
+            self.state = "updating"
+            try:
+                r = git("pull", "--ff-only", "--quiet", timeout=120)
+                if r.returncode != 0:
+                    self.state = "idle"
+                    return False, (r.stderr.strip() or "git pull failed")[:200]
+            except (OSError, subprocess.SubprocessError) as ex:
+                self.state = "idle"
+                return False, str(ex)[:200]
+            self.state = "restarting"
+            threading.Timer(0.6, restart).start()
+            return True, ""
+
+    def loop(self):
+        time.sleep(3)
+        while True:
+            self.check()
+            if self.available() and load_settings().get("autoUpdate") and self.install()[0]:
+                ok, why = self.apply()
+                print(f"  auto-update to {self.latest}: {'restarting' if ok else why}")
+            time.sleep(600)
+
+
+def restart():
+    """Run the (updated) review.py again in this process, same folder and port, without opening another tab."""
+    args = [a for a in sys.argv]
+    if "--no-open" not in args:
+        args.append("--no-open")
+    if H.port and "--port" not in args:
+        args += ["--port", str(H.port)]
+    sys.stdout.flush()
+    try:
+        if H.srv:
+            H.srv.server_close()
+    except OSError:
+        pass
+    os.execv(sys.executable, [sys.executable] + args)
+
+
+UPD = Updater()
+
+
+def doctor():
+    """`cutnote --doctor`: is everything Cutnote uses installed? Exit 1 if something required is missing."""
+    def ver(cmd, pat=r"(\d+\.\d+(?:\.\d+)?)"):
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            m = re.search(pat, (r.stdout or "") + (r.stderr or ""))
+            return m.group(1) if r.returncode == 0 and m else None
+        except (OSError, subprocess.SubprocessError):
+            return None
+    node = ver(["node", "--version"])
+    rows = [
+        ("Python", ".".join(map(str, sys.version_info[:3])), True, sys.version_info >= (3, 8), "3.8 or newer"),
+        ("git", ver(["git", "--version"]), False, None, "updates"),
+        ("ffmpeg", ver(["ffmpeg", "-version"]), False, None, "filmstrip, waveform, Export cut"),
+        ("ffprobe", ver(["ffprobe", "-version"]), False, None, "reading video files"),
+        ("Node.js", node, False, bool(node) and vtuple(node) >= (18,), "18+ for HyperFrames compositions"),
+        ("HyperFrames player", "found" if find_hf_dist() else None, False, None, "run: npx hyperframes --version"),
+        ("Component library", f"{len(glob.glob(os.path.join(LIB, 'components', '*', 'component.js')))} components" if os.path.isdir(LIB) else None, False, None, "the Library and Captions tabs"),
+    ]
+    bad = False
+    print(f"Cutnote {VERSION} ({HERE})")
+    for name, v, required, ok, what in rows:
+        good = bool(v) and (ok is None or ok)
+        mark = "ok " if good else ("!! " if required else "-- ")
+        print(f"  {mark} {name:<19} {v or 'missing':<14} {what}")
+        bad |= required and not good
+    if not bad:
+        print("Ready." if all(bool(r[1]) for r in rows) else "Ready (lines marked -- are optional extras).")
+    return 1 if bad else 0
+
+
 def main():
     if len(sys.argv) == 4 and sys.argv[1] == "--gate":
         sys.exit(gate(sys.argv[2], sys.argv[3]))
+    if len(sys.argv) == 2 and sys.argv[1] == "--doctor":
+        sys.exit(doctor())
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", nargs="?", default=".")
     ap.add_argument("--port", type=int, default=4790)
@@ -800,6 +1030,10 @@ def main():
     print(f"Review: {os.path.basename(st.video)} ({st.layout} layout)\n  {url}\n  notes -> {st.notes_md}")
     if not st.hf:
         print("  warning: HyperFrames player not found; run `npx hyperframes --version` once")
+    H.srv, H.port = srv, srv.server_address[1]
+    H.local = a.host in ("127.0.0.1", "localhost", "::1")
+    if os.environ.get("CUTNOTE_NO_UPDATE_CHECK") != "1":
+        threading.Thread(target=UPD.loop, daemon=True).start()
     if not a.no_open:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

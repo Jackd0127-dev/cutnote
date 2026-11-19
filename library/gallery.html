@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Component Library</title>
+<style>
+  :root { --bg: #0e0d0c; --panel: #171513; --line: #2a2622; --tx: #f3efe9; --mut: #9b948b; --lime: #c8ff3a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--tx); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Inter", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  h1 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+  input[type=search] { flex: 1; max-width: 360px; background: var(--panel); border: 1px solid var(--line); color: var(--tx); border-radius: 10px; padding: 9px 12px; font: inherit; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  select#col { background: var(--panel); border: 1px solid var(--line); color: var(--tx); border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; }
+  #grid h3 { grid-column: 1 / -1; margin: 10px 2px -4px; font-size: 13px; font-weight: 600; color: var(--mut); letter-spacing: .02em; }
+  #grid h3 span { color: #5f5951; font-weight: 400; margin-left: 6px; }
+  .chips button { background: var(--panel); border: 1px solid var(--line); color: var(--mut); border-radius: 20px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .chips button.on { color: #111; background: var(--lime); border-color: var(--lime); }
+  main { display: grid; grid-template-columns: 1fr 420px; gap: 0; min-height: calc(100vh - 66px); }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; padding: 20px 24px; align-content: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px; cursor: pointer; transition: border-color .15s, transform .15s; }
+  .card:hover { border-color: #4a443d; transform: translateY(-2px); }
+  .card.sel { border-color: var(--lime); }
+  .card .pv { width: 100%; aspect-ratio: 4 / 5; }
+  .card b { display: block; margin: 8px 2px 0; font-size: 13px; }
+  .card small { display: block; margin: 2px 2px 2px; color: var(--mut); font-size: 11.5px; }
+  aside { border-left: 1px solid var(--line); padding: 20px; position: sticky; top: 66px; height: calc(100vh - 66px); overflow: auto; }
+  aside .big { width: 240px; margin: 0 auto 16px; }
+  aside h2 { margin: 0 0 4px; font-size: 18px; }
+  aside p { color: var(--mut); margin: 0 0 14px; }
+  .f { margin: 0 0 10px; } .f label { display: block; color: var(--mut); font-size: 12px; margin-bottom: 4px; }
+  .f input, .f textarea, .f select { width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--tx); border-radius: 8px; padding: 7px 9px; font: 12.5px ui-monospace, Menlo, monospace; }
+  .f textarea { min-height: 64px; resize: vertical; }
+  .row { display: flex; gap: 8px; } .row button { flex: 1; }
+  button.b { background: var(--lime); color: #111; border: 0; border-radius: 9px; padding: 9px 12px; font: 600 13px inherit; cursor: pointer; }
+  button.g { background: var(--panel); color: var(--tx); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; font: inherit; cursor: pointer; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 11.5px; white-space: pre-wrap; color: var(--mut); }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } aside { position: static; height: auto; border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header><h1>Component Library</h1><select id="col" aria-label="Collection"></select><input type="search" id="q" placeholder="Search components"></header>
+<main><div id="grid"></div><aside id="side"><p>Pick a component to preview it and change its settings.</p></aside></main>
+<script src="vendor/gsap.min.js"></script>
+<script src="runtime.js"></script>
+<script src="editor.js"></script>
+<script>
+(async function () {
+  const L = VideoLibrary;
+  const m = await fetch("manifest.json", { cache: "no-store" }).then(r => r.json());
+  await Promise.all(m.components.map(c => new Promise(res => { const s = document.createElement("script"); s.src = c.script + "?v=" + c.mtime; s.onload = s.onerror = res; document.body.appendChild(s); })));
+  let col = "", q = "", sel = null;
+  // collections: motion graphics first, then caption styles; inside a collection by `order`
+  const PREF = ["Cinematic", "Clean cards", "Data & numbers", "Photos & media", "Series", "House", "Bold", "Character"];
+  const isCap = d => !!d.captions || d.category === "Captions";
+  const colOf = d => d.collection || d.category || "Other";
+  const rank = c => { const i = PREF.indexOf(c); return i < 0 ? 99 : i; };
+  function collections(caps) {
+    return [...new Set(L.list().filter(d => isCap(d) === caps).map(colOf))].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  }
+  function sorted() {
+    return L.list().slice().sort((a, b) => (isCap(a) - isCap(b)) || rank(colOf(a)) - rank(colOf(b)) || colOf(a).localeCompare(colOf(b)) || (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name));
+  }
+  const previews = new Map();
+  const io = new IntersectionObserver(es => es.forEach(e => { const p = previews.get(e.target); if (p) e.isIntersecting ? p.tl.play() : p.tl.pause(); }));
+  function cats() {
+    const opt = c => `<option value="${L.esc(c)}"${c === col ? " selected" : ""}>${L.esc(c)}</option>`;
+    document.getElementById("col").innerHTML = `<option value="">All collections</option>`
+      + `<optgroup label="Motion graphics">${collections(false).map(opt).join("")}</optgroup>`
+      + `<optgroup label="Captions">${collections(true).map(opt).join("")}</optgroup>`;
+  }
+  function grid() {
+    const g = document.getElementById("grid");
+    previews.forEach(p => p.destroy()); previews.clear(); io.disconnect();
+    g.innerHTML = "";
+    let last = null;
+    for (const d of sorted()) {
+      if (col && colOf(d) !== col) continue;
+      if (q && !(d.name + " " + d.description + " " + colOf(d) + " " + (d.tags || []).join(" ")).toLowerCase().includes(q)) continue;
+      if (colOf(d) !== last) {
+        last = colOf(d);
+        const h = document.createElement("h3");
+        h.innerHTML = `${L.esc(last)}<span>${isCap(d) ? "Captions" : "Motion graphics"}</span>`;
+        g.appendChild(h);
+      }
+      const card = document.createElement("div");
+      card.className = "card" + (sel === d.id ? " sel" : ""); card.dataset.id = d.id;
+      card.innerHTML = `<div class="pv"></div><b>${L.esc(d.name)}</b><small>${L.esc(colOf(d))} · ${L.esc(d.source || "")}</small>`;
+      g.appendChild(card);
+      const host = card.querySelector(".pv");
+      const pv = L.preview(host, d.id, { width: host.clientWidth });
+      if (pv) { previews.set(host, pv); io.observe(host); }
+    }
+  }
+  function side(id) {
+    sel = id;
+    document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", c.dataset.id === id));
+    VLEditor.open(document.getElementById("side"), id, { width: 240 });
+  }
+  document.getElementById("col").onchange = e => { col = e.target.value; grid(); };
+  document.getElementById("q").oninput = e => { q = e.target.value.trim().toLowerCase(); grid(); };
+  document.getElementById("grid").onclick = e => { const c = e.target.closest(".card"); if (c) side(c.dataset.id); };
+  cats(); grid();
+})();
+</script>
+</body>
+</html>
