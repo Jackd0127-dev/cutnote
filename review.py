@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -768,6 +768,7 @@ def inject(src_html, base_href):
 
 
 class H(BaseHTTPRequestHandler):
+    gen = 0   # bumps when the Hub switches project, so open pages reload
     st: State = None
     srv = None
     port = None
@@ -813,7 +814,18 @@ class H(BaseHTTPRequestHandler):
             with open(os.path.join(HERE, path[1:]), "rb") as f:
                 return self.send(200, f.read(), "text/javascript; charset=utf-8")
         if path == "/api/version":
-            return self.jsend({"version": VERSION, "boot": BOOT})
+            return self.jsend({"version": VERSION, "boot": f"{BOOT}/{H.gen}", "project": pid_of(st.video)})
+        if path == "/hub.js":
+            with open(os.path.join(HERE, "hub.js"), "rb") as f:
+                return self.send(200, f.read(), "text/javascript; charset=utf-8")
+        if path.startswith("/api/hub") and not self.loopback():
+            return self.send(403, "the Hub only works on this computer")
+        if path == "/api/hub":
+            return self.jsend(hub_list(st.video))
+        if path == "/api/hub/thumb":
+            x = hub_find(q.get("id", [""])[0])
+            t = hub_thumb(x["path"]) if x and x.get("exists") else None
+            return self.file(t) if t else self.send(404, "no picture")
         if path == "/api/update":
             if q.get("check"):
                 UPD.check(force=True)
@@ -834,7 +846,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/media":
             return self.jsend(st.media(q.get("comp", [""])[0], q.get("src", [""])[0]))
         if path == "/api/info":
-            return self.jsend({"version": VERSION, "video": os.path.basename(st.video), "edit": st.edit, "notes": st.notes_md,
+            return self.jsend({"version": VERSION, "video": os.path.basename(st.video), "name": hub_name(st.video), "project": pid_of(st.video), "edit": st.edit, "notes": st.notes_md,
                                "comps": st.comps(), "hf": bool(st.hf), "layout": st.layout, "root": st.root})
         if path == "/api/export":
             return self.jsend(st.export_status(q.get("comp", [""])[0]))
@@ -881,12 +893,10 @@ class H(BaseHTTPRequestHandler):
         self.send(404, "not found")
 
     def do_POST(self):
-        path = urlparse(self.path).path
-        if path not in ("/api/notes", "/api/export", "/api/update"):
+        u = urlparse(self.path)
+        path = u.path
+        if path not in ("/api/notes", "/api/export", "/api/update", "/api/hub", "/api/hub/upload"):
             return self.send(404)
-        # only the player's own page may write: JSON content type (forces a CORS preflight we never answer) and same origin
-        if "application/json" not in (self.headers.get("Content-Type") or ""):
-            return self.send(415, "json only")
         org = self.headers.get("Origin")
         if org and urlparse(org).netloc != (self.headers.get("Host") or ""):
             return self.send(403, "forbidden")
@@ -894,6 +904,16 @@ class H(BaseHTTPRequestHandler):
         host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
         if H.local and host not in ("127.0.0.1", "localhost", "::1"):
             return self.send(403, "forbidden")
+        if path.startswith("/api/hub") and not self.loopback():
+            return self.send(403, "the Hub only works on this computer")
+        if path == "/api/hub/upload":
+            # raw file body; a custom header forces a CORS preflight we never answer, so other sites can't send one
+            if self.headers.get("X-Cutnote") != "1":
+                return self.send(403, "forbidden")
+            return self.hub_upload(parse_qs(u.query))
+        # only the player's own page may write: JSON content type (forces a CORS preflight we never answer) and same origin
+        if "application/json" not in (self.headers.get("Content-Type") or ""):
+            return self.send(415, "json only")
         n = int(self.headers.get("Content-Length") or 0)
         try:
             body = json.loads(self.rfile.read(n) or b"{}")
@@ -901,8 +921,15 @@ class H(BaseHTTPRequestHandler):
             return self.send(400, "bad json")
         if not isinstance(body, dict):
             return self.send(400, "bad json")
+        if path == "/api/hub":
+            code, obj = hub_action(body)
+            return self.send(code, json.dumps(obj), "application/json")
+        st = self.st   # one project for the whole request, even if the Hub switches meanwhile
+        pj = self.headers.get("X-Cutnote-Project")
+        if pj and path in ("/api/notes", "/api/export") and pj != pid_of(st.video):
+            return self.send(409, json.dumps({"error": "This tab was showing another project: reloading"}), "application/json", extra={"X-Cutnote-Stale": "1"})
         if path == "/api/export":
-            code, obj = self.st.export_start(body.get("comp", ""))
+            code, obj = st.export_start(body.get("comp", ""))
             return self.send(code, json.dumps(obj), "application/json")
         if path == "/api/update":
             act = body.get("action")
@@ -915,7 +942,48 @@ class H(BaseHTTPRequestHandler):
                 if not ok:
                     return self.send(409, json.dumps({"error": why}), "application/json")
             return self.jsend(UPD.status())
-        self.jsend(self.st.op(body))
+        self.jsend(st.op(body))
+
+    def loopback(self):
+        return (self.client_address[0] if self.client_address else "") in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
+    def hub_upload(self, q):
+        """Footage dropped on New project: copied into <project>/Footage, never overwriting anything."""
+        x = hub_find((q.get("id") or [""])[0])
+        name = os.path.basename((q.get("name") or [""])[0]).strip()
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self.send(400, "bad length")
+        if not x or not x.get("exists"):
+            return self.send(404, "no such project")
+        if not name or name.startswith(".") or not name.lower().endswith(MEDIA_EXTS) or n <= 0:
+            return self.send(400, "not a video, sound or picture")
+        dest_dir = os.path.join(x["path"], "Footage")
+        os.makedirs(dest_dir, exist_ok=True)
+        stem, ext = os.path.splitext(name)
+        out, k = os.path.join(dest_dir, name), 2
+        while True:
+            try:
+                fd = os.open(out, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                break
+            except FileExistsError:
+                out = os.path.join(dest_dir, f"{stem} {k}{ext}"); k += 1
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                left = n
+                while left > 0:
+                    chunk = self.rfile.read(min(1 << 20, left))
+                    if not chunk:
+                        raise IOError("upload cut short")
+                    fh.write(chunk); left -= len(chunk)
+        except Exception:
+            try:
+                os.remove(out)
+            except OSError:
+                pass
+            return self.send(500, "upload failed")
+        return self.jsend({"ok": True, "file": os.path.basename(out)})
 
     def file(self, f):
         """Static file with byte ranges (needed for video seeking)."""
@@ -965,6 +1033,420 @@ class H(BaseHTTPRequestHandler):
 
 
 # ---------- updates ----------
+# ---------- Cutnote Hub: the projects this computer knows about ----------
+# Kept in ~/.config/cutnote/projects.json: {"projects": [{path, name, added, opened}], "roots": [folders to watch], "hidden": [paths],
+# "newIn": where New project makes folders}. Every folder Cutnote opens is added; `review.py --add <folder>` adds one from a
+# script (an AI making a new video calls it); folders under a watched root that hold a Project/ folder show up by themselves.
+# Renaming only changes the name shown in the Hub: folders on disk are never renamed or moved.
+PROJECTS = os.path.join(os.path.dirname(SETTINGS), "projects.json")
+THUMBS = os.path.join(os.path.dirname(SETTINGS), "thumbs")
+HUB_LOCK = threading.Lock()
+MEDIA_EXTS = VIDEO_EXTS + (".mkv", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".png", ".jpg", ".jpeg", ".heic", ".webp", ".gif")
+
+
+def pid_of(path):
+    import hashlib
+    return hashlib.sha1(os.path.realpath(path).encode()).hexdigest()[:12]
+
+
+def hub_load():
+    try:
+        with open(PROJECTS) as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        d = {}
+    d = d if isinstance(d, dict) else {}
+    d.setdefault("projects", []); d.setdefault("roots", []); d.setdefault("hidden", [])
+    return d
+
+
+class hub_file_lock:
+    """HUB_LOCK for this process plus a lock file, so `review.py --add` and a running server don't overwrite each other."""
+    def __enter__(self):
+        HUB_LOCK.acquire()
+        self.fh = None
+        try:
+            os.makedirs(os.path.dirname(PROJECTS), exist_ok=True)
+            self.fh = open(PROJECTS + ".lock", "a+")
+            try:
+                import fcntl
+                fcntl.flock(self.fh, fcntl.LOCK_EX)
+            except ImportError:   # Windows: the in-process lock is what we have
+                pass
+        except OSError:
+            pass
+        return self
+
+    def __exit__(self, *a):
+        try:
+            if self.fh:
+                self.fh.close()
+        finally:
+            HUB_LOCK.release()
+        HUB_CACHE.clear()
+
+
+HUB_CACHE = {}
+
+
+def hub_save(d):
+    os.makedirs(os.path.dirname(PROJECTS), exist_ok=True)
+    tmp = f"{PROJECTS}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with open(tmp, "w") as fh:
+        json.dump(d, fh, indent=2)
+    os.replace(tmp, PROJECTS)
+
+
+def private_path(p):
+    p = os.path.normpath(p)
+    if sys.platform == "darwin" and (p + os.sep).startswith("/private/"):   # macOS's own /private/tmp, /private/var
+        p = p[len("/private"):]
+    return any(x.casefold() in {n.casefold() for n in PRIVATE_NAMES} for x in os.path.normpath(p).split(os.sep))
+
+
+def hub_add(path, name=None, opened=False):
+    """Remember a project folder (the video folder, not a file inside it). Returns its entry."""
+    path = os.path.abspath(path)
+    if os.path.isfile(path):
+        path = os.path.dirname(path)
+    layout, video = find_video(path)
+    path = video
+    with hub_file_lock():
+        d = hub_load()
+        rp = os.path.realpath(path)
+        e = next((x for x in d["projects"] if os.path.realpath(x.get("path", "")) == rp), None)
+        now = datetime.now().isoformat(timespec="seconds")
+        if not e:
+            e = {"path": path, "name": name or os.path.basename(path), "added": now}
+            d["projects"].append(e)
+        elif name:
+            e["name"] = name
+        if opened:
+            e["opened"] = now
+        d["hidden"] = [h for h in d["hidden"] if os.path.realpath(h) != rp]
+        hub_save(d)
+        return dict(e)
+
+
+def hub_scan_roots(roots, limit=400):
+    """Folders under the watched roots that look like video projects (they hold a Project/ folder)."""
+    found = []
+    for r in roots:
+        if not os.path.isdir(r):
+            continue
+        base_depth = r.rstrip(os.sep).count(os.sep)
+        for root, dirs, files in os.walk(r):
+            if os.path.isdir(os.path.join(root, "Project")) and root != r:
+                found.append(root); dirs[:] = []
+                if len(found) >= limit:
+                    return found
+                continue
+            if root.count(os.sep) - base_depth >= 4:
+                dirs[:] = []
+            dirs[:] = [x for x in dirs if not x.startswith(".") and x not in SKIP_DIRS and x not in ("Footage", "Exports", "B-roll", "node_modules")
+                       and x.casefold() not in {n.casefold() for n in PRIVATE_NAMES} and not os.path.islink(os.path.join(root, x))]
+    return found
+
+
+def project_info(path):
+    """What the Hub card shows: versions, open notes, last change. Cheap: no deep walks of footage."""
+    info = {"exists": os.path.isdir(path)}
+    if not info["exists"]:
+        return info
+    layout, video = find_video(path)
+    info["layout"] = layout
+    notes = None
+    if layout == "studio":
+        proj = os.path.join(video, "Project")
+        try:
+            eds = [x for x in sorted(os.listdir(proj)) if x.endswith("Edit")]
+        except OSError:
+            eds = []
+        if eds:
+            notes = os.path.join(proj, eds[0], "edit", "review-notes.json")
+        exp = os.path.join(video, "Exports")
+        try:
+            info["versions"] = sum(1 for x in os.listdir(exp) if re.fullmatch(r"V\d+", x) and os.path.isdir(os.path.join(exp, x)))
+        except OSError:
+            info["versions"] = 0
+    else:
+        notes = os.path.join(video, "review-notes.json")
+        n = 0
+        for root, dirs, files in os.walk(video):
+            dirs[:] = [x for x in dirs if not x.startswith(".") and x.casefold() not in {k.casefold() for k in PRIVATE_NAMES} and x not in ("review-drawings",)]
+            if root.count(os.sep) - video.count(os.sep) >= 2:
+                dirs[:] = []
+            n += sum(1 for f in files if f.lower().endswith(VIDEO_EXTS))
+        info["videos"] = n
+    mt = os.path.getmtime(video)
+    if notes and os.path.isfile(notes):
+        try:
+            with open(notes) as fh:
+                nd = json.load(fh)
+            info["open"] = sum(1 for x in nd.get("notes", []) if x.get("status") != "done")
+            info["approved"] = len(nd.get("approved") or {})
+            info["edits"] = len(nd.get("edits") or {})
+        except (OSError, ValueError):
+            pass
+        mt = max(mt, os.path.getmtime(notes))
+    info["changed"] = datetime.fromtimestamp(mt).isoformat(timespec="seconds")
+    return info
+
+
+def thumb_source(path):
+    """A video to take the card picture from: footage first, then exports, then anything near the top."""
+    layout, video = find_video(path)
+    for sub in ("Footage", "Exports", ""):
+        d = os.path.join(video, sub) if sub else video
+        if not os.path.isdir(d):
+            continue
+        for root, dirs, files in os.walk(d):
+            dirs[:] = sorted(x for x in dirs if not x.startswith(".") and x.casefold() not in {k.casefold() for k in PRIVATE_NAMES} and x not in ("Drafts", "node_modules"))
+            if root.count(os.sep) - d.count(os.sep) >= 2:
+                dirs[:] = []
+            vids = sorted(f for f in files if f.lower().endswith(VIDEO_EXTS))
+            if vids:
+                return os.path.join(root, vids[0])
+    return None
+
+
+def hub_thumb(path):
+    src = thumb_source(path)
+    if not src:
+        return None
+    import hashlib
+    key = hashlib.sha1(f"{src}|{os.path.getmtime(src)}".encode()).hexdigest()[:16]
+    out = os.path.join(THUMBS, key + ".jpg")
+    if not os.path.isfile(out):
+        os.makedirs(THUMBS, exist_ok=True)
+        tmp = out + ".tmp.jpg"
+        for at in ("1", "0"):
+            subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-ss", at, "-i", src, "-frames:v", "1",
+                            "-vf", "scale=480:480:force_original_aspect_ratio=increase", "-q:v", "4", tmp], capture_output=True, timeout=30)
+            if os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
+                os.replace(tmp, out)
+                break
+    return out if os.path.isfile(out) else None
+
+
+def trash_refusal(path):
+    """Why a folder must not go to the Trash from the Hub, or None. Only a single project folder may: never one that
+    holds the open project, home, a watched folder, another project, or a Keys/private folder, and never a big tree."""
+    rp = os.path.realpath(path)
+    home = os.path.realpath(os.path.expanduser("~"))
+    under = lambda a, b: a == b or a.startswith(b.rstrip(os.sep) + os.sep)   # a is inside b (or is b)
+    d = hub_load()
+    keep = [os.path.realpath(H.st.video), home] + [os.path.realpath(r) for r in d["roots"]]
+    keep += [os.path.realpath(p.get("path", "")) for p in d["projects"] if os.path.realpath(p.get("path", "")) != rp]
+    if os.path.ismount(rp) or rp.count(os.sep) < 3 or private_path(rp):
+        return "Cutnote won't trash that folder"
+    if any(under(k, rp) for k in keep if k):
+        return "That folder holds other projects or folders the Hub uses: delete it in your file manager if you mean to"
+    if rp in {os.path.realpath(os.path.join(home, x)) for x in ("Movies", "Videos", "Desktop", "Documents", "Downloads", "Pictures", "Music")}:
+        return "Cutnote won't trash that folder"
+    n = 0
+    for root, dirs, files in os.walk(rp):
+        if any(x.casefold() in {k.casefold() for k in PRIVATE_NAMES} for x in dirs):
+            return "That folder holds a Keys or private folder: delete it in your file manager if you mean to"
+        dirs[:] = [x for x in dirs if x not in ("node_modules", ".git")]
+        n += len(files) + len(dirs)
+        if n > 20000:
+            return "That folder is too big to trash from here: use your file manager"
+    return None
+
+
+def move_to_trash(path):
+    """Send a folder to the system Trash / Recycle Bin (never a permanent delete)."""
+    if sys.platform == "darwin":
+        if os.path.exists("/usr/bin/trash"):
+            r = subprocess.run(["/usr/bin/trash", path], capture_output=True, text=True, timeout=120)
+        else:
+            r = subprocess.run(["osascript", "-e", f'tell application "Finder" to delete (POSIX file {json.dumps(path)} as alias)'], capture_output=True, text=True, timeout=120)
+    elif os.name == "nt":
+        ps = ("Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory("
+              f"'{path.replace(chr(39), chr(39) * 2)}', 'OnlyErrorDialogs', 'SendToRecycleBin')")
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=120)
+    else:
+        r = subprocess.run(["gio", "trash", path], capture_output=True, text=True, timeout=120)
+    if r.returncode != 0 or os.path.exists(path):
+        raise RuntimeError((r.stderr or "couldn't move it to the Trash").strip()[:200])
+
+
+def pick_folder(prompt="Choose a folder"):
+    """The system's own folder picker (the browser can't give us a folder's path). None if cancelled or unavailable."""
+    try:
+        if sys.platform == "darwin":
+            r = subprocess.run(["osascript", "-e", f'POSIX path of (choose folder with prompt {json.dumps(prompt)})'], capture_output=True, text=True, timeout=600)
+        elif os.name == "nt":
+            ps = ("Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; "
+                  f"$d.Description = '{prompt}'; if ($d.ShowDialog() -eq 'OK') {{ $d.SelectedPath }}")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True, timeout=600)
+        else:
+            r = subprocess.run(["zenity", "--file-selection", "--directory", "--title", prompt], capture_output=True, text=True, timeout=600)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    p = (r.stdout or "").strip()
+    return p.rstrip("/") if r.returncode == 0 and p and os.path.isdir(p) else None
+
+
+def default_new_in():
+    home = os.path.expanduser("~")
+    for d in ("Movies", "Videos"):
+        if os.path.isdir(os.path.join(home, d)):
+            return os.path.join(home, d, "Cutnote")
+    return os.path.join(home, "Cutnote")
+
+
+def clean_name(n):
+    n = re.sub(r"\s+", " ", str(n or "")).strip()
+    if not n or len(n) > 80 or n.startswith(".") or re.search(r'[/\\:*?"<>|\x00-\x1f]', n) or n.casefold() in {k.casefold() for k in PRIVATE_NAMES}:
+        return None
+    return n
+
+
+def hub_list(current, fresh=True):
+    """fresh=False reuses a list made in the last few seconds (thumbnails and actions look projects up by id)."""
+    c = HUB_CACHE.get("list")
+    if not fresh and c and c[0] == current and time.time() - c[1] < 8:
+        return c[2]
+    out = _hub_list(current)
+    HUB_CACHE["list"] = (current, time.time(), out)
+    return out
+
+
+def _hub_list(current):
+    d = hub_load()
+    seen, out = set(), []
+    hidden = {os.path.realpath(h) for h in d["hidden"]}
+    entries = list(d["projects"])
+    for p in hub_scan_roots(d["roots"]):
+        rp = os.path.realpath(p)
+        if rp not in hidden and not any(os.path.realpath(e.get("path", "")) == rp for e in entries):
+            entries.append({"path": p, "name": os.path.basename(p), "found": True})
+    for e in entries:
+        rp = os.path.realpath(e.get("path", ""))
+        if rp in seen or not e.get("path"):
+            continue
+        seen.add(rp)
+        x = {"id": pid_of(e["path"]), "path": e["path"], "name": e.get("name") or os.path.basename(e["path"]),
+             "folder": os.path.basename(e["path"]), "added": e.get("added"), "opened": e.get("opened"), "found": bool(e.get("found")),
+             "current": rp == os.path.realpath(current)}
+        x.update(project_info(e["path"]))
+        out.append(x)
+    return {"projects": out, "roots": d["roots"], "newIn": d.get("newIn") or default_new_in(), "platform": sys.platform}
+
+
+def hub_name(path):
+    rp = os.path.realpath(path)
+    e = next((x for x in hub_load()["projects"] if os.path.realpath(x.get("path", "")) == rp), None)
+    return (e or {}).get("name") or os.path.basename(path)
+
+
+def hub_find(pid):
+    for x in hub_list(H.st.video, fresh=False)["projects"]:
+        if x["id"] == pid:
+            return x
+    return None
+
+
+def hub_action(body):
+    act = body.get("action")
+    if act == "pick":
+        p = pick_folder("Choose a folder of projects" if body.get("prompt") == "roots" else "Choose where new projects go")
+        return 200, {"path": p}
+    if act in ("addRoot", "removeRoot"):
+        path = os.path.abspath(os.path.expanduser(str(body.get("path") or "")))
+        if act == "addRoot" and (not os.path.isdir(path) or private_path(path)):
+            return 400, {"error": "That folder doesn't exist"}
+        with hub_file_lock():
+            d = hub_load()
+            d["roots"] = [r for r in d["roots"] if os.path.realpath(r) != os.path.realpath(path)] + ([path] if act == "addRoot" else [])
+            hub_save(d)
+        return 200, {"ok": True}
+    if act == "newIn":
+        path = os.path.abspath(os.path.expanduser(str(body.get("path") or "")))
+        if private_path(path):
+            return 400, {"error": "Pick another folder"}
+        with hub_file_lock():
+            d = hub_load(); d["newIn"] = path; hub_save(d)
+        return 200, {"ok": True}
+    if act == "addPath":
+        path = os.path.abspath(os.path.expanduser(str(body.get("path") or "")))
+        if not os.path.isdir(path) or private_path(path):
+            return 400, {"error": "That folder doesn't exist"}
+        e = hub_add(path)
+        return 200, {"id": pid_of(e["path"])}
+    if act == "create":
+        name = clean_name(body.get("name"))
+        if not name:
+            return 400, {"error": "Use a name without / \\ : * ? \" < > |"}
+        where = os.path.abspath(os.path.expanduser(str(body.get("where") or "") or (hub_load().get("newIn") or default_new_in())))
+        if private_path(where):
+            return 400, {"error": "Pick another place for it"}
+        if find_video(where)[0] == "studio":
+            return 409, {"error": "That place is inside another project: pick a folder outside it"}
+        path = os.path.join(where, name)
+        if os.path.exists(path):
+            return 409, {"error": f"There's already a folder called {name} there"}
+        try:
+            os.makedirs(os.path.join(path, "Footage"))
+            os.makedirs(os.path.join(path, "Exports"))
+        except OSError as ex:
+            return 409, {"error": f"Couldn't make the folder: {ex.strerror or ex}"}
+        with hub_file_lock():
+            d = hub_load(); d["newIn"] = where; hub_save(d)
+        e = hub_add(path, name=name)
+        return 200, {"id": pid_of(e["path"]), "path": e["path"]}
+    pid = str(body.get("id") or "")
+    x = hub_find(pid)
+    if not x:
+        return 404, {"error": "That project isn't in the Hub any more"}
+    if act == "open":
+        if not x["exists"]:
+            return 409, {"error": "Its folder is missing (is the drive connected?)"}
+        try:
+            st = State(*find_video(x["path"]))
+        except SystemExit as ex:
+            return 409, {"error": str(ex) or "Couldn't open it"}
+        except Exception as ex:
+            return 409, {"error": (str(ex) or ex.__class__.__name__)[:200]}
+        H.st = st
+        H.gen += 1
+        hub_add(x["path"], opened=True)
+        return 200, {"ok": True}
+    if act == "rename":
+        name = clean_name(body.get("name"))
+        if not name:
+            return 400, {"error": "Use a name without / \\ : * ? \" < > |"}
+        hub_add(x["path"], name=name)
+        return 200, {"ok": True}
+    if act in ("remove", "trash"):
+        if act == "trash":
+            if x["current"]:
+                return 409, {"error": "That's the project open now: open another one first"}
+            why = trash_refusal(x["path"])
+            if why:
+                return 409, {"error": why}
+            try:
+                move_to_trash(rp)
+            except Exception as ex:
+                return 500, {"error": str(ex)}
+        with hub_file_lock():
+            d = hub_load()
+            rp = os.path.realpath(x["path"])
+            d["projects"] = [p for p in d["projects"] if os.path.realpath(p.get("path", "")) != rp]
+            if act == "remove":   # so a watched folder doesn't bring it straight back
+                d["hidden"] = sorted(set(d["hidden"]) | {x["path"]})
+            hub_save(d)
+        return 200, {"ok": True}
+    if act == "reveal":
+        if x["exists"]:
+            cmd = ["open", "-R", x["path"]] if sys.platform == "darwin" else ["explorer", x["path"]] if os.name == "nt" else ["xdg-open", x["path"]]
+            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 200, {"ok": True}
+    return 400, {"error": "unknown action"}
+
+
 def vtuple(v):
     return tuple(int(x) for x in re.findall(r"\d+", str(v))[:3]) or (0,)
 
@@ -1128,6 +1610,12 @@ def main():
         sys.exit(gate(sys.argv[2], sys.argv[3]))
     if len(sys.argv) == 2 and sys.argv[1] == "--doctor":
         sys.exit(doctor())
+    if len(sys.argv) >= 3 and sys.argv[1] == "--add":   # remember a project in the Cutnote Hub (for scripts and AI agents)
+        if not os.path.isdir(sys.argv[2]):
+            sys.exit(f"No such folder: {sys.argv[2]}")
+        e = hub_add(sys.argv[2], name=sys.argv[3] if len(sys.argv) > 3 else None)
+        print(f"Added to the Cutnote Hub: {e['name']} ({e['path']})")
+        sys.exit(0)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", nargs="?", default=".")
     ap.add_argument("--port", type=int, default=4790)
@@ -1137,6 +1625,11 @@ def main():
     a = ap.parse_args()
     st = State(*find_video(a.folder))
     H.st = st
+    H.gen = 0
+    try:
+        hub_add(st.video, opened=True)
+    except OSError:
+        pass
     srv = None
     for port in range(a.port, a.port + 20):
         try:

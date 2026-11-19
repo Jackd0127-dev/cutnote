@@ -14,6 +14,16 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
 4. Start it in the background on their folder: `python3 ~/.cutnote/review.py "<folder>" --no-open`.
 5. Give them the URL it prints (usually http://localhost:4790). If that port is busy it moves to the next free one.
 
+## Saving projects to Cutnote Hub
+
+Whenever you make a new video project folder for someone (a new edit, a new set of footage), add it to their Hub so it shows up there straight away:
+
+```sh
+python3 ~/.cutnote/review.py --add "<project folder>" "<name to show>"
+```
+
+The Hub (header menu → **Cutnote Hub**) lists every project on their computer from `~/.config/cutnote/projects.json`. Folders Cutnote opens are added by themselves, and so is any folder holding a `Project/` folder inside a folder they've told the Hub to watch. Renaming in the Hub only changes the name shown; never rename or move their folders for it.
+
 ## The review loop
 
 1. They review in the browser and leave notes. When they say they're done, read `review-notes.md`.
@@ -38,6 +48,7 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
 6. Notes of kind *remember* are lasting preferences. Save them wherever durable rules live for this person or project.
 7. **Timeline edits**: the `edits` entries in the JSON, shown as "Timeline edits to bake" in the `.md`.
    - On a composition they are an edit list: the spans of the main footage to keep, in order; overlay and caption moves or retimes; removals; optionally a delivery format with a crop window; and on-frame changes. On-frame changes move an element by dx/dy pixels (CSS translate), scale it (CSS scale), hide it, recolour its text, or change its text; layer changes put a clip on another row of its track (the top row is in front), and name the element by `#id` or by its child path from the composition root. Re-cut and rebuild from the source footage so it plays like that, then delete that version's entry from `edits`.
+   - They can also hold speed changes (`sp` on a footage span or clip: 0.5 = half speed), sound effects (`sfx`: a file under `library/sfx/sounds/`, a start in source time, a length and a volume) and track switches (`lanes`: muted or hidden tracks). The `.md` spells each one out.
    - On a plain video file the person can press **Export cut** themselves.
 8. Never render a final version they haven't approved in the player, if the project uses the approval gate (`review.py --gate`).
 
@@ -46,6 +57,7 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
 - `review.py` is the HTTP server. It uses the standard library only; ffmpeg and ffprobe are called as subprocesses.
 - `review.html` holds the page, the player adapters, notes, drawing, dropdowns and themes.
 - `timeline.js` is the canvas timeline editor. It loads after the inline script.
+- `sfx.js` is the Sounds tab; `hub.js` is the Cutnote Hub (project manager) and the header's Editor/Hub menu.
 - Colours are CSS variables, with one set for dark and one for light. The canvas reads them through `readTheme()`, so never hard-code a colour in canvas code.
 - Edits are stored in source time (the version's own clock). The timeline shows program time, after the edits. `toE()` and `toS()` convert between the two.
 - Keep it dependency-free: no build step, no npm packages in the page.
