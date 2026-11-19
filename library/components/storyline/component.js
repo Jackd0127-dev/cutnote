@@ -6,7 +6,7 @@ VideoLibrary.register({
   category: "Series",
   collection: "Cinematic",
   order: 4,
-  preview: { background: "photo" },
+  preview: { background: "dark" },
   source: "Day 20",
   description: "The frame dims and a glowing path draws through round icon nodes (idea, test, prototype, launch); one node turns lime on his word, with a small tagline.",
   tags: ["steps", "process", "path", "timeline", "idea", "launch"],

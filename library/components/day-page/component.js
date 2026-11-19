@@ -3,6 +3,7 @@
 VideoLibrary.register({
   id: "day-page",
   name: "Day page",
+  preview: { background: "#ede7df" },
   category: "Series",
   collection: "Series",
   order: 1,

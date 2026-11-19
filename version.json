@@ -1,9 +1,8 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "date": "19 Nov 2026",
   "notes": [
-    "Clearer sidebar toggle: hide the sidebar with the arrow at the end of its tabs, and bring it back with the Notes · Library · Captions tab on the right edge.",
-    "Better previews: every component and caption style is centred and sized to fill its card, in the list and when you open it.",
-    "What's new, anytime: the What's new links in the Cutnote menu and the version panel open this screen."
+    "Full-screen previews fixed: Money rain, Storyline, the Day page and the End card now show all of their content, centred, on a matching background.",
+    "Familiar sidebar button: hiding the sidebar uses the sidebar icon again."
   ]
 }
