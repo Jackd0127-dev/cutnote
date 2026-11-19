@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.2.2"
+VERSION = "1.2.3"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -581,6 +581,8 @@ def render_md(data, st):
                         where += f", at {round(float(cp['scale']) * 100)}% of its default size"
                 except (TypeError, ValueError):
                     pass
+                if cp.get("layer") is not None and not cp.get("captions"):
+                    where += f", on layer {int(cp['layer']) + 1} from the top of the Library lane (the top layer plays in front)"
                 if cp.get("captions"):
                     where = " for the WHOLE video: restyle every caption in this style (keep the real word timings)"
                 lines.append(f"  - library component: `{cp['id']}` ({cp.get('name', '')}){where}. Build it from "
