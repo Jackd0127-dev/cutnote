@@ -216,10 +216,9 @@
       let K, cx, cy;
       if (!b) { K = Math.min(w / LIB.W, h / LIB.H); cx = LIB.W / 2; cy = LIB.H / 2; }
       else if (b.whole || b.full && !(b.x1 > b.x0)) {
-        // full-frame pieces fill the card edge to edge (no side bars), centred on what they draw, kept inside the canvas
-        K = Math.max(w / LIB.W, h / LIB.H); cx = LIB.W / 2;
-        const half = h / 2 / K, mid = b.y1 > b.y0 ? (b.y0 + b.y1) / 2 : LIB.H / 2;
-        cy = Math.min(LIB.H - half, Math.max(half, mid));
+        // full-frame pieces: show all of what they draw, centred (the backdrop matches their own background)
+        if (b.x1 > b.x0) { const bw = b.x1 - b.x0, bh = b.y1 - b.y0; K = Math.min(w * 0.94 / bw, h * 0.88 / bh, Math.max(w / LIB.W, h / LIB.H)); cx = (b.x0 + b.x1) / 2; cy = (b.y0 + b.y1) / 2; }
+        else { K = Math.max(w / LIB.W, h / LIB.H); cx = LIB.W / 2; cy = LIB.H / 2; }
       }
       else {
         const bw = Math.max(40, b.x1 - b.x0), bh = Math.max(40, b.y1 - b.y0);
@@ -231,7 +230,8 @@
     function fit() {
       if (!tl || !stage.isConnected) return;
       stage.style.transform = `scale(${w / LIB.W})`;   // measure at a known scale
-      place(LIB.measure(stage, tl, T0, dur));
+      const fr = def.preview && def.preview.frame;
+      place(fr ? { x0: fr[0], y0: fr[1], x1: fr[2], y1: fr[3] } : LIB.measure(stage, tl, T0, dur));
     }
     function build() {
       if (tl) tl.kill();

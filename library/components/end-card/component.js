@@ -3,6 +3,7 @@
 VideoLibrary.register({
   id: "end-card",
   name: "End card",
+  preview: { background: "#ede7df", params: { zoomAt: null } },
   category: "Series",
   collection: "Series",
   order: 3,
