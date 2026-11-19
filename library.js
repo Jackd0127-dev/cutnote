@@ -458,7 +458,7 @@
       body.querySelector(".back").onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
       body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
       body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
-      if (!p.cap) seek(Math.max(S.t, p.t));
+      if (!p.cap) { if (!(S.t >= p.t && S.t <= p.t + p.dur)) seek(p.t); reveal(p.t, p.dur); }
     });
   }
   D.openPlacement = openPlacement;
@@ -527,6 +527,20 @@
     return [dx, dy];
   }
 
+  // bring a placement into view on the timeline (pan, keeping the zoom) so you never have to scroll to find it
+  function reveal(t, dur) {
+    if (!S.view || !S.view.len) return;
+    const a = toE(t), b = dur ? toE(t + dur) : a, D0 = progDur(), len = S.view.len;
+    const inView = a >= S.view.start && b <= S.view.start + len;
+    if (!inView) {
+      const want = (b - a) < len * 0.8 ? a - len * 0.15 : a - len * 0.05;
+      S.view.start = Math.max(0, Math.min(Math.max(0, D0 - len), want));
+      S.follow = false;
+    }
+    draw();
+  }
+  D.reveal = reveal;
+
   /* ---------- adding: saved straight away as a note ---------- */
   async function place(def, t, x, y, params) {
     if (!S.comp) { toast("Open a version first"); return; }
@@ -551,6 +565,7 @@
     for (const old of replaced) await noteOp("delete", { id: old.id });
     if (!cap && Math.abs(S.t - t) > 0.02) seek(t);
     layoutLanes(); draw(); sync(true);
+    reveal(cap ? 0 : t, cap ? 0 : dur);
     if (cap && P.cap.dataset.built) render("cap");
     if (cap) capExplainer(short(def.name));
     undoBar(added, replaced, cap ? `${short(def.name)} captions for the whole video. Claude builds them on the next run.` : `${def.name} added at ${fmt(t)}. Claude builds it on the next run.`, cap);

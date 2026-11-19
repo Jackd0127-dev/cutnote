@@ -1,8 +1,7 @@
 {
-  "version": "1.2.6",
+  "version": "1.2.7",
   "date": "19 Nov 2026",
   "notes": [
-    "Move your captions: click the pink captions tag on the video (or the captions block on the timeline) to select it, then drag it to move the captions or pull a corner to resize them.",
-    "Claude follows your layout: the new caption position and size go into your notes, so the captions are built exactly there."
+    "No more hunting on the timeline: when you add a component or caption style, or open one from the sidebar, the timeline moves to show it and the video jumps to its moment."
   ]
 }
