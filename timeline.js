@@ -1,0 +1,698 @@
+"use strict";
+/* Timeline editor for the review player.
+   - Program lane: the main footage as a sequence of spans. Split (S / razor C), delete (ripple), drag to reorder, drag edges to trim.
+   - Clip lanes (b-roll, overlays, captions, sound): drag to move, drag edges to trim, Delete hides.
+   Everything is stored in SOURCE time (this build's composition time); the timeline shows PROGRAM time (after the edits).
+   Edits play live here and are saved per version in review-notes.json "edits"; the editing session bakes them into a clean
+   rebuild from source footage, then clears them. Nothing here touches the composition file. */
+
+const TL = {
+  tool: "select", snap: store.get("hfr:snap") !== "0", sel: null, drag: null, hist: [], fut: [], playSeg: null,
+  h: Math.max(200, Math.min(640, +(store.get("hfr:tlh") || 300))), media: null, img: null, pending: null, lanes: [], geom: null,
+};
+const G = 104, RULER = 24, NOTES_H = 18, PROG_H = 58, WAVE_H = 30, ROW_H = 22, CAP_H = 18, SFX_H = 16, EDGE = 7;
+const clone = o => JSON.parse(JSON.stringify(o));
+const BLADE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></g><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></g></svg>')}") 12 12, crosshair`;
+
+/* ---------- the edit model ---------- */
+function segs() { const e = S.ed; return e && e.segments && e.segments.length ? e.segments : [{ in: 0, out: S.dur || 0 }]; }
+function seqEdited() { const s = segs(); return !(s.length === 1 && s[0].in < 1e-3 && Math.abs(s[0].out - (S.dur || 0)) < 1e-3); }
+function edActive() { return !!S.ed && (seqEdited() || Object.keys(S.ed.clips || {}).length > 0 || !!S.ed.format); }
+function progDur() { return segs().reduce((a, s) => a + s.out - s.in, 0); }
+function segStarts() { let E = 0; return segs().map(s => { const r = E; E += s.out - s.in; return r; }); }
+// source time -> program time (a removed moment maps to the next kept frame)
+function toE(t) {
+  let E = 0, best = null;
+  for (const s of segs()) {
+    if (t >= s.in - 1e-6 && t < s.out - 1e-6) return E + t - s.in;
+    if (s.in >= t && (!best || s.in < best.in)) best = { in: s.in, E };
+    E += s.out - s.in;
+  }
+  return best ? best.E : E;
+}
+function toS(E) {
+  let acc = 0; const ss = segs();
+  for (const s of ss) { const L = s.out - s.in; if (E < acc + L - 1e-6) return s.in + Math.max(0, E - acc); acc += L; }
+  return ss.length ? ss[ss.length - 1].out : 0;
+}
+function segAtE(E) { let acc = 0; const ss = segs(); for (let i = 0; i < ss.length; i++) { const L = ss[i].out - ss[i].in; if (E < acc + L - 1e-6) return i; acc += L; } return ss.length - 1; }
+function seekE(E) { seek(toS(Math.max(0, Math.min(progDur(), E)))); }
+function mainClip() { return S.clips.filter(c => c.type === "video").sort((a, b) => (b.end - b.start) - (a.end - a.start))[0] || null; }
+function eff(c) {   // a clip with its edits applied (source time)
+  const o = S.ed && S.ed.clips && S.ed.clips[c.key];
+  return o ? { start: o.start, end: o.start + o.dur, del: !!o.del } : { start: c.start, end: c.end, del: false };
+}
+// where a clip shows in program time: one piece per kept span it overlaps
+function pieces(a, b) {
+  const out = []; let E = 0;
+  for (const s of segs()) {
+    const x = Math.max(a, s.in), y = Math.min(b, s.out);
+    if (y > x + 1e-4) out.push([E + x - s.in, E + y - s.in]);
+    E += s.out - s.in;
+  }
+  return out;
+}
+function editable(c) { return S.comp && S.comp.kind === "code" && c !== mainClip(); }
+const fmtOf = () => (S.ed && S.ed.format) || null;
+
+/* ---------- history + saving ---------- */
+const UNDO = [];   // "tl" | {ink: owner, shapes} | "draft": what ⌘Z steps back through, newest last
+function tlBegin() { TL.hist.push(clone(S.ed || null)); if (TL.hist.length > 200) TL.hist.shift(); TL.fut = []; UNDO.push("tl"); if (UNDO.length > 400) UNDO.shift(); }
+function undoAny() {
+  while (UNDO.length) {
+    const u = UNDO.pop();
+    if (u === "tl") { if (TL.hist.length) { tlUndo(true); return; } continue; }
+    if (u === "draft") { if (INK.draft.length) { INK.draft.pop(); INK.sel = null; updateAt(); inkBump(); return; } continue; }
+    if (u && u.ink) { const arr = ownerShapes(u.ink); if (arr) { arr.splice(0, arr.length, ...u.shapes); INK.sel = null; inkCommit(u.ink, true); toast("Undo"); return; } continue; }
+  }
+  tlUndo(true);
+}
+function tlCommit() {
+  if (S.ed && !edActive()) S.ed = null;
+  layoutLanes(); applyClipEdits(); tlStatus(); fmtSync(); draw(); tlSave();
+}
+function tlUndo(fromStack) { if (!TL.hist.length) return; if (!fromStack) { const k = UNDO.lastIndexOf("tl"); if (k >= 0) UNDO.splice(k, 1); } TL.fut.push(clone(S.ed || null)); S.ed = TL.hist.pop(); TL.sel = null; tlCommit(); toast("Undo"); }
+function tlRedo() { if (!TL.fut.length) return; TL.hist.push(clone(S.ed || null)); UNDO.push("tl"); S.ed = TL.fut.pop(); TL.sel = null; tlCommit(); toast("Redo"); }
+function tlSave() {
+  if (!S.comp) return;
+  clearTimeout(TL.saveT);
+  // capture everything now: the version may change before the timer fires
+  const comp = S.comp.id, label = S.comp.label, kind = S.comp.kind;
+  const edits = S.ed && edActive() ? { segments: seqEdited() ? clone(segs()) : null, clips: clone(S.ed.clips || {}), format: fmtOf() ? clone(fmtOf()) : null } : null;
+  const summary = edits ? edSummary() : [];
+  const gen = TL.gen = (TL.gen || 0) + 1;
+  TL.pending = true;
+  TL.saveT = setTimeout(() => { TL.inflight = (async () => {
+    try {
+      const d = await api("/api/notes", { op: "edits", comp, label, kind, edits, summary });
+      if (gen === TL.gen) S.allEdits = d.edits || {};
+      const st = await api("/api/stat"); if (gen === TL.gen) S.notesMtime = st.__notes;
+    } catch { toast("Couldn't save the timeline edits"); }
+    if (gen === TL.gen) { TL.pending = false; if (TL.needSync) tlSync(); }
+  })(); }, 350);
+}
+const canon = e => e ? JSON.stringify({ segments: e.segments || null, clips: e.clips || {}, format: e.format || null }) : "null";
+// called whenever notes are (re)loaded: adopt the server's edits for this version unless ours are still being saved
+function tlSync() {
+  if (!S.comp || TL.pending || TL.drag) { TL.needSync = true; return; }
+  TL.needSync = false;
+  const srv = (S.allEdits || {})[S.comp.id] || null;
+  const mine = S.ed && edActive() ? { segments: seqEdited() ? segs() : null, clips: S.ed.clips || {}, format: fmtOf() } : null;
+  if (canon(srv) === canon(mine)) return;
+  S.ed = srv ? { segments: srv.segments ? clone(srv.segments) : null, clips: clone(srv.clips || {}), format: srv.format ? clone(srv.format) : null } : null;
+  TL.sel = null; TL.hist = []; TL.fut = [];
+  layoutLanes(); applyClipEdits(); tlStatus(); fmtSync(); draw();
+}
+function edSummary() {
+  const out = [], ss = segs();
+  const capsIn = (a, b) => S.clips.filter(c => c.type === "cap" && c.start < b && c.end > a).map(c => c.text).join(" ").replace(/\s+/g, " ").trim().slice(0, 160);
+  if (seqEdited()) {
+    out.push("Main footage, play these spans in this order: " + ss.map(s => fmt(s.in) + "–" + fmt(s.out)).join(", "));
+    const sorted = [...ss].sort((a, b) => a.in - b.in); let cur = 0;
+    const rem = [];
+    for (const s of sorted) { if (s.in > cur + 0.01) rem.push([cur, s.in]); cur = Math.max(cur, s.out); }
+    if (cur < S.dur - 0.01) rem.push([cur, S.dur]);
+    for (const [a, b] of rem) { const c = capsIn(a, b); out.push(`Cut ${fmt(a)}–${fmt(b)} (${(b - a).toFixed(2)} s)` + (c ? `: "${c}"` : "")); }
+    for (let i = 1; i < ss.length; i++) if (ss[i].in < ss[i - 1].in) out.push(`Moved ${fmt(ss[i].in)}–${fmt(ss[i].out)} to play after ${fmt(ss[i - 1].in)}–${fmt(ss[i - 1].out)}`);
+  }
+  for (const [key, o] of Object.entries((S.ed && S.ed.clips) || {})) {
+    const c = S.clips.find(x => x.key === key); if (!c) continue;
+    const name = `${c.id}${c.text ? ` ("${c.text.slice(0, 50)}")` : ""} [${c.type === "cap" ? "caption" : c.type === "audio" ? "sound" : c.type === "video" ? "b-roll" : "overlay"}]`;
+    if (o.del) { out.push(`Remove ${name} (was ${fmt(c.start)}–${fmt(c.end)})`); continue; }
+    const moved = Math.abs(o.start - c.start) > 1e-3, len = Math.abs(o.dur - (c.end - c.start)) > 1e-3;
+    if (moved && !len) out.push(`Move ${name} ${o.start > c.start ? "later" : "earlier"} by ${Math.abs(o.start - c.start).toFixed(2)} s: ${fmt(c.start)}–${fmt(c.end)} → ${fmt(o.start)}–${fmt(o.start + o.dur)} (animations move with it)`);
+    else if (len) out.push(`Retime ${name}: ${fmt(c.start)}–${fmt(c.end)} → ${fmt(o.start)}–${fmt(o.start + o.dur)}`);
+  }
+  const f = fmtOf();
+  if (f) {
+    const b = cropBox(f), px = (v, n) => Math.round(v * n);
+    out.push(`Deliver as ${f.aspect} (${f.w}×${f.h}): crop the ${S.W}×${S.H} canvas to x ${px(b.x, S.W)}–${px(b.x + b.w, S.W)}, y ${px(b.y, S.H)}–${px(b.y + b.h, S.H)} (window centre ${Math.round(f.x * 100)}%, ${Math.round(f.y * 100)}%), then scale to ${f.w}×${f.h}. Re-check captions and overlays sit inside that window.`);
+  }
+  return out;
+}
+function tlStatus() {
+  const el = $("#tlEdits"); if (!el) return;
+  const n = edActive() ? edSummary().length : 0;
+  const vid = S.comp && S.comp.kind === "video";
+  el.textContent = n ? n + (n === 1 ? " edit" : " edits") + (vid ? " · not exported yet" : " · not in the build yet") : "No timeline edits";
+  el.title = n ? (vid ? "Export cut writes a new file next to the original" : "Ask Claude to bake these into a clean rebuild from the source footage") : "";
+  el.classList.toggle("on", !!n);
+  $("#tlReset").style.display = n ? "" : "none";
+  $("#tlExport").style.display = n && vid ? "inline-flex" : "none";
+  $("#tlUndo").disabled = !TL.hist.length; $("#tlRedo").disabled = !TL.fut.length;
+}
+
+/* ---------- live preview of clip edits inside the composition ---------- */
+function compFrame() {
+  const p = S.player && S.player.el; if (!p || p.tagName === "VIDEO") return null;
+  const f = p.shadowRoot && p.shadowRoot.querySelector("iframe");
+  try { return f && f.contentDocument ? { w: f.contentWindow, d: f.contentDocument } : null; } catch { return null; }
+}
+const TWEEN0 = new WeakMap();
+function applyClipEdits() {
+  const fr = compFrame(); if (!fr) return;
+  const { w, d } = fr;
+  const all = [...d.querySelectorAll("[data-start]")];
+  const byKey = new Map();
+  for (const c of S.clips) {
+    const el = c.elId ? d.getElementById(c.elId) : all[c.idx];
+    if (el && (c.elId || el.tagName.toLowerCase() === c.tag)) byKey.set(c.key, el);
+  }
+  const tls = Object.values(w.__timelines || {}).filter(t => t && t.getChildren);
+  const tweens = tls.flatMap(t => t.getChildren(true, true, false));
+  // put back what we changed last time, then apply the current edits
+  for (const tw of tweens) if (TWEEN0.has(tw)) tw.startTime(TWEEN0.get(tw));
+  for (const [key, el] of byKey) {
+    if (el.dataset.hfrStart != null) {
+      el.setAttribute("data-start", el.dataset.hfrStart);
+      if (el.dataset.hfrDur) el.setAttribute("data-duration", el.dataset.hfrDur); else el.removeAttribute("data-duration");
+    }
+    if (el.dataset.hfrHid) { el.style.display = el.dataset.hfrDisp || ""; if ("muted" in el) el.muted = el.dataset.hfrMuted === "1"; delete el.dataset.hfrHid; }
+  }
+  const edits = (S.ed && S.ed.clips) || {};
+  for (const [key, o] of Object.entries(edits)) {
+    const el = byKey.get(key), c = S.clips.find(x => x.key === key); if (!el || !c) continue;
+    if (el.dataset.hfrStart == null) { el.dataset.hfrStart = el.getAttribute("data-start"); el.dataset.hfrDur = el.getAttribute("data-duration") || ""; }
+    if (o.del) {
+      el.dataset.hfrHid = "1"; el.dataset.hfrDisp = el.style.display; el.style.display = "none";
+      if ("muted" in el) { el.dataset.hfrMuted = el.muted ? "1" : "0"; el.muted = true; }
+      continue;
+    }
+    el.setAttribute("data-start", o.start.toFixed(3));
+    if (c.hasDur || Math.abs(o.dur - (c.end - c.start)) > 1e-4) el.setAttribute("data-duration", o.dur.toFixed(3));
+    const delta = o.start - c.start;
+    if (Math.abs(delta) > 1e-4) for (const tw of tweens) {
+      const tg = tw.targets ? tw.targets() : [];
+      if (tg.some(t => t && t.nodeType === 1 && (t === el || el.contains(t)))) {
+        if (!TWEEN0.has(tw)) TWEEN0.set(tw, tw.startTime());
+        tw.startTime(TWEEN0.get(tw) + delta);
+      }
+    }
+  }
+  try { if (!S.playing) S.player.seek(S.t); } catch {}
+}
+
+/* ---------- playback through the edited sequence ---------- */
+function seqTick() {
+  if (!S.playing || !seqEdited() || TL.drag) return;
+  const ss = segs(), t = S.t, eps = 0.5 / FPS, now = performance.now();
+  if (TL.jumpUntil && now < TL.jumpUntil) return;   // a jump just happened: let the player land first
+  let i = TL.playSeg;
+  if (i == null || !ss[i] || t < ss[i].in - 2 * eps || t > ss[i].out + 2 * eps) i = ss.findIndex(s => t >= s.in - 2 * eps && t < s.out - eps);
+  const jump = j => { TL.playSeg = j; TL.jumpUntil = now + 200; S.player.seek(ss[j].in + 0.5 / FPS); S.t = ss[j].in; };
+  if (i < 0) { const E = toE(t); if (E >= progDur() - eps) { pause(); seekE(progDur()); } else jump(segAtE(E)); return; }
+  TL.playSeg = i;
+  if (t >= ss[i].out - eps) {
+    const n = ss[i + 1];
+    if (!n) { pause(); S.player.seek(ss[i].out - 1 / FPS); return; }
+    if (Math.abs(n.in - ss[i].out) < 1.5 / FPS) { TL.playSeg = i + 1; return; }   // back-to-back pieces: just keep playing
+    jump(i + 1);
+  }
+}
+
+// Watchdog: while the player plays, every video clip that should be on screen must be playing and in sync.
+// (After seeks the HyperFrames player can resume its animations while a video element stays paused.)
+let mwLast = 0;
+function mediaWatch() {
+  const now = performance.now(); if (now - mwLast < 250) return; mwLast = now;
+  if (!S.playing || TL.drag) return;
+  const fr = compFrame(); if (!fr) return;
+  for (const v of fr.d.querySelectorAll("video[data-start]")) {
+    if (v.dataset.hfrHid || v.hasAttribute("data-media-start") || v.hasAttribute("data-playback-start")) continue;
+    const a = parseFloat(v.getAttribute("data-start")), d = parseFloat(v.getAttribute("data-duration"));
+    if (!isFinite(a)) continue;
+    const local = S.t - a;
+    if (local < 0 || (isFinite(d) && local >= d) || (v.duration && local >= v.duration - 0.05)) continue;
+    if (Math.abs(v.currentTime - local) > 0.3) { try { v.currentTime = local; } catch {} }
+    if (v.paused) v.play().catch(() => {});
+    if (v.playbackRate !== S.rate) v.playbackRate = S.rate;
+  }
+}
+
+/* ---------- actions ---------- */
+function tlSetTool(t) {
+  TL.tool = t; cv.dataset.tool = t;
+  document.querySelectorAll("#tlbar [data-ttool]").forEach(b => b.classList.toggle("on", b.dataset.ttool === t));
+}
+function canEdit() {
+  if (S.comp && S.comp.kind === "code") return true;
+  if (S.comp && S.comp.kind === "video" && S.info.layout === "folder") return true;
+  toast(S.comp && S.comp.kind === "video" ? "Rendered files can't be edited here: pick the live version" : "Pick a version to edit first"); return false;
+}
+function tlSplitAt(E) {
+  if (!canEdit()) return;
+  const ss = segs(), i = segAtE(E), st = segStarts()[i], s = ss[i];
+  const t = s.in + (E - st);
+  if (t - s.in < 2 / FPS || s.out - t < 2 / FPS) { toast("Too close to a cut"); return; }
+  tlBegin();
+  const n = clone(ss); n.splice(i, 1, { in: s.in, out: +t.toFixed(4) }, { in: +t.toFixed(4), out: s.out });
+  S.ed = Object.assign(S.ed || { clips: {} }, { segments: n });
+  TL.sel = { kind: "seg", i: i + 1 }; tlCommit(); toast("Split at " + fmt(E));
+}
+function tlDelete() {
+  if (!canEdit()) return;
+  const sel = TL.sel; if (!sel) { toast("Select a clip on the timeline first"); return; }
+  if (sel.kind === "seg") {
+    const ss = segs(); if (ss.length < 2) { toast("Split first (S) — that's the whole video"); return; }
+    tlBegin(); const n = clone(ss); const [g] = n.splice(sel.i, 1);
+    S.ed = Object.assign(S.ed || { clips: {} }, { segments: n });
+    TL.sel = null; tlCommit(); toast("Removed " + (g.out - g.in).toFixed(2) + " s");
+    return;
+  }
+  const c = S.clips.find(x => x.key === sel.key); if (!c) return;
+  tlBegin(); const e = eff(c);
+  S.ed = S.ed || { segments: null, clips: {} }; S.ed.clips = S.ed.clips || {};
+  S.ed.clips[c.key] = { start: e.start, dur: e.end - e.start, del: true };
+  TL.sel = null; tlCommit(); toast("Removed " + c.id);
+}
+// Q / W: ripple-trim the footage span under the playhead from its start (or to its end)
+function tlTrimTo(which) {
+  if (!canEdit()) return;
+  const E = toE(S.t), ss = segs(), i = segAtE(E), s = ss[i], t = s.in + (E - segStarts()[i]);
+  if (which === "start" ? t - s.in < 2 / FPS : s.out - t < 2 / FPS) { toast("Nothing to trim here"); return; }
+  if (ss.length === 1 && (which === "start" ? t >= s.out - 2 / FPS : t <= s.in + 2 / FPS)) return;
+  tlBegin();
+  const n = clone(ss);
+  if (which === "start") n[i].in = +t.toFixed(4); else n[i].out = +t.toFixed(4);
+  S.ed = Object.assign(S.ed || { clips: {} }, { segments: n });
+  tlCommit(); seekE(which === "start" ? segStarts()[i] : segStarts()[i] + n[i].out - n[i].in - 1 / FPS);
+  toast(which === "start" ? "Trimmed the start to the playhead" : "Trimmed the end to the playhead");
+}
+function tlJumpEdit(dir) {
+  const E = toE(S.t), pts = new Set([0, progDur(), ...segStarts()]);
+  for (const c of S.clips) { const e = eff(c); if (!e.del && c.type !== "cap") for (const [a, b] of pieces(e.start, e.end)) { pts.add(a); pts.add(b); } }
+  const list = [...pts].sort((a, b) => a - b);
+  const to = dir > 0 ? list.find(p => p > E + 0.5 / FPS) : [...list].reverse().find(p => p < E - 0.5 / FPS);
+  if (to != null) { pause(); seekE(to); }
+}
+function tlReset() {
+  if (!edActive() || !confirm("Throw away all timeline edits on " + S.comp.label + "?")) return;
+  tlBegin(); S.ed = null; TL.sel = null; tlCommit(); fmtSync();
+}
+function zoomBy(f, aroundX) {
+  const w = cv.clientWidth - G, D = progDur() || 10;
+  const ax = aroundX == null ? (X(toE(S.t)) - G) : aroundX - G;
+  const at = S.view.start + ax / w * S.view.len;
+  const len = Math.max(1, Math.min(D, S.view.len * f));
+  S.view.start = Math.max(0, Math.min(D - len, at - ax / w * len)); S.view.len = len; S.follow = false; draw();
+}
+
+/* ---------- layout ---------- */
+function layoutLanes() {
+  const main = mainClip();
+  const rowsOf = (type, cap) => {
+    const rows = [];
+    const list = S.clips.filter(c => c.type === type && c !== main && !eff(c).del).map(c => ({ c, e: eff(c) })).sort((a, b) => a.e.start - b.e.start);
+    for (const it of list) {
+      let r = rows.find(r => r.endAt <= it.e.start + 1e-3);
+      if (!r) { if (rows.length >= cap) r = rows[rows.length - 1]; else { r = { type, clips: [], endAt: -1 }; rows.push(r); } }
+      r.clips.push(it.c); r.endAt = Math.max(r.endAt, it.e.end);
+    }
+    return rows;
+  };
+  TL.lanes = [
+    ...(main ? [{ type: "prog", label: "Footage", h: PROG_H }, { type: "wave", label: "Audio", h: WAVE_H }] : []),
+    ...rowsOf("video", 3).map((r, i) => ({ ...r, label: i ? "" : "B-roll", h: ROW_H })),
+    ...rowsOf("other", 6).map((r, i) => ({ ...r, label: i ? "" : "Overlays", h: ROW_H })),
+    ...rowsOf("cap", 2).map((r, i) => ({ ...r, label: i ? "" : "Captions", h: CAP_H })),
+    ...rowsOf("audio", 3).map((r, i) => ({ ...r, label: i ? "" : "Sound", h: SFX_H })),
+  ];
+  // deleted clips leave the lanes; undo (⌘Z) or Reset brings them back
+}
+async function loadMedia() {
+  TL.media = null; TL.img = null;
+  const m = mainClip(); if (!m || !S.comp || !m.src) return;
+  try {
+    const info = await api("/api/media?comp=" + encodeURIComponent(S.comp.id) + "&src=" + encodeURIComponent(m.src));
+    if (!info || info.error) return;
+    TL.media = info;
+    if (info.strip) { const img = new Image(); img.onload = () => { TL.img = img; draw(); }; img.src = info.strip.url; }
+    draw();
+  } catch {}
+}
+
+/* ---------- drawing ---------- */
+const cv = $("#tl"), ctx = cv.getContext("2d");
+function fitView() { S.view = { start: 0, len: progDur() || S.dur || 10 }; draw(); }
+const X = E => G + (E - S.view.start) / S.view.len * (cv.clientWidth - G);
+const T = x => S.view.start + (x - G) / (cv.clientWidth - G) * S.view.len;
+const TC = {};
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["accent", "dim", "faint", "ink", "fix", "change", "remember", "done", "video", "audio", "cap", "cap-ink", "other", "tl-bg", "tl-ruler", "tl-grid", "tl-beyond", "tl-head",
+    "tl-band", "tl-tick", "tl-line", "tl-prog", "tl-edge", "tl-label-bg", "tl-label", "playhead", "cut", "snap", "blade", "panel"]) TC[k] = cs.getPropertyValue("--" + k).trim();
+}
+readTheme();
+const css = v => TC[v.slice(2)] || getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2)) : ctx.rect(x, y, w, h); }
+function draw() {
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = TC["tl-bg"]; ctx.fillRect(0, 0, w, h);
+  if (!S.view.len) S.view = { start: 0, len: progDur() || 10 };
+  const v0 = S.view.start, v1 = v0 + S.view.len, PD = progDur();
+  ctx.font = "10px -apple-system, system-ui, sans-serif"; ctx.textBaseline = "alphabetic";
+
+  // lanes
+  let y = RULER + NOTES_H + 4; const geom = [];
+  for (const ln of TL.lanes) { geom.push({ ln, y, h: ln.h }); y += ln.h + 3; }
+  TL.geom = geom;
+  ctx.save(); ctx.beginPath(); ctx.rect(G, 0, w - G, h); ctx.clip();
+  // grid
+  const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120];
+  const stp = steps.find(s => s / S.view.len * (w - G) >= 70) || 300;
+  // lane bands
+  for (const g of geom) { ctx.fillStyle = TC["tl-band"]; ctx.fillRect(G, g.y - 1, w - G, g.h + 2); }
+  ctx.strokeStyle = TC["tl-grid"]; ctx.beginPath();
+  for (let t = Math.ceil(v0 / stp) * stp; t <= v1; t += stp) { const x = Math.round(X(t)) + .5; ctx.moveTo(x, RULER); ctx.lineTo(x, h); }
+  ctx.stroke();
+  // beyond the end
+  if (X(PD) < w) { ctx.fillStyle = TC["tl-beyond"]; ctx.fillRect(X(PD), RULER, w - X(PD), h); }
+  // I–O range
+  if (S.inT != null || S.outT != null) {
+    const a = X(S.inT != null ? toE(S.inT) : v0), b = X(S.outT != null ? toE(S.outT) : v1);
+    ctx.fillStyle = "rgba(198,244,50,.07)"; ctx.fillRect(a, RULER, b - a, h);
+    ctx.fillStyle = css("--accent"); if (S.inT != null) ctx.fillRect(a, RULER, 2, h); if (S.outT != null) ctx.fillRect(b - 2, RULER, 2, h);
+  }
+  const starts = segStarts(), ss = segs();
+  for (const g of geom) {
+    const ln = g.ln;
+    if (ln.type === "prog") drawProgram(g, ss, starts, v0, v1);
+    else if (ln.type === "wave") drawWave(g, ss, starts);
+    else for (const c of ln.clips) drawClip(c, g);
+  }
+  // notes
+  for (const n of S.notes) {
+    if (!S.comp || n.comp !== S.comp.id) continue;
+    if (n.status === "done" && !showDone()) continue;
+    const col = n.status === "done" ? css("--done") : css("--" + (n.kind || "fix"));
+    const x = X(toE(n.t)), ny = RULER;
+    if (n.end != null) { ctx.fillStyle = col + "44"; ctx.fillRect(x, ny + 3, X(toE(n.end)) - x, NOTES_H - 6); }
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x - 5, ny + 2); ctx.lineTo(x + 5, ny + 2); ctx.lineTo(x, ny + NOTES_H - 1); ctx.fill();
+    if (S.sel === n.id) { ctx.strokeStyle = TC.playhead; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1; }
+  }
+  // drag ghosts: insertion marker for reorder, snap line
+  const d = TL.drag;
+  if (d && d.kind === "segmove" && d.moved) {
+    const ins = d.insertE; ctx.fillStyle = css("--accent"); ctx.fillRect(X(ins) - 1.5, RULER, 3, h);
+  }
+  if (d && d.snapE != null) { ctx.strokeStyle = TC.snap; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(X(d.snapE) + .5, RULER); ctx.lineTo(X(d.snapE) + .5, h); ctx.stroke(); ctx.setLineDash([]); }
+  // razor preview
+  if (TL.tool === "razor" && TL.hoverX != null && TL.hoverX > G) { ctx.strokeStyle = TC.blade; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(TL.hoverX + .5, RULER); ctx.lineTo(TL.hoverX + .5, h); ctx.stroke(); }
+  ctx.restore();
+
+  // ruler
+  ctx.fillStyle = TC["tl-ruler"]; ctx.fillRect(0, 0, w, RULER);
+  ctx.strokeStyle = TC["tl-line"]; ctx.beginPath(); ctx.moveTo(0, RULER + .5); ctx.lineTo(w, RULER + .5); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.rect(G, 0, w - G, RULER); ctx.clip();
+  ctx.fillStyle = TC.dim; ctx.strokeStyle = TC["tl-tick"]; ctx.beginPath(); ctx.font = "10px ui-monospace, SF Mono, Menlo, monospace";
+  const sub = stp / 5;
+  for (let t = Math.ceil(v0 / sub) * sub; t <= v1; t += sub) { const x = Math.round(X(t)) + .5; const major = Math.abs(t / stp - Math.round(t / stp)) < 1e-6; ctx.moveTo(x, major ? 10 : 17); ctx.lineTo(x, RULER); if (major) ctx.fillText(stp < 1 ? fmt(t) : fmt(t).replace(/\.00$/, ""), x + 3, 11); }
+  ctx.stroke(); ctx.restore();
+  // track headers
+  ctx.fillStyle = TC["tl-ruler"]; ctx.fillRect(0, RULER, G, h - RULER);
+  ctx.strokeStyle = TC["tl-line"]; ctx.beginPath(); ctx.moveTo(G - .5, 0); ctx.lineTo(G - .5, h); ctx.stroke();
+  const head = (y, hh, col, label, sub2) => {
+    ctx.fillStyle = TC["tl-head"]; rr(6, y, G - 12, hh, 5); ctx.fill();
+    ctx.fillStyle = col; rr(9, y + 3, 3, hh - 6, 1.5); ctx.fill();
+    if (!label) return;
+    ctx.fillStyle = TC.ink; ctx.font = "600 11px -apple-system, system-ui, sans-serif";
+    const ty = hh >= 30 ? y + 15 : y + hh / 2 + 4; ctx.fillText(label, 18, ty);
+    if (sub2 && hh >= 30) { ctx.fillStyle = TC.faint; ctx.font = "10px -apple-system, system-ui, sans-serif"; ctx.fillText(sub2, 18, ty + 13); }
+  };
+  const noteCount = S.notes.filter(n => S.comp && n.comp === S.comp.id && n.status !== "done").length;
+  head(RULER + 2, NOTES_H, TC.fix, "Notes" + (noteCount ? " · " + noteCount : ""));
+  for (const g of geom) {
+    const t = g.ln.type, col = t === "prog" ? TC.video : t === "wave" ? TC.audio : t === "cap" ? TC.cap : TC[t] || TC.dim;
+    const sub2 = t === "prog" ? (segs().length > 1 ? segs().length + " pieces" : "1 piece") : "";
+    head(g.y, g.h, col, g.ln.label, sub2);
+  }
+  // playhead + time readout
+  const px = Math.round(X(toE(S.t))) + .5;
+  ctx.fillStyle = TC.accent; rr(6, 4, G - 12, RULER - 8, 4); ctx.fill();
+  ctx.fillStyle = "#141a00"; ctx.font = "600 10px ui-monospace, SF Mono, Menlo, monospace"; ctx.textAlign = "center"; ctx.fillText(fmt(toE(S.t)), G / 2, RULER - 8); ctx.textAlign = "left";
+  if (px >= G) {
+    ctx.strokeStyle = TC.playhead; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, 6); ctx.lineTo(px, h); ctx.stroke();
+    ctx.fillStyle = TC.playhead; ctx.beginPath(); ctx.moveTo(px - 6, 2); ctx.lineTo(px + 6, 2); ctx.lineTo(px + 6, 9); ctx.lineTo(px, 14); ctx.lineTo(px - 6, 9); ctx.closePath(); ctx.fill();
+  }
+}
+function drawProgram(g, ss, starts, v0, v1) {
+  const m = TL.media, img = TL.img, st = m && m.strip, main = mainClip();
+  for (let i = 0; i < ss.length; i++) {
+    const s = ss[i], a = starts[i], b = a + s.out - s.in;
+    if (b < v0 || a > v1) continue;
+    const x0 = X(a) + (i ? 1 : 0), x1 = X(b) - 1, wv = x1 - x0; if (wv < 1) continue;
+    ctx.save(); rr(x0, g.y, wv, g.h, 5); ctx.clip();
+    ctx.fillStyle = TC["tl-prog"]; ctx.fillRect(x0, g.y, wv, g.h);
+    if (img && st) {   // filmstrip: one thumbnail per tile, taken from the source time under it
+      const th = g.h, tw = st.w * th / st.h;
+      for (let x = Math.max(x0, G) - ((Math.max(x0, G) - x0) % tw); x < x1; x += tw) {
+        const srcT = s.in + T(x + tw / 2) - a - (main ? main.start : 0);
+        const k = Math.max(0, Math.min(st.n - 1, Math.round(srcT * st.fps)));
+        ctx.drawImage(img, k * st.w, 0, st.w, st.h, x, g.y, tw, th);
+      }
+      ctx.fillStyle = "rgba(10,14,24,.25)"; ctx.fillRect(x0, g.y, wv, g.h);
+    }
+    const sel = TL.sel && TL.sel.kind === "seg" && TL.sel.i === i;
+    ctx.restore();
+    ctx.lineWidth = sel ? 2 : 1; ctx.strokeStyle = sel ? TC.accent : TC["tl-edge"]; rr(x0 + .5, g.y + .5, wv - 1, g.h - 1, 5); ctx.stroke(); ctx.lineWidth = 1;
+    if (wv > 70) { ctx.fillStyle = TC["tl-label-bg"]; const lbl = fmt(s.in) + "–" + fmt(s.out); const tw = ctx.measureText(lbl).width + 8; rr(x0 + 4, g.y + 4, tw, 14, 3); ctx.fill(); ctx.fillStyle = TC["tl-label"]; ctx.fillText(lbl, x0 + 8, g.y + 14); }
+  }
+  // cut marks between spans
+  ctx.fillStyle = TC.cut;
+  for (let i = 1; i < ss.length; i++) { const x = X(starts[i]); if (x > G) { ctx.beginPath(); ctx.moveTo(x - 4, g.y - 3); ctx.lineTo(x + 4, g.y - 3); ctx.lineTo(x, g.y + 2); ctx.fill(); } }
+}
+function drawWave(g, ss, starts) {
+  const m = TL.media, wv = m && m.wave, main = mainClip(); if (!wv) return;
+  const mid = g.y + g.h / 2, w = cv.clientWidth;
+  ctx.fillStyle = TC.audio;
+  for (let x = G; x < w; x += 2) {
+    const E = T(x); if (E < 0 || E > progDur()) continue;
+    const t = toS(E) - (main ? main.start : 0), k = Math.floor(t * wv.rate);
+    const v = wv.peaks[k] || 0, a = Math.max(1, v / 100 * (g.h / 2 - 1));
+    ctx.fillRect(x, mid - a, 1.5, a * 2);
+  }
+  ctx.fillStyle = TC["tl-bg"]; for (let i = 1; i < ss.length; i++) ctx.fillRect(X(starts[i]) - 1, g.y, 2, g.h);
+}
+function drawClip(c, g) {
+  const e = eff(c); const col = css("--" + c.type) || "#888";
+  const sel = TL.sel && TL.sel.kind === "clip" && TL.sel.key === c.key;
+  for (const [a, b] of pieces(e.start, e.end)) {
+    const x0 = X(a), x1 = X(b), wv = Math.max(2, x1 - x0);
+    if (x1 < G || x0 > cv.clientWidth) continue;
+    const on = e.start <= S.t && S.t < e.end;
+    ctx.globalAlpha = e.del ? .2 : on ? 1 : .72;
+    ctx.fillStyle = col; rr(x0, g.y, wv, g.h, 3); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (sel) { ctx.strokeStyle = TC.playhead; ctx.lineWidth = 2; rr(x0 + 1, g.y + 1, wv - 2, g.h - 2, 3); ctx.stroke(); ctx.lineWidth = 1; }
+    if (wv > 28 && g.h >= 12) {
+      ctx.save(); ctx.beginPath(); ctx.rect(x0 + 3, g.y, wv - 6, g.h); ctx.clip();
+      ctx.fillStyle = c.type === "cap" ? TC["cap-ink"] : "#fff"; ctx.font = (g.h >= 18 ? "11px" : "10px") + " -apple-system, system-ui, sans-serif";
+      ctx.fillText(c.type === "cap" ? c.text : c.id + (c.type === "other" && c.text ? "  " + c.text : ""), x0 + 5, g.y + g.h / 2 + 4);
+      ctx.restore();
+    }
+  }
+}
+
+/* ---------- pointer ---------- */
+function hitAt(x, y) {
+  if (y < RULER) return { zone: "ruler" };
+  if (y < RULER + NOTES_H + 2) return { zone: "notes" };
+  const g = (TL.geom || []).find(g => y >= g.y - 1 && y < g.y + g.h + 2); if (!g) return { zone: "empty" };
+  const E = T(x);
+  if (g.ln.type === "prog" || g.ln.type === "wave") {
+    const ss = segs(), st = segStarts(), n = ss.length;
+    for (let i = 0; i < n; i++) {
+      const xa = X(st[i]), xb = X(st[i] + ss[i].out - ss[i].in);
+      const inBody = x >= xa && (x < xb || (i === n - 1 && x <= xb));
+      if (inBody) return { zone: "seg", i, edge: x - xa < EDGE ? "L" : xb - x < EDGE ? "R" : "body", E, g };
+    }
+    if (n && x < X(0) && X(0) - x < EDGE) return { zone: "seg", i: 0, edge: "L", E, g };
+    if (n) { const xe = X(progDur()); if (x > xe && x - xe < EDGE) return { zone: "seg", i: n - 1, edge: "R", E, g }; }
+    return { zone: "empty", g };
+  }
+  for (const c of g.ln.clips || []) {
+    const e = eff(c);
+    for (const [a, b] of pieces(e.start, e.end)) {
+      const xa = X(a), xb = Math.max(xa + 2, X(b));
+      if (x >= xa - 3 && x <= xb + 3) {
+        const edge = editable(c) && xb - xa > 14 ? (x - xa < EDGE ? "L" : xb - x < EDGE ? "R" : "body") : "body";
+        return { zone: "clip", c, edge, E, g };
+      }
+    }
+  }
+  return { zone: "empty", g };
+}
+function snapE(E, ignore) {
+  if (!TL.snap) return { E, s: null };
+  const tol = 8 / (cv.clientWidth - G) * S.view.len, cands = [toE(S.t), 0, progDur(), ...segStarts()];
+  for (const c of S.clips) if (!ignore || c.key !== ignore) { const e = eff(c); if (!e.del) for (const [a, b] of pieces(e.start, e.end)) cands.push(a, b); }
+  let best = null; for (const c of cands) if (Math.abs(c - E) <= tol && (!best || Math.abs(c - E) < Math.abs(best - E))) best = c;
+  return best == null ? { E, s: null } : { E: best, s: best };
+}
+cv.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  cv.setPointerCapture(e.pointerId);
+  const x = e.offsetX, y = e.offsetY, h = hitAt(x, y);
+  if (x < G) return;
+  if (INK.sel) { INK.sel = null; inkBump(); }
+  if (h.zone === "notes") {
+    const hit = S.notes.filter(n => S.comp && n.comp === S.comp.id && (n.status !== "done" || showDone())).find(n => Math.abs(X(toE(n.t)) - x) < 7);
+    if (hit) { S.sel = hit.id; pause(); seek(hit.t); renderNotes(); const el = document.querySelector(`.note[data-id="${hit.id}"]`); el && el.scrollIntoView({ block: "nearest" }); return; }
+  }
+  if (TL.tool === "razor" && y >= RULER) { tlSplitAt(snapE(T(x)).E); return; }
+  if (h.zone === "seg") {
+    TL.sel = { kind: "seg", i: h.i };
+    const s = segs()[h.i];
+    TL.drag = { kind: h.edge === "body" ? "segmove" : "segtrim", edge: h.edge, i: h.i, x0: x, E0: T(x), orig: clone(s), moved: false, wasPlaying: S.playing };
+    pause(); draw(); return;
+  }
+  if (h.zone === "clip") {
+    TL.sel = { kind: "clip", key: h.c.key };
+    const ee = eff(h.c);
+    TL.drag = editable(h.c) ? { kind: h.edge === "body" ? "clipmove" : "cliptrim", edge: h.edge, key: h.c.key, x0: x, E0: T(x), orig: { start: ee.start, end: ee.end }, moved: false, wasPlaying: S.playing }
+                            : { kind: "click", x0: x, E0: T(x) };
+    pause(); draw(); return;
+  }
+  TL.sel = null;
+  TL.drag = { kind: "scrub", wasPlaying: S.playing }; pause(); S.follow = false; seekE(T(x));
+});
+cv.addEventListener("pointermove", e => {
+  const x = e.offsetX, y = e.offsetY, d = TL.drag;
+  TL.hoverX = x;
+  if (!d) {
+    const h = hitAt(x, y), hv = $("#hover");
+    cv.style.cursor = x < G ? "default" : TL.tool === "razor" && y >= RULER ? BLADE_CURSOR
+      : h.zone === "ruler" ? "col-resize" : h.zone === "notes" ? "pointer"
+      : (h.zone === "seg" || h.zone === "clip") ? (h.edge === "L" || h.edge === "R" ? "ew-resize" : h.zone === "clip" && !editable(h.c) ? "pointer" : "grab") : "default";
+    let label = x >= G ? fmt(T(x)) : "";
+    if (h.zone === "clip") { const ee = eff(h.c); label += "  ·  " + h.c.id + (h.c.text ? ": " + h.c.text : "") + "  (" + fmt(ee.start) + "–" + fmt(ee.end) + " source)" + (ee.del ? "  removed" : ""); }
+    if (h.zone === "seg") { const s = segs()[h.i]; label += "  ·  footage " + fmt(s.in) + "–" + fmt(s.out) + " (" + (s.out - s.in).toFixed(2) + " s)"; }
+    hv.textContent = label; hv.style.display = label ? "block" : "none";
+    hv.style.left = Math.min(x + 12, cv.clientWidth - hv.offsetWidth - 4) + "px";
+    if (TL.tool === "razor") draw();
+    return;
+  }
+  if (d.kind === "scrub") { cv.style.cursor = "col-resize"; seekE(T(x)); return; }
+  if (d.kind === "segmove" || d.kind === "clipmove") cv.style.cursor = "grabbing";
+  if (Math.abs(x - d.x0) > 3) d.moved = true;
+  if (!d.moved) return;
+  if (!d.began && d.kind !== "click" && d.kind !== "segmove") {
+    tlBegin(); d.began = true;
+    if (d.kind === "segtrim") { S.ed = S.ed || { clips: {} }; if (!S.ed.segments) S.ed.segments = clone(segs()); }
+  }
+  if (d.kind === "click") return;
+  const dE = T(x) - d.E0;
+  if (d.kind === "segtrim") {
+    const ss = segs(), s = ss[d.i], o = d.orig, others = ss.filter((_, j) => j !== d.i), min = 4 / FPS;
+    d.snapE = null;
+    const segE0 = segStarts()[d.i];
+    const sn = v => { const a = snapE(v); if (a.s != null) d.snapE = a.s; return a.E; };
+    if (d.edge === "L") {
+      const lo = Math.max(0, ...others.filter(q => q.out <= o.in + 1e-6).map(q => q.out));
+      s.in = Math.max(lo, Math.min(o.out - min, o.in + dE));
+    } else {
+      const hi = Math.min(S.dur, ...others.filter(q => q.in >= o.out - 1e-6).map(q => q.in));
+      const E1 = sn(segE0 + (o.out + dE - o.in));       // the right edge sits in program time: snap it there
+      s.out = Math.min(hi, Math.max(o.in + min, o.in + (E1 - segE0)));
+    }
+    seek(d.edge === "L" ? s.in : Math.max(s.in, s.out - 1 / FPS));
+  } else if (d.kind === "segmove") {
+    const st = segStarts(), ss = segs(); let best = 0, bd = Infinity;
+    const bounds = st.concat([progDur()]);
+    bounds.forEach((b, k) => { const dd = Math.abs(X(b) - x); if (dd < bd) { bd = dd; best = k; } });
+    d.insertK = best; d.insertE = bounds[best];
+  } else if (d.kind === "clipmove" || d.kind === "cliptrim") {
+    const c = S.clips.find(q => q.key === d.key); if (!c) return;
+    const o = d.orig, len = o.end - o.start;
+    let ns = o.start, ne = o.end; d.snapE = null;
+    if (d.kind === "clipmove") {
+      ns = o.start + dE;
+      const a = snapE(toE(ns), c.key), b = snapE(toE(ns + len), c.key);
+      if (a.s != null) { ns = toS(a.E); d.snapE = a.s; } else if (b.s != null) { ns = toS(b.E) - len; d.snapE = b.s; }
+      ns = Math.max(0, Math.min(S.dur - len, ns)); ne = ns + len;
+    } else if (d.edge === "L") {
+      ns = o.start + dE; const a = snapE(toE(ns), c.key); if (a.s != null) { ns = toS(a.E); d.snapE = a.s; }
+      ns = Math.max(0, Math.min(o.end - 0.05, ns));
+    } else {
+      ne = o.end + dE; const b = snapE(toE(ne), c.key); if (b.s != null) { ne = toS(b.E); d.snapE = b.s; }
+      ne = Math.min(S.dur, Math.max(o.start + 0.05, ne));
+    }
+    S.ed = S.ed || { segments: null, clips: {} }; S.ed.clips = S.ed.clips || {};
+    S.ed.clips[c.key] = { start: +ns.toFixed(4), dur: +(ne - ns).toFixed(4), del: false };
+    if (Math.abs(ns - c.start) < 1e-4 && Math.abs(ne - c.end) < 1e-4) delete S.ed.clips[c.key];
+    clearTimeout(TL.liveT); TL.liveT = setTimeout(applyClipEdits, 60);
+  }
+  draw();
+});
+cv.addEventListener("pointerleave", () => { $("#hover").style.display = "none"; TL.hoverX = null; if (TL.tool === "razor") draw(); });
+function endDrag(e) {
+  const d = TL.drag; if (!d) return; TL.drag = null;
+  if (TL.needSync) setTimeout(tlSync, 0);
+  if (d.kind === "scrub") return;   // dragging the playhead leaves the video paused where you let go
+  if (!d.moved || d.kind === "click") { if (d.E0 != null) seekE(d.E0); draw(); return; }   // a click: select + move the playhead there
+  if (d.kind === "segmove" && d.insertK != null) {
+    const n = clone(segs()); let k = d.insertK;
+    if (k === d.i || k === d.i + 1) { draw(); return; }
+    tlBegin(); const [g] = n.splice(d.i, 1); if (k > d.i) k--; n.splice(k, 0, g);
+    S.ed = Object.assign(S.ed || { clips: {} }, { segments: n });
+    TL.sel = { kind: "seg", i: k }; tlCommit(); toast("Moved"); return;
+  }
+  d.snapE = null; tlCommit();
+}
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomBy(Math.exp(e.deltaY * 0.01), e.offsetX);
+  else {
+    const D = progDur() || 10, dd = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / (cv.clientWidth - G) * S.view.len;
+    S.view.start = Math.max(0, Math.min(D - S.view.len, S.view.start + dd)); S.follow = false; draw();
+  }
+}, { passive: false });
+cv.addEventListener("dblclick", e => { if (e.offsetX < G || hitAt(e.offsetX, e.offsetY).zone === "ruler") fitView(); });
+new ResizeObserver(draw).observe(cv);
+
+/* ---------- toolbar + resizing the timeline ---------- */
+$("#tlbar").addEventListener("mousedown", e => { if (e.target.closest("button")) e.preventDefault(); });
+document.querySelectorAll("#tlbar [data-ttool]").forEach(b => b.onclick = () => tlSetTool(b.dataset.ttool));
+$("#tlSplit").onclick = () => tlSplitAt(toE(S.t));
+$("#tlDel").onclick = tlDelete;
+$("#tlUndo").onclick = tlUndo; $("#tlRedo").onclick = tlRedo;
+$("#tlReset").onclick = tlReset;
+$("#tlExport").onclick = async () => {
+  const b = $("#tlExport");
+  if (!S.comp || S.comp.kind !== "video" || !edActive() || b.disabled) return;
+  const comp = S.comp.id; b.disabled = true;
+  try {
+    clearTimeout(TL.saveT); TL.gen = (TL.gen || 0) + 1;   // save the latest cut first, after any save already on its way
+    try { await TL.inflight; } catch {}
+    await api("/api/notes", { op: "edits", comp, label: S.comp.label, kind: "video", summary: edSummary(),
+      edits: { segments: seqEdited() ? clone(segs()) : null, clips: {}, format: fmtOf() ? clone(fmtOf()) : null } });
+    TL.pending = false;
+    let st = await api("/api/export", { comp });
+    if (st.error) { toast(st.error); return; }
+    while (st.state === "running") {
+      b.innerHTML = '<svg><use href="#i-export"/></svg>Exporting ' + Math.round((st.progress || 0) * 100) + "%";
+      await new Promise(r => setTimeout(r, 600));
+      st = await api("/api/export?comp=" + encodeURIComponent(comp));
+    }
+    if (st.state === "done") { toast("Exported: " + st.out.split("/").pop()); S.info = await api("/api/info"); fillComps(); DD.comp.set(S.comp.id); }
+    else toast("Export failed" + (st.error ? ": " + st.error : ""));
+  } catch { toast("Lost touch with the server during export"); }
+  finally { b.disabled = false; b.innerHTML = '<svg><use href="#i-export"/></svg>Export cut'; }
+};
+$("#tlSnap").onclick = () => { TL.snap = !TL.snap; store.set("hfr:snap", TL.snap ? "1" : "0"); $("#tlSnap").classList.toggle("on", TL.snap); };
+$("#tlSnap").classList.toggle("on", TL.snap);
+$("#tlZin").onclick = () => zoomBy(1 / 1.6); $("#tlZout").onclick = () => zoomBy(1.6); $("#tlFit").onclick = fitView;
+function setTlH(px) { TL.h = Math.max(160, Math.min(Math.round(innerHeight * 0.7), px)); $("#tlwrap").style.height = TL.h + "px"; store.set("hfr:tlh", String(TL.h)); draw(); }
+setTlH(TL.h);
+$("#tlgrip").addEventListener("pointerdown", e => {
+  const y0 = e.clientY, h0 = TL.h; e.target.setPointerCapture(e.pointerId);
+  const mv = ev => setTlH(h0 - (ev.clientY - y0));
+  const up = () => { e.target.removeEventListener("pointermove", mv); e.target.removeEventListener("pointerup", up); };
+  e.target.addEventListener("pointermove", mv); e.target.addEventListener("pointerup", up);
+});
+tlSetTool("select");
