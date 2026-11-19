@@ -104,6 +104,8 @@
   .lp-cur b { font-size: 12.5px; } .lp-cur small { display: block; color: var(--dim); font-size: 11.5px; }
   .lp-cur button { margin-left: auto; }
 
+  #libGhost { position: fixed; left: -1000px; top: -1000px; padding: 7px 12px; border-radius: 10px; background: #c6f432; color: #141a00; font: 700 12px -apple-system, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  #libGhost.cap { background: #f3a6e6; color: #3a0632; }
   /* drop target over the video while dragging */
   #libDrop { position: absolute; inset: 0; z-index: 30; display: none; align-items: flex-end; justify-content: center; padding-bottom: 18px;
     border: 2px dashed ${NEON}; border-radius: 10px; background: rgba(57,255,136,.08); }
@@ -142,6 +144,7 @@
   .ll-blk .x { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 4px; border: 0; padding: 0; background: rgba(0,0,0,.18); color: inherit; font-size: 11px; line-height: 16px; cursor: pointer; }
   .ll-blk .rs { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
   .ll-blk.cap .rs { display: none; }
+  .ll-blk.sel { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--ink); z-index: 2; }
   .ll-lbl { position: absolute; transform: translateY(-50%); max-width: 230px; padding: 2px 4px;
     color: var(--ink); font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ll-lbl i { font-style: normal; font-weight: 500; color: var(--dim); }
@@ -465,13 +468,18 @@
   // components that overlap in time (including their floating labels) get their own rows; captions take a thin row under them
   const ROW = 24, CAPROW = 16;
   function laneRows() {
-    const rows = [], at = new Map(), lab = 2.4;   // keep ~2.4 s clear after each block for its label
-    for (const p of placements().filter(q => !q.cap).sort((a, b) => a.t - b.t)) {
-      let r = rows.findIndex(end => p.t >= end); if (r < 0) { r = rows.length; rows.push(0); }
-      rows[r] = p.t + Math.max(p.dur, 0) + lab; at.set(p.id, r);
-    }
-    return { n: rows.length, at };
+    const spans = [], at = new Map(), lab = 2.4;   // keep ~2.4 s clear after each block for its label
+    const ps = placements().filter(q => !q.cap).sort((a, b) => a.t - b.t);
+    const want = p => (D.drag && D.drag.id === p.id && D.drag.row != null) ? D.drag.row : (p.c.layer != null ? +p.c.layer : null);
+    const free = (r, a, b) => !(spans[r] || []).some(([x, y]) => a < y && b > x);
+    const put = (p, r) => { (spans[r] = spans[r] || []).push([p.t, p.t + Math.max(p.dur, 0) + lab]); at.set(p.id, r); };
+    for (const p of ps) if (want(p) != null) put(p, Math.max(0, Math.min(11, want(p))));
+    for (const p of ps) if (want(p) == null) { let r = 0; while (!free(r, p.t, p.t + p.dur + lab)) r++; put(p, r); }
+    let n = 0; for (const r of at.values()) n = Math.max(n, r + 1);
+    if (D.drag && D.drag.mode === "move" && D.drag.row != null) n = Math.max(n, D.drag.row + 1);
+    return { n, at };
   }
+  D.rowOf = id => laneRows().at.get(id) || 0;
   D.laneH = () => { const n = laneRows().n, cap = placements().some(p => p.cap); return Math.max(18, n * (ROW + 2) + (cap ? CAPROW + 2 : 0)); };
 
   // where a component draws (canvas px), over its whole run; cached per component + params
@@ -583,6 +591,11 @@
     e.dataTransfer.setData("application/x-cutnote-component", c.dataset.id);
     e.dataTransfer.setData("text/plain", def ? def.name : c.dataset.id);
     e.dataTransfer.effectAllowed = "copy";
+    let ghost = $("#libGhost");
+    if (!ghost) { ghost = document.createElement("div"); ghost.id = "libGhost"; document.body.appendChild(ghost); }
+    ghost.className = isCap(def) ? "cap" : "";
+    ghost.textContent = (isCap(def) ? "▤ " + short(def.name) + " captions" : "▦ " + (def ? def.name : c.dataset.id));
+    try { e.dataTransfer.setDragImage(ghost, 16, 16); } catch (err) {}
     D.dragging = true; frameBits();
     $("#libDrop span").textContent = isCap(def) ? "Drop to use these captions for the whole video" : "Drop to add it here, at the playhead";
     setTimeout(() => { document.body.classList.add("lib-drag"); document.body.classList.toggle("lib-cap", isCap(def)); }, 0);
@@ -641,7 +654,7 @@
       const LR = D._rows || (D._rows = laneRows());
       const by = p.cap ? g.y + LR.n * (ROW + 2) : g.y + (LR.at.get(p.id) || 0) * (ROW + 2), bh = p.cap ? CAPROW : ROW;
       const narrow = !p.cap && x1 - x0 < 150;
-      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${narrow ? "" : label}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
+      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}${D.selected === p.id || D.editing === p.id ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${narrow ? "" : label}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
       if (narrow) html.push(`<div class="ll-lbl" style="left:${Math.max(x0, Math.min(w - 230, x1 + 6))}px;top:${by + bh / 2}px">${label}</div>`);
     }
     const out = html.join("");
@@ -656,11 +669,13 @@
     if (p.cap) { openPlacement(p.id); return; }
     // retime in program time (what the timeline shows), so it follows the pointer even when the video has cuts
     const per = S.view.len / ($("#tl").clientWidth - G), E0 = toE(p.t);
-    D.drag = { id: p.id, mode: e.target.closest(".rs") ? "len" : "move", x0: e.clientX, dur0: p.dur, moved: false };
+    const row0 = D.rowOf(p.id), rows0 = laneRows().n;
+    D.drag = { id: p.id, mode: e.target.closest(".rs") ? "len" : "move", x0: e.clientX, y0: e.clientY, dur0: p.dur, moved: false, row: null };
     trackDrag(ev => {
       const d = D.drag; if (!d) return;
       const dE = (ev.clientX - d.x0) * per;
-      if (Math.abs(ev.clientX - d.x0) > 3) d.moved = true;
+      if (Math.abs(ev.clientX - d.x0) > 3 || Math.abs(ev.clientY - d.y0) > 6) d.moved = true;
+      if (d.mode === "move") { const r = Math.max(0, Math.min(rows0, row0 + Math.round((ev.clientY - d.y0) / (ROW + 2)))); if (r !== row0 || d.row != null) d.row = r; }
       if (d.mode === "move") d.t = toS(Math.max(0, Math.min(progDur() - 0.2, E0 + dE)));
       else d.dur = Math.max(0.6, +(d.dur0 + dE).toFixed(2));
       D.paintLane();
@@ -668,9 +683,12 @@
       const d = D.drag; if (!d) return;
       if (cancelled || !d.moved) { D.drag = null; if (!cancelled) { seek(p.t); openPlacement(p.id); } D.paintLane(); return; }
       const patch = { id: p.id };
-      if (d.mode === "move") { patch.t = +d.t.toFixed(3); patch.end = +(d.t + p.dur).toFixed(3); patch.frame = Math.round(d.t * FPS); if (typeof contextAt === "function") patch.context = contextAt(patch.t); }
+      if (d.mode === "move") {
+        if (d.t != null) { patch.t = +d.t.toFixed(3); patch.end = +(d.t + p.dur).toFixed(3); patch.frame = Math.round(d.t * FPS); if (typeof contextAt === "function") patch.context = contextAt(patch.t); }
+        if (d.row != null && d.row !== row0) patch.component = Object.assign({}, p.c, { layer: d.row });
+      }
       else { patch.component = Object.assign({}, p.c, { params: Object.assign({}, p.c.params, { duration: d.dur }) }); patch.end = +(p.t + d.dur).toFixed(3); }
-      try { await noteOp("update", patch); toast(d.mode === "move" ? `Moved to ${fmt(patch.t)}` : `Plays for ${d.dur.toFixed(1)} s`); }
+      try { await noteOp("update", patch); toast(d.mode !== "move" ? `Plays for ${d.dur.toFixed(1)} s` : patch.component ? `Moved to row ${d.row + 1}${d.row === 0 ? " (in front)" : ""}` : `Moved to ${fmt(patch.t)}`); }
       catch (err) { toast("Couldn't save that change"); }
       finally { D.drag = null; layoutLanes(); draw(); sync(true); }
       if (d.mode === "move" && patch.t != null) seek(patch.t);
@@ -768,7 +786,7 @@
     const fr = liveFrame();
     if (!fr || !window.VideoLibrary) return;
     const want = placements().filter(p => !p.cap);
-    const keyOf = p => p.id + JSON.stringify([p.c.id, p.c.params, +p.n.t || 0, p.c.dx, p.c.dy, p.c.scale]);
+    const keyOf = p => p.id + JSON.stringify([p.c.id, p.c.params, +p.n.t || 0, p.c.dx, p.c.dy, p.c.scale, D.rowOf(p.id)]);
     const sig = want.map(keyOf).join("|");
     if (fr.w === LIVE.win && sig === LIVE.sig && !force) return;
     LIVE.busy = true;
@@ -786,7 +804,7 @@
         if (LIVE.items.has(k) || !W.VideoLibrary.components[p.c.id]) continue;
         const holder = W.document.createElement("div");
         holder.className = "cutnote-live";
-        holder.style.cssText = `position:absolute;left:0;top:0;width:${W.VideoLibrary.W}px;height:${W.VideoLibrary.H}px;pointer-events:none;z-index:900;transform-origin:0 0;transform:${liveT(p.c.dx, p.c.dy, p.c.scale, ...centreOf(p))}`;
+        holder.style.cssText = `position:absolute;left:0;top:0;width:${W.VideoLibrary.W}px;height:${W.VideoLibrary.H}px;pointer-events:none;z-index:${950 - D.rowOf(p.id)};transform-origin:0 0;transform:${liveT(p.c.dx, p.c.dy, p.c.scale, ...centreOf(p))}`;
         root.appendChild(holder);
         const sub = W.gsap.timeline();
         try { W.VideoLibrary.mount(p.c.id, { root: holder, tl: sub, start: 0, params: p.c.params }); } catch (e) { holder.remove(); continue; }

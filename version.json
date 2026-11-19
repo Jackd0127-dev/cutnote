@@ -1,8 +1,9 @@
 {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "date": "19 Nov 2026",
   "notes": [
-    "Full-screen previews fixed: Money rain, Storyline, the Day page and the End card now show all of their content, centred, on a matching background.",
-    "Familiar sidebar button: hiding the sidebar uses the sidebar icon again."
+    "Layer your components: drag a component's block up or down on the timeline to put it in front of or behind others. The top row plays in front.",
+    "See what's selected: the selected component is outlined on the timeline as well as on the video.",
+    "Cleaner dragging: dragging a component or caption style from the sidebar shows a small tag instead of a snapshot of the whole list."
   ]
 }
