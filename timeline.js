@@ -17,7 +17,7 @@ const BLADE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="
 /* ---------- the edit model ---------- */
 function segs() { const e = S.ed; return e && e.segments && e.segments.length ? e.segments : [{ in: 0, out: S.dur || 0 }]; }
 function seqEdited() { const s = segs(); return !(s.length === 1 && s[0].in < 1e-3 && Math.abs(s[0].out - (S.dur || 0)) < 1e-3); }
-function edActive() { return !!S.ed && (seqEdited() || Object.keys(S.ed.clips || {}).length > 0 || !!S.ed.format); }
+function edActive() { return !!S.ed && (seqEdited() || Object.keys(S.ed.clips || {}).length > 0 || !!S.ed.format || Object.keys(S.ed.frame || {}).length > 0); }
 function progDur() { return segs().reduce((a, s) => a + s.out - s.in, 0); }
 function segStarts() { let E = 0; return segs().map(s => { const r = E; E += s.out - s.in; return r; }); }
 // source time -> program time (a removed moment maps to the next kept frame)
@@ -78,7 +78,7 @@ function tlSave() {
   clearTimeout(TL.saveT);
   // capture everything now: the version may change before the timer fires
   const comp = S.comp.id, label = S.comp.label, kind = S.comp.kind;
-  const edits = S.ed && edActive() ? { segments: seqEdited() ? clone(segs()) : null, clips: clone(S.ed.clips || {}), format: fmtOf() ? clone(fmtOf()) : null } : null;
+  const edits = S.ed && edActive() ? { segments: seqEdited() ? clone(segs()) : null, clips: clone(S.ed.clips || {}), format: fmtOf() ? clone(fmtOf()) : null, frame: clone(S.ed.frame || {}) } : null;
   const summary = edits ? edSummary() : [];
   const gen = TL.gen = (TL.gen || 0) + 1;
   TL.pending = true;
@@ -91,15 +91,16 @@ function tlSave() {
     if (gen === TL.gen) { TL.pending = false; if (TL.needSync) tlSync(); }
   })(); }, 350);
 }
-const canon = e => e ? JSON.stringify({ segments: e.segments || null, clips: e.clips || {}, format: e.format || null }) : "null";
+const sortKeys = v => Array.isArray(v) ? v.map(sortKeys) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sortKeys(v[k])])) : v;
+const canon = e => e ? JSON.stringify(sortKeys({ segments: e.segments || null, clips: e.clips || {}, format: e.format || null, frame: e.frame || {} })) : "null";
 // called whenever notes are (re)loaded: adopt the server's edits for this version unless ours are still being saved
 function tlSync() {
   if (!S.comp || TL.pending || TL.drag) { TL.needSync = true; return; }
   TL.needSync = false;
   const srv = (S.allEdits || {})[S.comp.id] || null;
-  const mine = S.ed && edActive() ? { segments: seqEdited() ? segs() : null, clips: S.ed.clips || {}, format: fmtOf() } : null;
+  const mine = S.ed && edActive() ? { segments: seqEdited() ? segs() : null, clips: S.ed.clips || {}, format: fmtOf(), frame: S.ed.frame || {} } : null;
   if (canon(srv) === canon(mine)) return;
-  S.ed = srv ? { segments: srv.segments ? clone(srv.segments) : null, clips: clone(srv.clips || {}), format: srv.format ? clone(srv.format) : null } : null;
+  S.ed = srv ? { segments: srv.segments ? clone(srv.segments) : null, clips: clone(srv.clips || {}), format: srv.format ? clone(srv.format) : null, frame: clone(srv.frame || {}) } : null;
   TL.sel = null; TL.hist = []; TL.fut = [];
   layoutLanes(); applyClipEdits(); tlStatus(); fmtSync(); draw();
 }
@@ -122,6 +123,15 @@ function edSummary() {
     const moved = Math.abs(o.start - c.start) > 1e-3, len = Math.abs(o.dur - (c.end - c.start)) > 1e-3;
     if (moved && !len) out.push(`Move ${name} ${o.start > c.start ? "later" : "earlier"} by ${Math.abs(o.start - c.start).toFixed(2)} s: ${fmt(c.start)}–${fmt(c.end)} → ${fmt(o.start)}–${fmt(o.start + o.dur)} (animations move with it)`);
     else if (len) out.push(`Retime ${name}: ${fmt(c.start)}–${fmt(c.end)} → ${fmt(o.start)}–${fmt(o.start + o.dur)}`);
+  }
+  for (const [key, o] of Object.entries((S.ed && S.ed.frame) || {})) {
+    const bits = [];
+    if (o.hide) bits.push("remove it");
+    const one = v => String(v).replace(/\s+/g, " ").trim();
+    if (o.dx || o.dy) bits.push(`move it ${o.dx ? Math.abs(Math.round(o.dx)) + " px " + (o.dx > 0 ? "right" : "left") : ""}${o.dx && o.dy ? " and " : ""}${o.dy ? Math.abs(Math.round(o.dy)) + " px " + (o.dy > 0 ? "down" : "up") : ""} (CSS translate in its own pixels, which are canvas pixels unless a parent is scaled; the whole time it's on screen)`);
+    if (o.s && Math.abs(o.s - 1) > 1e-3) bits.push(`scale it to ${Math.round(o.s * 100)}% (CSS scale around its transform origin)`);
+    if (o.text != null) bits.push(`change its text${o.was != null ? ` from "${one(o.was).slice(0, 120)}"` : ""} to "${one(o.text).slice(0, 300)}"`);
+    if (bits.length) out.push(`On the frame, ${one(o.name || key)} (element ${key}${key[0] === "/" ? ", child path from the composition root" : ""}): ${bits.join("; ")}`);
   }
   const f = fmtOf();
   if (f) {
@@ -149,15 +159,243 @@ function compFrame() {
   try { return f && f.contentDocument ? { w: f.contentWindow, d: f.contentDocument } : null; } catch { return null; }
 }
 const TWEEN0 = new WeakMap();
-function applyClipEdits() {
-  const fr = compFrame(); if (!fr) return;
-  const { w, d } = fr;
-  const all = [...d.querySelectorAll("[data-start]")];
-  const byKey = new Map();
+function compEls(fr) {
+  const d = fr.d, all = [...d.querySelectorAll("[data-start]")], byKey = new Map();
   for (const c of S.clips) {
     const el = c.elId ? d.getElementById(c.elId) : all[c.idx];
     if (el && (c.elId || el.tagName.toLowerCase() === c.tag)) byKey.set(c.key, el);
   }
+  return byKey;
+}
+
+/* ---------- on-frame editing: select an overlay or caption on the frame, drag to move, corner to resize, double-click to retype ---------- */
+// Stored as S.ed.frame[key] = {dx, dy, s, hide, text, was, name}. key is "#id", or "/i.j.k" (child path from the composition root).
+// Works on anything visible in the composition, including elements its scripts build at runtime.
+// Applied with !important rules on CSS translate/scale, which stack on top of the composition's own GSAP transforms.
+const FE = { drag: null, text0: new Map(), box: null, sel: null, hoverT: 0, hoverC: null };
+const feEdits = () => (S.ed && S.ed.frame) || {};
+const feRoot = d => d.querySelector("[data-composition-id]") || d.body;
+function feKey(el, d) {
+  if (el.id && d.querySelectorAll("#" + CSS.escape(el.id)).length === 1) return "#" + el.id;
+  const root = feRoot(d), path = [];
+  for (let n = el; n && n !== root; n = n.parentElement) { if (!n.parentElement) return null; path.unshift([...n.parentElement.children].indexOf(n)); }
+  return "/" + path.join(".");
+}
+function feResolve(key, d) {
+  if (key[0] === "#") return d.getElementById(key.slice(1));
+  if (key[0] !== "/") return null;
+  let el = feRoot(d); for (const i of key.slice(1).split(".").filter(Boolean)) el = el && el.children[+i];
+  return el || null;
+}
+function feName(el) {
+  const t = feText0(el).slice(0, 50), cls = typeof el.className === "string" ? el.className.trim().split(/\s+/)[0] : "";
+  return (el.id ? "#" + el.id : el.tagName.toLowerCase() + (cls ? "." + cls : "")) + (t ? ` "${t}"` : "");
+}
+function applyFrameEdits(fr) {
+  const d = fr.d;
+  for (const [node, v] of FE.text0) node.nodeValue = v;
+  FE.text0.clear();
+  for (const e of d.querySelectorAll("[data-hfr-fe]")) e.removeAttribute("data-hfr-fe");
+  let st = d.getElementById("hfr-fe-style");
+  if (!st) { st = d.createElement("style"); st.id = "hfr-fe-style"; (d.head || d.documentElement).appendChild(st); }
+  const rules = []; let n = 0;
+  for (const [key, o] of Object.entries(feEdits())) {   // text first (it can replace children), then positions
+    const el = feResolve(key, d); if (el && o.text != null) feRetype(el, o.text, d);
+  }
+  for (const [key, o] of Object.entries(feEdits())) {
+    const el = feResolve(key, d); if (!el || !(o.dx || o.dy || (o.s && o.s !== 1) || o.hide)) continue;
+    const id = "f" + n++; el.setAttribute("data-hfr-fe", id);
+    rules.push(o.hide ? `[data-hfr-fe="${id}"]{visibility:hidden !important}` : `[data-hfr-fe="${id}"]{translate:${+o.dx || 0}px ${+o.dy || 0}px !important;scale:${+o.s || 1} !important}`);
+  }
+  st.textContent = rules.join("\n");
+}
+// put new words into the element's existing text pieces, so word-by-word styling and animation keep working
+function feRetype(el, text, d) {
+  const nodes = [], tw = d.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if (n.nodeValue.trim()) nodes.push(n);
+  if (!nodes.length) return;
+  const words = text.split(/\s+/).filter(Boolean), last = nodes.length - 1;
+  nodes.forEach((n, i) => {
+    if (!FE.text0.has(n)) FE.text0.set(n, n.nodeValue);
+    const m = n.nodeValue.match(/^(\s*)[\s\S]*?(\s*)$/);
+    const part = nodes.length === 1 ? text : i < last ? (words[i] || "") : words.slice(last).join(" ");
+    n.nodeValue = m[1] + part + m[2];
+  });
+}
+const feText0 = el => (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+function feGeom() {
+  const fr = compFrame(); if (!fr || !S.comp || S.comp.kind !== "code") return null;
+  const ifr = S.player.el.shadowRoot && S.player.el.shadowRoot.querySelector("iframe"); if (!ifr) return null;
+  const r = ifr.getBoundingClientRect(); if (!r.width) return null;
+  return { fr, r, k: r.width / (fr.w.innerWidth || S.W) };
+}
+function feRect(el, g) { const b = el.getBoundingClientRect(); return { x: g.r.left + b.left * g.k, y: g.r.top + b.top * g.k, w: b.width * g.k, h: b.height * g.k }; }
+function feOpacity(el, w) {
+  let o = 1;
+  for (let a = el; a && a.nodeType === 1; a = a.parentElement) {
+    const cs = w.getComputedStyle(a); if (cs.display === "none" || cs.visibility === "hidden") return 0;
+    o *= +cs.opacity; if (o < 0.05) return 0;
+  }
+  return o;
+}
+// is this element something you'd move as one piece? (not the footage, not a full-screen layer)
+function feUnit(el, g) {
+  const main = mainClip(), root = feRoot(g.fr.d), b = el.getBoundingClientRect(), W = g.fr.w.innerWidth, H = g.fr.w.innerHeight;
+  if (el === root || el === g.fr.d.body || (main && main.elId && el.id === main.elId)) return false;
+  if (b.width * b.height > 0.8 * W * H || b.height > 1.15 * H || b.width > 1.15 * W) return false;
+  return true;
+}
+// what's under a point (client coords): the smallest visible piece, and the unit to move (nearest timed/id'd ancestor that isn't full-screen)
+function feHit(cx, cy) {
+  const g = feGeom(); if (!g) return null;
+  const px = (cx - g.r.left) / g.k, py = (cy - g.r.top) / g.k, d = g.fr.d;
+  let best = null;
+  for (const e of feRoot(d).querySelectorAll("*")) {
+    if (e.closest("svg") && e.tagName.toLowerCase() !== "svg") continue;
+    const b = e.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2 || px < b.left || px > b.right || py < b.top || py > b.bottom) continue;
+    if (best && b.width * b.height >= best.a) continue;
+    if (!feUnit(e, g) || feOpacity(e, g.fr.w) < 0.05) continue;
+    best = { leaf: e, a: b.width * b.height };
+  }
+  if (!best) return null;
+  let unit = best.leaf;
+  for (let a = best.leaf; a && a !== feRoot(d); a = a.parentElement) {
+    if (!feUnit(a, g)) break;
+    if (a.hasAttribute("data-start") || a.id) { unit = a; break; }
+  }
+  return { g, leaf: best.leaf, el: unit, key: feKey(unit, d), r: feRect(unit, g) };
+}
+function feSelected() {
+  if (!FE.sel) return null;
+  const g = feGeom(); if (!g) return null;
+  const el = feResolve(FE.sel, g.fr.d); if (!el || feOpacity(el, g.fr.w) < 0.05) return null;
+  const r = feRect(el, g); return r.w >= 2 && r.h >= 2 ? { key: FE.sel, el, r, g } : null;
+}
+function feSelect(key) {
+  FE.sel = key;
+  // keep the timeline in step when the piece is also a clip there
+  const c = key && key[0] === "#" ? S.clips.find(x => x.elId === key.slice(1)) : null;
+  TL.sel = c ? { kind: "clip", key: c.key } : null; draw();
+}
+// selection box drawn over the frame each animation frame
+const feBox = document.createElement("div"); feBox.id = "elsel";
+feBox.innerHTML = '<i data-h="0"></i><i data-h="1"></i><i data-h="2"></i><i data-h="3"></i><span></span>';
+function feDraw() {
+  if (!FE.sel && TL.sel && TL.sel.kind === "clip") { const c = S.clips.find(x => x.key === TL.sel.key); if (c && c.elId && editable(c)) FE.sel = "#" + c.elId; }
+  if (FE.sel && TL.sel && TL.sel.kind === "clip") { const c = S.clips.find(x => x.key === TL.sel.key); if (c && c.elId && "#" + c.elId !== FE.sel && editable(c)) FE.sel = "#" + c.elId; }
+  const s = INK.tool === "select" && !INK.hidden ? feSelected() : null, fr = $("#frame").getBoundingClientRect();
+  if (!s) { if (FE.box) { feBox.style.display = "none"; FE.box = null; } return; }
+  FE.box = { x: s.r.x, y: s.r.y, w: s.r.w, h: s.r.h };
+  Object.assign(feBox.style, { display: "block", left: (s.r.x - fr.left) + "px", top: (s.r.y - fr.top) + "px", width: s.r.w + "px", height: s.r.h + "px" });
+  const o = feEdits()[s.key] || {}, lbl = (s.el.id || s.el.tagName.toLowerCase()) + (o.s && o.s !== 1 ? "  " + Math.round(o.s * 100) + "%" : "");
+  const sp = feBox.querySelector("span"); if (sp.textContent !== lbl) sp.textContent = lbl;
+}
+function feCorner(cx, cy) {
+  const b = FE.box; if (!b) return -1;
+  const pts = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+  return pts.findIndex(([x, y]) => Math.abs(cx - x) <= 9 && Math.abs(cy - y) <= 9);
+}
+function feCursor(cx, cy) {
+  const k = feCorner(cx, cy); if (k >= 0) return k % 2 ? "nesw-resize" : "nwse-resize";
+  const now = performance.now(); if (now - FE.hoverT > 90) { FE.hoverT = now; FE.hoverC = feHit(cx, cy) ? "move" : null; }
+  return FE.hoverC;
+}
+function feSet(key, patch, name) {
+  S.ed = S.ed || { segments: null, clips: {} }; S.ed.frame = S.ed.frame || {};
+  const o = Object.assign({}, S.ed.frame[key] || {}, patch);
+  for (const k of Object.keys(o)) if (o[k] == null) delete o[k];
+  if (name && !o.name) o.name = name;
+  if (!o.dx && !o.dy && (!o.s || o.s === 1) && !o.hide && o.text == null) delete S.ed.frame[key]; else S.ed.frame[key] = o;
+}
+// pointer down on the frame with the select tool, after no drawing mark was hit
+function feDown(e) {
+  if (!S.comp || S.comp.kind !== "code") return false;
+  const k = feCorner(e.clientX, e.clientY), sel = k >= 0 ? feSelected() : null;
+  if (sel) {
+    const o = feEdits()[sel.key] || {}, cx = sel.r.x + sel.r.w / 2, cy = sel.r.y + sel.r.h / 2;
+    FE.drag = { kind: "scale", key: sel.key, name: feName(sel.el), cx, cy, d0: Math.max(4, Math.hypot(e.clientX - cx, e.clientY - cy)), s0: o.s || 1 };
+  } else {
+    const h = feHit(e.clientX, e.clientY);
+    if (!h || !h.key) { if (FE.sel) feSelect(null); return false; }
+    feSelect(h.key);
+    const o = feEdits()[h.key] || {};
+    FE.drag = { kind: "move", key: h.key, name: feName(h.el), x0: e.clientX, y0: e.clientY, dx0: o.dx || 0, dy0: o.dy || 0, k: h.g.k };
+  }
+  TL.drag = { kind: "frame" };   // hold back server syncs until the drag ends
+  if (S.playing) pause();
+  return true;
+}
+function feMove(e) {
+  const d = FE.drag; if (!d) return false;
+  if (!d.began) { if (d.kind === "move" && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 3) return true; tlBegin(); d.began = true; }
+  if (d.kind === "move") {
+    let dx = Math.round(d.dx0 + (e.clientX - d.x0) / d.k), dy = Math.round(d.dy0 + (e.clientY - d.y0) / d.k);
+    if (e.shiftKey) { if (Math.abs(dx - d.dx0) > Math.abs(dy - d.dy0)) dy = d.dy0; else dx = d.dx0; }   // ⇧ keeps it on one axis
+    feSet(d.key, { dx, dy }, d.name);
+  } else feSet(d.key, { s: Math.round(Math.max(0.1, Math.min(8, d.s0 * Math.hypot(e.clientX - d.cx, e.clientY - d.cy) / d.d0)) * 1000) / 1000 }, d.name);
+  const fr = compFrame(); if (fr) applyFrameEdits(fr);
+  return true;
+}
+function feUp() {
+  const d = FE.drag; if (!d) return false; FE.drag = null; TL.drag = null;
+  if (d.began) { tlCommit(); toast(d.kind === "move" ? "Moved" : "Resized to " + Math.round(((feEdits()[d.key] || {}).s || 1) * 100) + "%"); }
+  if (TL.needSync) setTimeout(tlSync, 0);
+  return true;
+}
+// ⌫ on a selected piece that isn't a timeline clip hides it (undo brings it back)
+function feDelete() {
+  if (!FE.sel || TL.sel) return false;   // a timeline selection wins: ⌫ deletes that instead
+  const s = feSelected(); if (!s) return false;
+  tlBegin(); feSet(FE.sel, { hide: true }, feName(s.el)); feSelect(null); tlCommit(); toast("Hidden (⌘Z brings it back)"); return true;
+}
+// double-click: retype the text under the pointer (a caption line, a card's title, a label...)
+function feText(cx, cy) {
+  const h = feHit(cx, cy); if (!h) return false;
+  const w = h.g.fr.w, isCap = el => /(^|[\s_-])cap/i.test((el.id || "") + " " + (typeof el.className === "string" ? el.className : ""));
+  let leaf = h.leaf;
+  while (leaf && !(leaf.textContent || "").trim() && leaf !== h.el) leaf = leaf.parentElement;
+  // a caption is edited as one line; elsewhere the smallest block of text under the pointer
+  for (let a = leaf; a && a !== h.el.parentElement; a = a.parentElement) if (isCap(a)) { leaf = a; break; }
+  while (leaf && leaf !== h.el && w.getComputedStyle(leaf).display === "inline" && leaf.parentElement && (leaf.parentElement.textContent || "").trim().length < 200) leaf = leaf.parentElement;
+  if (!leaf || !(leaf.textContent || "").trim()) { toast("No text there to change"); return true; }
+  const key = feKey(leaf, h.g.fr.d); if (!key) return true;
+  const cur = feEdits()[key] || {}, now = feText0(leaf);
+  const was = cur.was != null ? cur.was : now, r = feRect(leaf, h.g);
+  feSelect(h.key); if (S.playing) pause();
+  const box = document.createElement("div"); box.id = "fetext";
+  box.innerHTML = '<textarea rows="2"></textarea><div class="row"><span>Was: <i></i></span><button type="button" class="ib" data-a="reset">Original</button><button type="button" class="ib primary" data-a="ok">Change</button></div>';
+  const ta = box.querySelector("textarea"); ta.value = cur.text != null ? cur.text : now;
+  box.querySelector("i").textContent = was;
+  document.body.appendChild(box);
+  const bw = Math.min(420, innerWidth - 24); box.style.width = bw + "px";
+  box.style.left = Math.max(12, Math.min(innerWidth - bw - 12, r.x + r.w / 2 - bw / 2)) + "px";
+  box.style.top = Math.max(12, Math.min(innerHeight - box.offsetHeight - 12, r.y + r.h + 10)) + "px";
+  ta.focus(); ta.select();
+  let done = false;
+  const close = () => { done = true; box.remove(); document.removeEventListener("pointerdown", outside, true); };
+  const commit = v => {
+    if (done) return; close(); if (v == null) return;
+    v = v.replace(/\s+/g, " ").trim(); if (!v) return;
+    tlBegin(); feSet(key, v === was ? { text: null, was: null } : { text: v, was }, feName(leaf)); tlCommit();
+    toast(v === was ? "Text back to the original" : "Text changed");
+  };
+  const outside = ev => { if (!box.contains(ev.target)) commit(ta.value.trim() || null); };
+  setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+  ta.addEventListener("keydown", ev => {
+    ev.stopPropagation();
+    if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); commit(ta.value.trim() || null); }
+    if (ev.key === "Escape") { ev.preventDefault(); close(); }
+  });
+  box.addEventListener("click", ev => { const a = ev.target.dataset.a; if (a === "ok") commit(ta.value.trim() || null); if (a === "reset") commit(was); });
+  return true;
+}
+
+function applyClipEdits() {
+  const fr = compFrame(); if (!fr) return;
+  const { w, d } = fr;
+  const byKey = compEls(fr);
+  applyFrameEdits(fr);
   const tls = Object.values(w.__timelines || {}).filter(t => t && t.getChildren);
   const tweens = tls.flatMap(t => t.getChildren(true, true, false));
   // put back what we changed last time, then apply the current edits
@@ -538,6 +776,7 @@ cv.addEventListener("pointerdown", e => {
   const x = e.offsetX, y = e.offsetY, h = hitAt(x, y);
   if (x < G) return;
   if (INK.sel) { INK.sel = null; inkBump(); }
+  FE.sel = null;   // clicking the timeline moves the selection there
   if (h.zone === "notes") {
     const hit = S.notes.filter(n => S.comp && n.comp === S.comp.id && (n.status !== "done" || showDone())).find(n => Math.abs(X(toE(n.t)) - x) < 7);
     if (hit) { S.sel = hit.id; pause(); seek(hit.t); renderNotes(); const el = document.querySelector(`.note[data-id="${hit.id}"]`); el && el.scrollIntoView({ block: "nearest" }); return; }

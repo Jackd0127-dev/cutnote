@@ -218,12 +218,15 @@ class State:
                 eds = data.setdefault("edits", {})
                 e = body.get("edits")
                 fmt_ = clean_format(e.get("format")) if isinstance(e, dict) else None
-                if comp and isinstance(e, dict) and (e.get("segments") or e.get("clips") or fmt_):
+                frame_ = clean_frame(e.get("frame")) if isinstance(e, dict) else None
+                if comp and isinstance(e, dict) and (e.get("segments") or e.get("clips") or fmt_ or frame_):
                     eds[comp] = {"segments": e.get("segments"), "clips": e.get("clips") or {},
                                  "summary": [str(x) for x in (body.get("summary") or [])][:200],
                                  "label": body.get("label", comp), "updated": datetime.now().isoformat(timespec="seconds")}
                     if fmt_:
                         eds[comp]["format"] = fmt_
+                    if frame_:
+                        eds[comp]["frame"] = frame_
                     if body.get("kind") in ("code", "video"):
                         eds[comp]["kind"] = body["kind"]
                 else:
@@ -450,6 +453,29 @@ class State:
                 with open(f, "wb") as fh:
                     fh.write(raw)
                 dr["image"] = os.path.relpath(f, self.video)
+
+
+def clean_frame(fr):
+    """On-frame edits from the player: {element key: {dx, dy, s, text, was}} (canvas pixels, scale factor, new text)."""
+    if not isinstance(fr, dict):
+        return None
+    out = {}
+    for k, o in list(fr.items())[:500]:
+        if not isinstance(k, str) or len(k) > 200 or not isinstance(o, dict):
+            continue
+        x = {}
+        for n in ("dx", "dy", "s"):
+            v = o.get(n)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) < 1e5:
+                x[n] = round(float(v), 4)
+        if o.get("hide") is True:
+            x["hide"] = True
+        for n in ("text", "was", "name"):
+            if isinstance(o.get(n), str):
+                x[n] = o[n][:2000]
+        if x.get("dx") or x.get("dy") or x.get("s", 1) != 1 or "text" in x or x.get("hide"):
+            out[k] = x
+    return out or None
 
 
 def sha1(f):

@@ -32,7 +32,7 @@ Cutnote is a local review player and timeline editor for videos and HyperFrames 
    - the player picks up both changes live
 5. Notes of kind *remember* are lasting preferences. Save them wherever durable rules live for this person or project.
 6. **Timeline edits**: the `edits` entries in the JSON, shown as "Timeline edits to bake" in the `.md`.
-   - On a composition they are an edit list: the spans of the main footage to keep, in order; overlay and caption moves or retimes; removals; and optionally a delivery format with a crop window. Re-cut and rebuild from the source footage so it plays like that, then delete that version's entry from `edits`.
+   - On a composition they are an edit list: the spans of the main footage to keep, in order; overlay and caption moves or retimes; removals; optionally a delivery format with a crop window; and on-frame changes. On-frame changes move an element by dx/dy canvas pixels, scale it around its centre, hide it, or change its text, and name the element by `#id` or by its child path from the composition root. Re-cut and rebuild from the source footage so it plays like that, then delete that version's entry from `edits`.
    - On a plain video file the person can press **Export cut** themselves.
 7. Never render a final version they haven't approved in the player, if the project uses the approval gate (`review.py --gate`).
 

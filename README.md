@@ -20,6 +20,13 @@ It runs on your machine and needs no account or upload. It is one Python file pl
   - Move and trim overlays, captions and sound.
   - Snapping, undo and redo, zoom.
   - A filmstrip and waveform for the main footage.
+- **Edit what's on screen.** With the Select tool, click any overlay, card or caption on the frame:
+  - drag it to move it (hold <kbd>⇧</kbd> to keep it straight)
+  - drag a corner to resize it
+  - double-click it to change its text
+  - press <kbd>⌫</kbd> to hide it
+
+  It updates live, and is saved as an edit for whoever builds the composition.
 - **Formats.** Reframe for 9:16, 4:5, 1:1, 16:9 or 4:3. Drag a crop window over the frame to choose what stays in the shot.
 - **Export cut.** For plain video files, Cutnote renders your cut and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
 - **Approval gate.** For compositions, an *Approve* button records the exact build you signed off. A render script can refuse anything that isn't approved.
@@ -115,6 +122,7 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | <kbd>N</kbd> | New note. |
 | <kbd>[</kbd> <kbd>]</kbd> | Previous or next note. |
 | <kbd>P</kbd> <kbd>R</kbd> <kbd>H</kbd> | Scribble, box, hide drawings. |
+| Drag, corner, double-click | Move, resize or retype an overlay or caption on the frame. |
 | <kbd>=</kbd> <kbd>−</kbd> <kbd>\\</kbd> | Zoom in, zoom out, fit. |
 | <kbd>⇧D</kbd> | Light or dark mode. |
 | <kbd>?</kbd> | Show every shortcut. |
