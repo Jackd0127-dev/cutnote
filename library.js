@@ -70,8 +70,9 @@
 
   /* placed components on the video: a neon outline + a chip you drag to move it */
   #libBoxes { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
-  .lb-box { position: absolute; border: 2.5px solid ${NEON}; border-radius: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 18px ${NEON}, inset 0 0 14px rgba(57,255,136,.35); }
-  .lb-box.cap { border-color: ${PINK}; box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 18px ${PINK}, inset 0 0 14px rgba(255,63,216,.35); border-style: dashed; }
+  .lb-box { position: absolute; border-radius: 10px; }
+  .lb-box.drag { outline: 1.5px dashed rgba(255,255,255,.85); outline-offset: 2px; }
+
   .lb-chip { position: absolute; left: -2px; bottom: calc(100% + 6px); max-width: 280px; pointer-events: auto; cursor: grab; display: flex; align-items: center; gap: 6px; padding: 4px 9px 4px 7px;
     border-radius: 9px; background: ${NEON}; color: #04210f; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
   .lb-chip:active { cursor: grabbing; }
@@ -84,15 +85,14 @@
   .ll-band { position: absolute; top: 24px; bottom: 0; background: rgba(57,255,136,.10); border-left: 1.5px solid rgba(57,255,136,.7); border-right: 1.5px solid rgba(57,255,136,.7); }
   .ll-band.cap { background: rgba(255,63,216,.05); border-color: rgba(255,63,216,.55); }
   .ll-blk { position: absolute; pointer-events: auto; cursor: grab; display: flex; align-items: center; gap: 6px; padding: 0 22px 0 8px; border-radius: 6px;
-    background: ${NEON}; color: #04210f; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden;
-    box-shadow: 0 0 12px rgba(57,255,136,.85), inset 0 0 0 1px rgba(255,255,255,.4); }
-  .ll-blk.cap { background: ${PINK}; color: #fff; cursor: pointer; box-shadow: 0 0 12px rgba(255,63,216,.8), inset 0 0 0 1px rgba(255,255,255,.35); }
+    background: #c6f432; color: #141a00; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .ll-blk.cap { background: #f3a6e6; color: #3a0632; cursor: pointer; }
   .ll-blk:active { cursor: grabbing; }
   .ll-blk i { font-style: normal; font-weight: 600; opacity: .75; overflow: hidden; text-overflow: ellipsis; }
   .ll-blk .x { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 4px; border: 0; padding: 0; background: rgba(0,0,0,.18); color: inherit; font-size: 11px; line-height: 16px; cursor: pointer; }
   .ll-blk .rs { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
   .ll-blk.cap .rs { display: none; }
-  .ll-lbl { position: absolute; transform: translateY(-50%); max-width: 230px; padding: 2px 7px; border-radius: 5px; background: rgba(57,255,136,.16); border: 1px solid rgba(57,255,136,.7);
+  .ll-lbl { position: absolute; transform: translateY(-50%); max-width: 230px; padding: 2px 4px;
     color: var(--ink); font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ll-lbl i { font-style: normal; font-weight: 500; color: var(--dim); }
   #libUndo { position: fixed; left: 50%; bottom: 22px; z-index: 60; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 12px; padding: 9px 10px 9px 14px;
@@ -100,6 +100,22 @@
   #libUndo.cap { border-color: ${PINK}; box-shadow: var(--shadow), 0 0 22px rgba(255,63,216,.35); }
   #libUndo.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
   #libUndo button { height: 28px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-weight: 600; cursor: pointer; }
+  #capInfo { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(10,8,12,.38); backdrop-filter: blur(3px);
+    opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #capInfo.on { opacity: 1; pointer-events: auto; }
+  #capInfo .card { width: min(420px, calc(100vw - 32px)); padding: 22px 22px 18px; border-radius: 18px; background: var(--panel); color: var(--ink);
+    border: 1.5px solid ${PINK}; box-shadow: 0 30px 80px rgba(0,0,0,.35), 0 0 40px rgba(255,63,216,.25); transform: translateY(10px) scale(.98); transition: transform .3s cubic-bezier(.22,1,.36,1); }
+  #capInfo.on .card { transform: none; }
+  #capInfo .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: ${PINK}; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+  #capInfo h3 { margin: 12px 0 8px; font-size: 17px; letter-spacing: -.01em; }
+  #capInfo p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+  #capInfo p b { color: var(--ink); }
+  #capInfo .steps { margin: 12px 0 16px; padding: 0; list-style: none; display: grid; gap: 8px; }
+  #capInfo .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; }
+  #capInfo .steps i { flex: none; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,63,216,.14); color: ${PINK}; font-style: normal; font-weight: 800; font-size: 11px; display: grid; place-items: center; }
+  #capInfo .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #capInfo label { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  #capInfo button { height: 34px; padding: 0 18px; border-radius: 9px; border: 0; background: ${PINK}; color: #fff; font-weight: 700; cursor: pointer; }
   @media (prefers-reduced-motion: reduce) { .lp-card, #libUndo { transition: none; } }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   document.body.insertAdjacentHTML("beforeend", `<div id="libUndo" role="status"><span></span><button type="button">Undo</button></div>`);
@@ -309,12 +325,35 @@
     if (!cap && Math.abs(S.t - t) > 0.02) seek(t);
     layoutLanes(); draw(); sync(true);
     if (cap && P.cap.dataset.built) render("cap");
+    if (cap) capExplainer(short(def.name));
     undoBar(added, replaced, cap ? `${short(def.name)} captions for the whole video. Claude builds them on the next run.` : `${def.name} added at ${fmt(t)}. Claude builds it on the next run.`, cap);
   }
   async function removePlacement(id) {
     await noteOp("delete", { id });
     layoutLanes(); draw(); sync(true);
     if (P.cap.dataset.built) render("cap");
+  }
+  // the first caption style someone picks: say why they won't see it on the video yet
+  function capExplainer(name) {
+    try { if (localStorage.getItem("cutnote:capInfo") === "off") return; } catch {}
+    let el = $("#capInfo");
+    if (!el) {
+      document.body.insertAdjacentHTML("beforeend", `<div id="capInfo" role="dialog" aria-modal="true" aria-labelledby="capInfoT"><div class="card">
+        <span class="badge">▤ CAPTIONS</span><h3 id="capInfoT"></h3>
+        <p>You won't see these captions on the video here, and that's expected. Captions follow every word you say, so they're built from your <b>real word timings</b> (the transcript), not from a preview.</p>
+        <ul class="steps"><li><i>1</i><span>Your pick is saved as a note for the <b>whole video</b> (the pink band on the timeline).</span></li>
+          <li><i>2</i><span>When you ask Claude to work through your notes, it restyles <b>every caption</b> in this style, timed to your words.</span></li>
+          <li><i>3</i><span>The page reloads with the new captions on, ready to check.</span></li></ul>
+        <div class="row"><label><input type="checkbox"> Don't show this again</label><button type="button">Got it</button></div></div></div>`);
+      el = $("#capInfo");
+      const close = () => { if (el.querySelector("input").checked) { try { localStorage.setItem("cutnote:capInfo", "off"); } catch {} } el.classList.remove("on"); };
+      el.querySelector("button").onclick = close;
+      el.addEventListener("click", e => { if (e.target === el) close(); });
+      document.addEventListener("keydown", e => { if (e.key === "Escape" && el.classList.contains("on")) close(); });
+    }
+    el.querySelector("h3").textContent = `${name} captions are on their way`;
+    requestAnimationFrame(() => el.classList.add("on"));
+    setTimeout(() => el.querySelector("button").focus(), 50);
   }
   function undoBar(n, replaced, msg, cap) {
     const bar = $("#libUndo");
@@ -392,8 +431,7 @@
       let x0 = X(a), x1 = X(b);
       if (x1 < G || x0 > w) continue;
       x0 = Math.max(G, x0); x1 = Math.min(w, x1);
-      html.push(`<div class="ll-band${p.cap ? " cap" : ""}" style="left:${x0}px;width:${Math.max(2, x1 - x0)}px"></div>`);
-      const label = p.cap ? `Captions · ${esc(short(p.c.name))} <i>whole video · Claude builds on next run</i>` : `${esc(p.c.name)} <i>${fmt(p.t)} · Claude builds on next run</i>`;
+      const label = p.cap ? `Captions · ${esc(short(p.c.name))} <i>whole video</i>` : `${esc(p.c.name)} <i>${fmt(p.t)}</i>`;
       const both = g.h > 30, by = p.cap && both ? g.y + 28 : g.y, bh = p.cap ? (both ? 16 : g.h) : (both ? 26 : g.h);
       const narrow = !p.cap && x1 - x0 < 150;
       html.push(`<div class="ll-blk${p.cap ? " cap" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${narrow ? "" : label}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
@@ -439,7 +477,7 @@
     if (!fr.width || !window.VideoLibrary) { box.innerHTML = ""; return; }
     const m = MAP(), fx = fr.width / S.W, sx = m.k * fx, sy = m.k * fx, ox = m.ox * fx, oy = m.oy * fx, html = [];
     for (const p of placements()) {
-      if (!p.cap && !(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
+      if (p.cap || !(S.t >= p.t - 0.01 && S.t <= p.t + p.dur)) continue;
       const b = measureBox(p.c.id, p.c.params);
       let x0, y0, x1, y1;
       if (!b || b.whole || !(b.x1 > b.x0)) { x0 = 14; y0 = 14; x1 = VideoLibrary.W - 14; y1 = VideoLibrary.H - 14; }
@@ -448,8 +486,8 @@
       const low = y0 < 160;
       // keep the chip inside the frame: as wide as the room to the frame's right edge (at least the box)
       const room = Math.max((x1 - x0) * sx, fr.width - Math.max(0, ox + x0 * sx) - 4);
-      const chip = p.cap ? `▤ ${esc(short(p.c.name))} captions <i>· whole video · Claude builds on next run</i>` : `▦ ${esc(p.c.name)} <i>· Claude builds this on the next run</i>`;
-      html.push(`<div class="lb-box${p.cap ? " cap" : ""}${low ? " low" : ""}" data-id="${esc(p.id)}" style="left:${ox + x0 * sx}px;top:${oy + y0 * sy}px;width:${(x1 - x0) * sx}px;height:${(y1 - y0) * sy}px"><div class="lb-chip" style="max-width:${Math.round(room)}px" title="${p.cap ? "Caption style for the whole video" : "Drag to move it on the video"}">${chip}</div></div>`);
+      const chip = "";
+      html.push(`<div class="lb-box${p.cap ? " cap" : ""}${low ? " low" : ""}" data-id="${esc(p.id)}" style="left:${ox + x0 * sx}px;top:${oy + y0 * sy}px;width:${(x1 - x0) * sx}px;height:${(y1 - y0) * sy}px"></div>`);
     }
     if (box.innerHTML !== html.join("")) box.innerHTML = html.join("");
   }
@@ -471,6 +509,7 @@
       d.dx = Math.round(d.dx0 + (ev.clientX - d.x0) * per); d.dy = Math.round(d.dy0 + (ev.clientY - d.y0) * per);
       if (Math.abs(ev.clientX - d.x0) + Math.abs(ev.clientY - d.y0) > 3) d.moved = true;
       paintFrame(); liveMove(p.id, d.dx, d.dy);
+      const bx = frEl.querySelector(`.lb-box[data-id="${p.id}"]`); if (bx) bx.classList.add("drag");
     }, async cancelled => {
       const d = D.drag;
       if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy); paintFrame(); return; }

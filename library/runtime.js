@@ -51,12 +51,12 @@
     return FONTS.map(([f, file]) => `@font-face{font-family:"${f}";src:url("${b}fonts/${file}");font-display:block}`).join("\n");
   };
   const BASE_CSS = `
-.vl{position:absolute;inset:0;pointer-events:none;overflow:visible}
-.vl *{box-sizing:border-box}
-.vl .vl-scrim{position:absolute;left:0;right:0;opacity:0;
+.vlib{position:absolute;inset:0;pointer-events:none;overflow:visible;background:none;width:auto;height:auto;left:0;top:0;display:block}
+.vlib *{box-sizing:border-box}
+.vlib .vl-scrim{position:absolute;left:0;right:0;opacity:0;
   background:linear-gradient(180deg,rgba(6,5,4,0) 0%,rgba(6,5,4,calc(var(--k,.6)*.75)) 30%,rgba(6,5,4,var(--k,.6)) 62%,rgba(6,5,4,calc(var(--k,.6)*.85)) 100%)}
 .vl-pv .vl-scrim{visibility:hidden!important}
-.vl .vl-tag{display:inline-block;padding:6px 14px;border-radius:14px;background:#17120e;color:#fff;font-family:"Typewriter";font-size:20px;letter-spacing:.14em;text-transform:uppercase}
+.vlib .vl-tag{display:inline-block;padding:6px 14px;border-radius:14px;background:#17120e;color:#fff;font-family:"Typewriter";font-size:20px;letter-spacing:.14em;text-transform:uppercase}
 `;
   LIB.injectCss = function (doc, def) {
     doc = doc || document;
@@ -114,7 +114,7 @@
       _scrims: [],
     };
     const wrap = doc.createElement("div");
-    wrap.className = "vl vl-" + id;
+    wrap.className = "vlib vl-" + id;   // "vlib": a class a composition is unlikely to style itself
     wrap.id = uid;
     wrap.style.opacity = "0";
     if (def.z != null) wrap.style.zIndex = def.z;
@@ -155,7 +155,7 @@
     const was = tl.time();
     for (const f of [0.2, 0.35, 0.5, 0.65, 0.8, 0.92]) {
       tl.time(t0 + dur * f, true);
-      for (const el of stage.querySelectorAll(".vl *")) {
+      for (const el of stage.querySelectorAll(".vlib *")) {
         if (el.closest(".vl-scrim") || el.tagName === "STYLE") continue;
         const r0 = el.getBoundingClientRect();
         let o = 1, n = el, L = r0.left, T = r0.top, R = r0.right, B = r0.bottom;
@@ -227,7 +227,7 @@
     }
     function build() {
       if (tl) tl.kill();
-      stage.querySelectorAll(".vl").forEach(n => n.remove());
+      stage.querySelectorAll(".vlib").forEach(n => n.remove());
       tl = gs.timeline({ paused: true, repeat: o.loop === false ? 0 : -1, repeatDelay: o.gap == null ? 0.5 : o.gap });
       LIB.mount(id, { root: stage, tl, start: T0, params: p, uid: "pv" + (++seq) });
       tl.set({}, {}, dur + 0.45);   // a beat of empty frame before it loops
