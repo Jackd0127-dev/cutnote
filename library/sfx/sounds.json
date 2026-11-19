@@ -1,0 +1,631 @@
+{
+ "version": 1,
+ "categories": [
+  "Whoosh",
+  "Swipe & slide",
+  "Pop",
+  "Click & tap",
+  "UI & notification",
+  "Impact & hit",
+  "Riser & tension",
+  "Transition & glitch",
+  "Fun & cartoon",
+  "Money & reward",
+  "Camera & tech"
+ ],
+ "sounds": [
+  {
+   "id": "whoosh-soft",
+   "name": "Soft whoosh",
+   "category": "Whoosh",
+   "dur": 0.62,
+   "file": "sounds/whoosh-soft.mp3",
+   "tags": [
+    "transition",
+    "air"
+   ]
+  },
+  {
+   "id": "whoosh-fast",
+   "name": "Fast whoosh",
+   "category": "Whoosh",
+   "dur": 0.4,
+   "file": "sounds/whoosh-fast.mp3",
+   "tags": [
+    "transition",
+    "quick",
+    "air"
+   ]
+  },
+  {
+   "id": "whoosh-deep",
+   "name": "Deep whoosh",
+   "category": "Whoosh",
+   "dur": 1.0,
+   "file": "sounds/whoosh-deep.mp3",
+   "tags": [
+    "transition",
+    "bass",
+    "cinematic"
+   ]
+  },
+  {
+   "id": "whoosh-airy",
+   "name": "Airy whoosh",
+   "category": "Whoosh",
+   "dur": 0.9,
+   "file": "sounds/whoosh-airy.mp3",
+   "tags": [
+    "transition",
+    "air",
+    "soft"
+   ]
+  },
+  {
+   "id": "whoosh-reverse-swell",
+   "name": "Reverse swell whoosh",
+   "category": "Whoosh",
+   "dur": 1.0,
+   "file": "sounds/whoosh-reverse-swell.mp3",
+   "tags": [
+    "transition",
+    "reverse",
+    "build"
+   ]
+  },
+  {
+   "id": "whoosh-double-pass",
+   "name": "Double-pass whoosh",
+   "category": "Whoosh",
+   "dur": 0.77,
+   "file": "sounds/whoosh-double-pass.mp3",
+   "tags": [
+    "transition",
+    "stereo",
+    "pass-by"
+   ]
+  },
+  {
+   "id": "swipe-up",
+   "name": "Swipe up",
+   "category": "Swipe & slide",
+   "dur": 0.28,
+   "file": "sounds/swipe-up.mp3",
+   "tags": [
+    "swipe",
+    "up",
+    "ui"
+   ]
+  },
+  {
+   "id": "swipe-down",
+   "name": "Swipe down",
+   "category": "Swipe & slide",
+   "dur": 0.28,
+   "file": "sounds/swipe-down.mp3",
+   "tags": [
+    "swipe",
+    "down",
+    "ui"
+   ]
+  },
+  {
+   "id": "card-slide",
+   "name": "Card slide",
+   "category": "Swipe & slide",
+   "dur": 0.35,
+   "file": "sounds/card-slide.mp3",
+   "tags": [
+    "slide",
+    "card",
+    "ui"
+   ]
+  },
+  {
+   "id": "paper-flick",
+   "name": "Paper flick",
+   "category": "Swipe & slide",
+   "dur": 0.22,
+   "file": "sounds/paper-flick.mp3",
+   "tags": [
+    "paper",
+    "flick",
+    "foley"
+   ]
+  },
+  {
+   "id": "bubble-pop",
+   "name": "Bubble pop",
+   "category": "Pop",
+   "dur": 0.15,
+   "file": "sounds/bubble-pop.mp3",
+   "tags": [
+    "pop",
+    "bubble",
+    "water"
+   ]
+  },
+  {
+   "id": "cork-pop",
+   "name": "Cork pop",
+   "category": "Pop",
+   "dur": 0.28,
+   "file": "sounds/cork-pop.mp3",
+   "tags": [
+    "pop",
+    "bottle",
+    "cork"
+   ]
+  },
+  {
+   "id": "soft-pop",
+   "name": "Soft pop",
+   "category": "Pop",
+   "dur": 0.16,
+   "file": "sounds/soft-pop.mp3",
+   "tags": [
+    "pop",
+    "soft",
+    "ui"
+   ]
+  },
+  {
+   "id": "pop-up",
+   "name": "Pop-up",
+   "category": "Pop",
+   "dur": 0.33,
+   "file": "sounds/pop-up.mp3",
+   "tags": [
+    "pop",
+    "rising",
+    "ui"
+   ]
+  },
+  {
+   "id": "balloon-tick",
+   "name": "Balloon tick",
+   "category": "Pop",
+   "dur": 0.12,
+   "file": "sounds/balloon-tick.mp3",
+   "tags": [
+    "pop",
+    "tick",
+    "sharp"
+   ]
+  },
+  {
+   "id": "mouse-click",
+   "name": "Mouse click",
+   "category": "Click & tap",
+   "dur": 0.14,
+   "file": "sounds/mouse-click.mp3",
+   "tags": [
+    "click",
+    "mouse",
+    "ui"
+   ]
+  },
+  {
+   "id": "soft-tap",
+   "name": "Soft tap",
+   "category": "Click & tap",
+   "dur": 0.12,
+   "file": "sounds/soft-tap.mp3",
+   "tags": [
+    "tap",
+    "soft",
+    "ui"
+   ]
+  },
+  {
+   "id": "keyboard-key",
+   "name": "Keyboard key",
+   "category": "Click & tap",
+   "dur": 0.12,
+   "file": "sounds/keyboard-key.mp3",
+   "tags": [
+    "key",
+    "keyboard",
+    "typing"
+   ]
+  },
+  {
+   "id": "switch-toggle",
+   "name": "Switch toggle",
+   "category": "Click & tap",
+   "dur": 0.16,
+   "file": "sounds/switch-toggle.mp3",
+   "tags": [
+    "switch",
+    "toggle",
+    "ui"
+   ]
+  },
+  {
+   "id": "button-press",
+   "name": "Button press",
+   "category": "Click & tap",
+   "dur": 0.12,
+   "file": "sounds/button-press.mp3",
+   "tags": [
+    "button",
+    "press",
+    "ui"
+   ]
+  },
+  {
+   "id": "notification-ding",
+   "name": "Notification ding",
+   "category": "UI & notification",
+   "dur": 0.77,
+   "file": "sounds/notification-ding.mp3",
+   "tags": [
+    "notification",
+    "bell",
+    "alert"
+   ]
+  },
+  {
+   "id": "message-bubble",
+   "name": "Message bubble",
+   "category": "UI & notification",
+   "dur": 0.36,
+   "file": "sounds/message-bubble.mp3",
+   "tags": [
+    "message",
+    "chat",
+    "bloop"
+   ]
+  },
+  {
+   "id": "success-chime",
+   "name": "Success chime",
+   "category": "UI & notification",
+   "dur": 1.38,
+   "file": "sounds/success-chime.mp3",
+   "tags": [
+    "success",
+    "chime",
+    "positive"
+   ]
+  },
+  {
+   "id": "error-buzz",
+   "name": "Error buzz",
+   "category": "UI & notification",
+   "dur": 0.36,
+   "file": "sounds/error-buzz.mp3",
+   "tags": [
+    "error",
+    "buzz",
+    "negative"
+   ]
+  },
+  {
+   "id": "menu-open",
+   "name": "Menu open",
+   "category": "UI & notification",
+   "dur": 0.22,
+   "file": "sounds/menu-open.mp3",
+   "tags": [
+    "menu",
+    "open",
+    "ui"
+   ]
+  },
+  {
+   "id": "sparkle",
+   "name": "Sparkle",
+   "category": "UI & notification",
+   "dur": 0.97,
+   "file": "sounds/sparkle.mp3",
+   "tags": [
+    "sparkle",
+    "magic",
+    "shimmer"
+   ]
+  },
+  {
+   "id": "deep-boom",
+   "name": "Deep boom",
+   "category": "Impact & hit",
+   "dur": 2.4,
+   "file": "sounds/deep-boom.mp3",
+   "tags": [
+    "impact",
+    "cinematic",
+    "sub",
+    "boom"
+   ]
+  },
+  {
+   "id": "thud",
+   "name": "Thud",
+   "category": "Impact & hit",
+   "dur": 0.5,
+   "file": "sounds/thud.mp3",
+   "tags": [
+    "impact",
+    "thud",
+    "low"
+   ]
+  },
+  {
+   "id": "punch-in",
+   "name": "Punch-in",
+   "category": "Impact & hit",
+   "dur": 0.35,
+   "file": "sounds/punch-in.mp3",
+   "tags": [
+    "impact",
+    "zoom",
+    "punch",
+    "short"
+   ]
+  },
+  {
+   "id": "bass-drop",
+   "name": "Bass drop",
+   "category": "Impact & hit",
+   "dur": 1.8,
+   "file": "sounds/bass-drop.mp3",
+   "tags": [
+    "impact",
+    "bass",
+    "drop",
+    "edm"
+   ]
+  },
+  {
+   "id": "tick-tock-stop",
+   "name": "Clock tick-tock stop",
+   "category": "Impact & hit",
+   "dur": 2.3,
+   "file": "sounds/tick-tock-stop.mp3",
+   "tags": [
+    "clock",
+    "tick",
+    "stop",
+    "tension"
+   ]
+  },
+  {
+   "id": "riser-short",
+   "name": "Short riser",
+   "category": "Riser & tension",
+   "dur": 1.5,
+   "file": "sounds/riser-short.mp3",
+   "tags": [
+    "riser",
+    "build",
+    "short"
+   ]
+  },
+  {
+   "id": "tension-riser",
+   "name": "Tension riser",
+   "category": "Riser & tension",
+   "dur": 3.0,
+   "file": "sounds/tension-riser.mp3",
+   "tags": [
+    "riser",
+    "tension",
+    "cinematic"
+   ]
+  },
+  {
+   "id": "reverse-cymbal",
+   "name": "Reverse cymbal",
+   "category": "Riser & tension",
+   "dur": 1.6,
+   "file": "sounds/reverse-cymbal.mp3",
+   "tags": [
+    "riser",
+    "reverse",
+    "cymbal",
+    "swell"
+   ]
+  },
+  {
+   "id": "suspense-hum",
+   "name": "Suspense hum",
+   "category": "Riser & tension",
+   "dur": 2.5,
+   "file": "sounds/suspense-hum.mp3",
+   "tags": [
+    "tension",
+    "drone",
+    "hum",
+    "dark"
+   ]
+  },
+  {
+   "id": "glitch-stutter",
+   "name": "Glitch stutter",
+   "category": "Transition & glitch",
+   "dur": 0.38,
+   "file": "sounds/glitch-stutter.mp3",
+   "tags": [
+    "glitch",
+    "stutter",
+    "digital"
+   ]
+  },
+  {
+   "id": "digital-zap",
+   "name": "Digital zap",
+   "category": "Transition & glitch",
+   "dur": 0.28,
+   "file": "sounds/digital-zap.mp3",
+   "tags": [
+    "zap",
+    "digital",
+    "laser",
+    "glitch"
+   ]
+  },
+  {
+   "id": "static-burst",
+   "name": "Static burst",
+   "category": "Transition & glitch",
+   "dur": 0.4,
+   "file": "sounds/static-burst.mp3",
+   "tags": [
+    "static",
+    "noise",
+    "glitch",
+    "tv"
+   ]
+  },
+  {
+   "id": "tape-stop",
+   "name": "Tape stop",
+   "category": "Transition & glitch",
+   "dur": 0.9,
+   "file": "sounds/tape-stop.mp3",
+   "tags": [
+    "tape",
+    "stop",
+    "slowdown",
+    "pitch"
+   ]
+  },
+  {
+   "id": "warp",
+   "name": "Warp dive",
+   "category": "Transition & glitch",
+   "dur": 0.95,
+   "file": "sounds/warp.mp3",
+   "tags": [
+    "warp",
+    "pitch",
+    "dive",
+    "sci-fi"
+   ]
+  },
+  {
+   "id": "boing-spring",
+   "name": "Boing spring",
+   "category": "Fun & cartoon",
+   "dur": 0.8,
+   "file": "sounds/boing-spring.mp3",
+   "tags": [
+    "boing",
+    "spring",
+    "cartoon"
+   ]
+  },
+  {
+   "id": "slide-whistle-up",
+   "name": "Slide whistle up",
+   "category": "Fun & cartoon",
+   "dur": 0.7,
+   "file": "sounds/slide-whistle-up.mp3",
+   "tags": [
+    "whistle",
+    "slide",
+    "up",
+    "cartoon"
+   ]
+  },
+  {
+   "id": "slide-whistle-down",
+   "name": "Slide whistle down",
+   "category": "Fun & cartoon",
+   "dur": 0.7,
+   "file": "sounds/slide-whistle-down.mp3",
+   "tags": [
+    "whistle",
+    "slide",
+    "down",
+    "cartoon"
+   ]
+  },
+  {
+   "id": "cartoon-blip",
+   "name": "Cartoon blip",
+   "category": "Fun & cartoon",
+   "dur": 0.26,
+   "file": "sounds/cartoon-blip.mp3",
+   "tags": [
+    "blip",
+    "boop",
+    "cartoon"
+   ]
+  },
+  {
+   "id": "rubber-squeak",
+   "name": "Rubber squeak",
+   "category": "Fun & cartoon",
+   "dur": 0.3,
+   "file": "sounds/rubber-squeak.mp3",
+   "tags": [
+    "squeak",
+    "rubber",
+    "toy"
+   ]
+  },
+  {
+   "id": "coin",
+   "name": "Coin",
+   "category": "Money & reward",
+   "dur": 0.6,
+   "file": "sounds/coin.mp3",
+   "tags": [
+    "coin",
+    "money",
+    "pickup"
+   ]
+  },
+  {
+   "id": "cash-register-ding",
+   "name": "Cash register ding",
+   "category": "Money & reward",
+   "dur": 1.19,
+   "file": "sounds/cash-register-ding.mp3",
+   "tags": [
+    "cash",
+    "register",
+    "money",
+    "ding"
+   ]
+  },
+  {
+   "id": "level-up-arpeggio",
+   "name": "Level-up arpeggio",
+   "category": "Money & reward",
+   "dur": 1.22,
+   "file": "sounds/level-up-arpeggio.mp3",
+   "tags": [
+    "level-up",
+    "arpeggio",
+    "reward",
+    "game"
+   ]
+  },
+  {
+   "id": "camera-shutter",
+   "name": "Camera shutter",
+   "category": "Camera & tech",
+   "dur": 0.25,
+   "file": "sounds/camera-shutter.mp3",
+   "tags": [
+    "camera",
+    "shutter",
+    "photo"
+   ]
+  },
+  {
+   "id": "typing-burst",
+   "name": "Typing burst",
+   "category": "Camera & tech",
+   "dur": 1.19,
+   "file": "sounds/typing-burst.mp3",
+   "tags": [
+    "typing",
+    "keyboard",
+    "keys"
+   ]
+  }
+ ]
+}

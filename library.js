@@ -192,7 +192,7 @@
   const short = name => { const s = String(name || "").replace(/^Captions?:?\s*/i, ""); return s.charAt(0).toUpperCase() + s.slice(1); };
 
   /* ---------- sidebar tabs ---------- */
-  const P = { notes: $("#pNotes"), lib: $("#pLib"), cap: $("#pCap") };
+  const P = { notes: $("#pNotes"), lib: $("#pLib"), cap: $("#pCap"), sfx: $("#pSfx") };
   const SP = (window.SidePane = { cur: "notes" });
   // hide / show the whole sidebar (header button, or ⇧\); remembered per browser
   SP.setOpen = (on, quiet) => {
@@ -218,7 +218,8 @@
     for (const k in P) P[k].classList.toggle("on", k === name);
     slideBar();
     try { localStorage.setItem("cutnote:pane", name); } catch {}
-    if (name !== "notes") ensureLoaded().then(() => { if (!P[name].dataset.built) render(name); playVisible(); });
+    if (name === "sfx") setTimeout(() => window.SfxDrawer && SfxDrawer.open(), 0);
+    else if (name !== "notes") ensureLoaded().then(() => { if (!P[name].dataset.built) render(name); playVisible(); });
     playVisible();
   };
   // the underline slides to the selected tab

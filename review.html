@@ -13,7 +13,7 @@
     --line: #23262c; --line-2: #2f333a; --ink: #ececee; --dim: #8d939c; --faint: #80868f;
     --accent: #c6f432; --accent-ink: #141a00; --accent-text: #c6f432; --accent-soft: rgba(198,244,50,.12);
     --fix: #ff6b5b; --change: #ffb547; --remember: #6cb4ff; --done: #555b64;
-    --video: #3d6fd6; --audio: #2f9e6a; --cap: #c9ccd1; --cap-ink: #111; --other: #9a6bd8;
+    --video: #3d6fd6; --audio: #2f9e6a; --sfx: #ffa53d; --cap: #c9ccd1; --cap-ink: #111; --other: #9a6bd8;
     --shadow: 0 12px 32px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
     --tl-bg: #0b0c0e; --tl-ruler: #111316; --tl-grid: #181a1e; --tl-beyond: #070809; --tl-head: #16181c; --tl-band: rgba(255,255,255,.018);
     --tl-tick: #3a3e45; --tl-line: #23262c; --tl-prog: #1d2a44; --tl-edge: rgba(255,255,255,.18); --tl-label-bg: rgba(0,0,0,.55); --tl-label: #fff;
@@ -25,7 +25,7 @@
     --line: #e4e4e0; --line-2: #d3d3ce; --ink: #16171a; --dim: #5f646c; --faint: #6f747c;
     --accent: #c6f432; --accent-ink: #141a00; --accent-text: #4f6e00; --accent-soft: rgba(120,160,0,.12);
     --fix: #e5483a; --change: #d98a12; --remember: #2f86e0; --done: #a9adb4;
-    --video: #4a7be0; --audio: #2a9464; --cap: #dfe1e5; --cap-ink: #16171a; --other: #8a5bd0;
+    --video: #4a7be0; --audio: #2a9464; --sfx: #ffa53d; --cap: #dfe1e5; --cap-ink: #16171a; --other: #8a5bd0;
     --shadow: 0 12px 32px rgba(20,22,26,.14), 0 2px 6px rgba(20,22,26,.08);
     --tl-bg: #fbfbfa; --tl-ruler: #f3f3f0; --tl-grid: #ececE8; --tl-beyond: #efefec; --tl-head: #f1f1ee; --tl-band: rgba(0,0,0,.022);
     --tl-tick: #c2c2bc; --tl-line: #e2e2de; --tl-prog: #c9d6ef; --tl-edge: rgba(0,0,0,.16); --tl-label-bg: rgba(255,255,255,.85); --tl-label: #16171a;
@@ -297,6 +297,24 @@
   #play svg { width: 16px; height: 16px; }
   #tlbar { display: flex; align-items: center; gap: 8px; padding: 0 12px 8px; flex-wrap: wrap; }
   #tlbar .sp { flex: 1; }
+  #tlbar .dd.off { opacity: .45; pointer-events: none; }
+  #tlbar.compact .seg button kbd { display: none; }
+  #tlbar.compact #tlTools button, #tlbar.compact #tlTrimS, #tlbar.compact #tlTrimE, #tlbar.compact #tlSplit, #tlbar.compact #tlDel { font-size: 0; gap: 0; padding: 0 9px; }
+  #tlbar.compact #tlTools button svg, #tlbar.compact .seg button svg { margin: 0; }
+  #tlbar .dd-btn { height: 30px; }
+  #tlSet { position: relative; }
+  #tlSet #tlSetBtn.on, #tlSet.open #tlSetBtn { color: var(--ink); border-color: var(--accent); }
+  #tlSetPop { position: fixed; left: 0; bottom: 0; z-index: 500; width: 320px; padding: 6px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line);
+    box-shadow: 0 18px 50px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.08); opacity: 0; transform: translateY(4px) scale(.98); transform-origin: bottom left; pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+  #tlSet.open #tlSetPop { opacity: 1; transform: none; pointer-events: auto; }
+  .tls-o { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: none; color: var(--ink); text-align: left; cursor: pointer; }
+  .tls-o:hover { background: var(--raise); }
+  .tls-t { display: grid; gap: 2px; flex: 1; min-width: 0; } .tls-t b { font-size: 12.5px; font-weight: 600; } .tls-t small { font-size: 11px; color: var(--faint); line-height: 1.35; white-space: normal; }
+  .tls-sw { position: relative; flex: none; width: 30px; height: 18px; border-radius: 9px; background: var(--line-2); transition: background .16s; }
+  .tls-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s cubic-bezier(.3,.7,.4,1); }
+  .tls-o[aria-checked="true"] .tls-sw { background: var(--accent); }
+  .tls-o[aria-checked="true"] .tls-sw::after { transform: translateX(12px); }
+  .tls-o kbd { flex: none; font-size: 10.5px; }
   #tlEdits { font-size: 11px; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
   #tlEdits.on { color: var(--change); font-weight: 600; }
   #tlEdits.on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--change); }
@@ -333,6 +351,11 @@
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/></symbol>
   <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-slip" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="12" rx="2"/><path d="M3 12h2M19 12h2M4 9l-2 3 2 3M20 9l2 3-2 3"/></g></symbol>
+  <symbol id="i-roll" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><rect x="3" y="7" width="7" height="10" rx="1.5"/><rect x="14" y="7" width="7" height="10" rx="1.5"/><path d="M9 3l3 1.5L15 3"/></g></symbol>
+  <symbol id="i-trims" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16"/><path d="M12 8h7a1 1 0 011 1v6a1 1 0 01-1 1h-7"/><path d="M4 9l3 3-3 3"/></g></symbol>
+  <symbol id="i-trime" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4v16"/><path d="M12 8H5a1 1 0 00-1 1v6a1 1 0 001 1h7"/><path d="M20 9l-3 3 3 3"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></g></symbol>
   <symbol id="i-loop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></g></symbol>
   <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M6 3.5l12.5 7.2-5.6 1.7-2.7 5.3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="i-blade" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></g></symbol>
@@ -400,6 +423,7 @@
       <button type="button" role="tab" data-p="notes" class="on" aria-selected="true">Notes<span class="badge" id="tabCount"></span></button>
       <button type="button" role="tab" data-p="lib" aria-selected="false">Library</button>
       <button type="button" role="tab" data-p="cap" aria-selected="false">Captions</button>
+      <button type="button" role="tab" data-p="sfx" aria-selected="false">Sounds</button>
       <button type="button" class="hide" id="sideHide" title="Hide the sidebar (⇧\)" aria-label="Hide the sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/><path d="M15 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3z" fill="currentColor" stroke="none" opacity=".35"/></svg></button>
       <span class="ink-bar" aria-hidden="true"></span>
     </nav>
@@ -429,6 +453,7 @@
     </div>
     <div class="pane" id="pLib" role="tabpanel" aria-label="Library"></div>
     <div class="pane" id="pCap" role="tabpanel" aria-label="Captions"></div>
+    <div class="pane" id="pSfx" role="tabpanel" aria-label="Sounds"></div>
   </aside>
   <section id="bottom">
     <div id="transport">
@@ -439,22 +464,29 @@
       <span class="sp"></span>
       <span class="keys" id="range"></span>
       <div class="dd up right" id="ddSpeed" title="Playback speed (L speeds up)"></div>
-      <button class="ib" id="loop" title="Loop the I–O range (⌘L)"><svg><use href="#i-loop"/></svg>Loop</button>
+      <button class="ib" id="loop" title="Loop playback: the I–O range if you've marked one, otherwise the whole video (⌘L)"><svg><use href="#i-loop"/></svg>Loop</button>
     </div>
     <div id="tlbar">
       <div class="seg" id="tlTools">
         <button data-ttool="select" class="on" title="Select (V): click a clip to select it, drag to move, drag its edges to trim"><svg><use href="#i-cursor"/></svg>Select<kbd>V</kbd></button>
+        <button data-ttool="slip" title="Slip (Y): drag a footage piece to show a different moment of it, same length and place. Also slides a sound inside its block"><svg><use href="#i-slip"/></svg>Slip<kbd>Y</kbd></button>
+        <button data-ttool="roll" title="Roll (T): drag a cut between two pieces: one gets longer, the other shorter, the video length stays the same"><svg><use href="#i-roll"/></svg>Roll<kbd>T</kbd></button>
         <button data-ttool="razor" title="Blade (B): click anywhere on the timeline to cut the footage there"><svg><use href="#i-blade"/></svg>Blade<kbd>B</kbd></button>
       </div>
       <div class="seg">
         <button id="tlSplit" title="Split the footage at the playhead (⌘B)"><svg><use href="#i-split"/></svg>Split</button>
+        <button id="tlTrimS" title="Trim start: cut the piece under the playhead from its start up to the playhead (Q)"><svg><use href="#i-trims"/></svg>Trim start<kbd>Q</kbd></button>
+        <button id="tlTrimE" title="Trim end: cut the piece under the playhead from the playhead to its end (W)"><svg><use href="#i-trime"/></svg>Trim end<kbd>W</kbd></button>
         <button id="tlDel" title="Delete the selected clip (⌫). Deleting footage closes the gap"><svg><use href="#i-trash"/></svg>Delete</button>
       </div>
+      <div class="dd up off" id="ddClipSpeed"></div>
+      <div class="dd up" id="ddVol" style="display:none" title="Volume of the selected sound effect"></div>
       <div class="seg">
         <button id="tlUndo" title="Undo (⌘Z)"><svg><use href="#i-undo"/></svg></button>
         <button id="tlRedo" title="Redo (⇧⌘Z)"><svg><use href="#i-redo"/></svg></button>
       </div>
       <div class="seg"><button id="tlSnap" title="Snap to the playhead, cuts and clip edges (S)"><svg><use href="#i-magnet"/></svg>Snap</button></div>
+      <div id="tlSet"><button class="ib icon" id="tlSetBtn" type="button" title="Timeline settings" aria-haspopup="menu"><svg><use href="#i-gear"/></svg></button><div id="tlSetPop" role="menu"></div></div>
       <span class="sp"></span>
       <span id="tlEdits">No timeline edits</span>
       <button class="ib" id="tlReset" title="Throw away the timeline edits on this version" style="display:none">Reset</button>
@@ -469,7 +501,7 @@
     <div id="tlwrap"><canvas id="tl"></canvas><div id="hover"></div></div>
   </section>
 </div>
-<div id="help"><div class="card"><h2>Keyboard shortcuts<button class="ib icon x" title="Close (Esc)">✕</button></h2><div class="cols"><div><h3>Playback</h3><div class="row"><span>Play / pause</span><span><kbd>Space</kbd></span></div><div class="row"><span>Play, press again faster</span><span><kbd>L</kbd></span></div><div class="row"><span>Stop</span><span><kbd>K</kbd></span></div><div class="row"><span>Back 1 s</span><span><kbd>J</kbd></span></div><div class="row"><span>1 frame</span><span><kbd>← →</kbd></span></div><div class="row"><span>10 frames</span><span><kbd>⇧← ⇧→</kbd></span></div><div class="row"><span>Previous / next cut</span><span><kbd>↑ ↓</kbd></span></div><div class="row"><span>Start / end</span><span><kbd>Home End</kbd></span></div><div class="row"><span>Loop I–O</span><span><kbd>⌘L</kbd></span></div></div><div><h3>Editing</h3><div class="row"><span>Blade tool (click to cut)</span><span><kbd>B</kbd> <kbd>C</kbd></span></div><div class="row"><span>Select tool</span><span><kbd>V</kbd> <kbd>A</kbd></span></div><div class="row"><span>Split at playhead</span><span><kbd>⌘B</kbd> <kbd>⌘K</kbd></span></div><div class="row"><span>Delete (closes the gap)</span><span><kbd>⌫</kbd></span></div><div class="row"><span>Trim start to playhead</span><span><kbd>Q</kbd></span></div><div class="row"><span>Trim end to playhead</span><span><kbd>W</kbd></span></div><div class="row"><span>Undo / redo</span><span><kbd>⌘Z ⇧⌘Z</kbd></span></div><div class="row"><span>Snapping on / off</span><span><kbd>S</kbd></span></div><div class="row"><span>Deselect</span><span><kbd>Esc</kbd></span></div></div><div><h3>Timeline</h3><div class="row"><span>Zoom in / out</span><span><kbd>= −</kbd></span></div><div class="row"><span>Fit the video</span><span><kbd>\</kbd> <kbd>⇧Z</kbd></span></div><div class="row"><span>Zoom with the mouse</span><span><kbd>⌘ scroll</kbd></span></div><div class="row"><span>Mark in / out</span><span><kbd>I O</kbd></span></div><div class="row"><span>Clear in / out</span><span><kbd>X</kbd></span></div></div><div><h3>Notes, drawing, view</h3><div class="row"><span>New note</span><span><kbd>N</kbd> <kbd>M</kbd></span></div><div class="row"><span>Previous / next note</span><span><kbd>[ ]</kbd></span></div><div class="row"><span>Scribble</span><span><kbd>P</kbd></span></div><div class="row"><span>Box</span><span><kbd>R</kbd></span></div><div class="row"><span>Show / hide drawings</span><span><kbd>H</kbd></span></div><div class="row"><span>Delete a selected mark</span><span><kbd>⌫</kbd></span></div><div class="row"><span>Move an overlay (straight: hold ⇧)</span><span>drag it</span></div><div class="row"><span>Resize an overlay</span><span>drag a corner</span></div><div class="row"><span>Change its text</span><span>double-click</span></div><div class="row"><span>Light / dark mode</span><span><kbd>⇧D</kbd></span></div><div class="row"><span>Hide / show the sidebar</span><span><kbd>⇧\</kbd></span></div><div class="row"><span>This list</span><span><kbd>?</kbd></span></div></div></div></div></div>
+<div id="help"><div class="card"><h2>Keyboard shortcuts<button class="ib icon x" title="Close (Esc)">✕</button></h2><div class="cols"><div><h3>Playback</h3><div class="row"><span>Play / pause</span><span><kbd>Space</kbd></span></div><div class="row"><span>Play, press again faster</span><span><kbd>L</kbd></span></div><div class="row"><span>Stop</span><span><kbd>K</kbd></span></div><div class="row"><span>Back 1 s</span><span><kbd>J</kbd></span></div><div class="row"><span>1 frame</span><span><kbd>← →</kbd></span></div><div class="row"><span>10 frames</span><span><kbd>⇧← ⇧→</kbd></span></div><div class="row"><span>Previous / next cut</span><span><kbd>↑ ↓</kbd></span></div><div class="row"><span>Start / end</span><span><kbd>Home End</kbd></span></div><div class="row"><span>Loop (I–O or whole video)</span><span><kbd>⌘L</kbd></span></div></div><div><h3>Editing</h3><div class="row"><span>Blade tool (click to cut)</span><span><kbd>B</kbd> <kbd>C</kbd></span></div><div class="row"><span>Select tool</span><span><kbd>V</kbd> <kbd>A</kbd></span></div><div class="row"><span>Slip tool</span><span><kbd>Y</kbd></span></div><div class="row"><span>Roll tool (move a cut)</span><span><kbd>T</kbd></span></div><div class="row"><span>Split at playhead</span><span><kbd>⌘B</kbd> <kbd>⌘K</kbd></span></div><div class="row"><span>Delete (closes the gap)</span><span><kbd>⌫</kbd></span></div><div class="row"><span>Trim start to playhead</span><span><kbd>Q</kbd></span></div><div class="row"><span>Trim end to playhead</span><span><kbd>W</kbd></span></div><div class="row"><span>Undo / redo</span><span><kbd>⌘Z ⇧⌘Z</kbd></span></div><div class="row"><span>Snapping on / off</span><span><kbd>S</kbd></span></div><div class="row"><span>Deselect</span><span><kbd>Esc</kbd></span></div></div><div><h3>Timeline</h3><div class="row"><span>Zoom in / out</span><span><kbd>= −</kbd></span></div><div class="row"><span>Fit the video</span><span><kbd>\</kbd> <kbd>⇧Z</kbd></span></div><div class="row"><span>Zoom with the mouse</span><span><kbd>⌘ scroll</kbd></span></div><div class="row"><span>Mark in / out</span><span><kbd>I O</kbd></span></div><div class="row"><span>Clear in / out</span><span><kbd>X</kbd></span></div></div><div><h3>Notes, drawing, view</h3><div class="row"><span>New note</span><span><kbd>N</kbd> <kbd>M</kbd></span></div><div class="row"><span>Previous / next note</span><span><kbd>[ ]</kbd></span></div><div class="row"><span>Scribble</span><span><kbd>P</kbd></span></div><div class="row"><span>Box</span><span><kbd>R</kbd></span></div><div class="row"><span>Show / hide drawings</span><span><kbd>H</kbd></span></div><div class="row"><span>Delete a selected mark</span><span><kbd>⌫</kbd></span></div><div class="row"><span>Move an overlay (straight: hold ⇧)</span><span>drag it</span></div><div class="row"><span>Resize an overlay</span><span>drag a corner</span></div><div class="row"><span>Change its text</span><span>double-click</span></div><div class="row"><span>Light / dark mode</span><span><kbd>⇧D</kbd></span></div><div class="row"><span>Hide / show the sidebar</span><span><kbd>⇧\</kbd></span></div><div class="row"><span>This list</span><span><kbd>?</kbd></span></div></div></div></div></div>
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
@@ -613,7 +645,7 @@ async function loadComp(id, keepTime) {
   };
   layoutLanes();
   const se = (S.allEdits || {})[c.id];
-  S.ed = se ? { segments: se.segments ? clone(se.segments) : null, clips: clone(se.clips || {}), format: se.format ? clone(se.format) : null, frame: clone(se.frame || {}) } : null;
+  S.ed = edFrom(se);
   FE.sel = null; TL.sel = null; TL.playSeg = null; TL.hist = []; TL.fut = []; UNDO.length = 0; INK.sel = null; inkBump();
   layoutLanes(); tlStatus(); loadMedia(); fmtSync();
   if (!resume) { S.t = 0; }
@@ -1109,7 +1141,7 @@ function seek(t) {
   S.t = t; if (S.player) S.player.seek(t); draw(); tc();
 }
 function step(d) { pause(); seekE(toE(S.t) + d); }
-function setRate(r) { S.rate = r; if (S.player) S.player.setRate(r); DD.speed.set(r); }
+function setRate(r) { S.rate = r; if (S.player) { S.player._r = null; rateTick(); } DD.speed.set(r); }
 const RATES = [0.25, 0.5, 1, 1.5, 2];
 function showRange() {
   $("#range").textContent = S.inT != null || S.outT != null ? "I " + (S.inT != null ? fmt(S.inT) : "–") + "  O " + (S.outT != null ? fmt(S.outT) : "–") + "  (X clears)" : "";
@@ -1155,6 +1187,8 @@ document.addEventListener("keydown", e => {
   else if (K === "b") { const on = TL.tool !== "razor"; tlSetTool(on ? "razor" : "select"); if (on) setTool("select"); toast(on ? "Blade: click the timeline to cut (B to leave)" : "Select"); }
   else if (K === "c") { const on = TL.tool !== "razor"; tlSetTool(on ? "razor" : "select"); toast(on ? "Blade: click the timeline to cut" : "Select"); }
   else if (K === "v" || K === "a") { setTool("select"); tlSetTool("select"); }
+  else if (K === "y") { const on = TL.tool !== "slip"; tlSetTool(on ? "slip" : "select"); if (on) setTool("select"); toast(on ? "Slip: drag a footage piece to change which moment it shows" : "Select"); }
+  else if (K === "t") { const on = TL.tool !== "roll"; tlSetTool(on ? "roll" : "select"); if (on) setTool("select"); toast(on ? "Roll: drag a cut to move it" : "Select"); }
   else if (K === "p") { setTool(INK.tool === "pen" ? "select" : "pen"); tlSetTool("select"); }
   else if (K === "r") { setTool(INK.tool === "box" ? "select" : "box"); tlSetTool("select"); }
   else if (K === "h") inkToggle();
@@ -1203,10 +1237,13 @@ function frame() {
     const t = S.player.time();
     const playing = !S.player.paused();
     if (!(TL.drag && TL.drag.kind === "scrub")) { S.t = t; S.playing = playing; }
+    const was = TL.prevPlaying; TL.prevPlaying = playing;
     seqTick(); mediaWatch();
     if (S.loop && S.playing && S.inT != null && S.outT != null && S.t >= S.outT) seek(S.inT);
+    // loop with no I–O range: the whole video starts again when it reaches the end
+    if (S.loop && (S.inT == null || S.outT == null) && was && !S.playing && toE(S.t) >= progDur() - 3 / FPS) play();
     const E = toE(S.t);
-    if (S.playing && S.follow && (E > S.view.start + S.view.len * .92 || E < S.view.start)) S.view.start = Math.max(0, Math.min(progDur() - S.view.len, E - S.view.len * .1));
+    if (S.playing && S.follow && TL.follow !== false && (E > S.view.start + S.view.len * .92 || E < S.view.start)) S.view.start = Math.max(0, Math.min(progDur() - S.view.len, E - S.view.len * .1));
     tc(); draw();
   }
   try { drawInk(); } catch (e) { console.error("drawInk", e); }
@@ -1332,6 +1369,7 @@ document.addEventListener("DOMContentLoaded", init);
   })();
 </script>
 <script src="/library.js"></script>
+<script src="/sfx.js"></script>
 <script src="/update.js"></script>
 </body>
 </html>

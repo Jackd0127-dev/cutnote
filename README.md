@@ -16,14 +16,14 @@ It runs on your machine and needs no account or upload. It is one Python file pl
 - **Timestamped notes.** Press <kbd>N</kbd>, type, press <kbd>Enter</kbd>. Notes are tagged *Fix*, *Change* or *Remember*, can cover an in/out range, and record what was on screen at that moment. They land in `review-notes.md` and `review-notes.json`.
 - **Draw on any frame.** Scribble and box tools, any colour and three line widths. Marks can be selected, moved, resized and deleted. Each drawing is saved as a PNG next to the notes.
 - **A real timeline.**
-  - Blade tool: <kbd>B</kbd>, then click to cut.
-  - Split at the playhead: <kbd>⌘B</kbd>.
-  - Ripple delete: <kbd>⌫</kbd>.
-  - Trim to the playhead: <kbd>Q</kbd> / <kbd>W</kbd>.
-  - Drag pieces to reorder them, drag their edges to trim.
-  - Move and trim overlays, captions and sound.
-  - Snapping, undo and redo, zoom.
-  - A filmstrip and waveform for the main footage.
+  - Tools: Select <kbd>V</kbd>, Slip <kbd>Y</kbd> (show a different moment of a piece, same length and place), Roll <kbd>T</kbd> (move a cut between two pieces), Blade <kbd>B</kbd>.
+  - Split at the playhead: <kbd>⌘B</kbd>. Trim start / trim end to the playhead: <kbd>Q</kbd> / <kbd>W</kbd>. Ripple delete: <kbd>⌫</kbd>.
+  - **Speed:** select a footage piece or b-roll clip and pick a speed, from 0.25× slow motion to 4×. It plays at that speed and the timeline shows its new length.
+  - Drag pieces to reorder them, drag their edges to trim. Move and trim overlays, captions and sound.
+  - Every track header has an eye to hide the track and a speaker to mute it.
+  - Timeline settings: snapping, magnetic timeline (clips stay stuck to the footage when you cut it, or keep their place in time), loop playback (the in/out range or the whole video), follow the playhead, filmstrip.
+  - Undo and redo, zoom, and a filmstrip and waveform for the main footage.
+- **Sound effects.** The **Sounds** tab has 50 original sound effects (whooshes, pops, clicks, UI dings, impacts, risers, glitches, cartoon, money, camera), all synthesized by `library/sfx/make_sfx.py`, so they're free to use. Click one to hear it, drag it onto the timeline or press **+** to add it at the playhead. Sounds sit on their own **Sound FX** track with a waveform: drag to move, pull an edge to trim, set the volume. They play live, **Export cut** mixes them in, and your AI assistant adds them to compositions.
 - **Edit what's on screen.** With the Select tool, click any overlay, card or caption on the frame. A sidebar opens where you can:
   - change its text (word-by-word animation keeps working)
   - set its position and size, or drag it on the frame and pull a corner
@@ -33,8 +33,8 @@ It runs on your machine and needs no account or upload. It is one Python file pl
   Changes update live and are saved as edits for whoever builds the composition.
 - **Layers.** Drag overlays, b-roll, captions and sounds up or down on the timeline to move them to another row. The top row plays in front.
 - **Formats.** Reframe for 9:16, 4:5, 1:1, 16:9 or 4:3. Drag a crop window over the frame to choose what stays in the shot.
-- **Export cut.** For plain video files, Cutnote renders your cut and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
-- **Component library.** The sidebar has three tabs: **Notes**, **Library** and **Captions**. Library holds animated overlays (stat tiles, kinetic type, a customer crowd, before/after cards, price sliders, break-even graphs, storylines, series cards and more), grouped into collections you switch with a dropdown. Every card loops a live preview. Drag one onto the video or the timeline and it's added at once: it plays on the video at that moment inside a neon outline, and a neon block on the timeline's **Library** lane shows how long it plays. Drag the block to retime it, pull its right edge to change the length, or drag the outline's chip to move it on the frame. Each one is saved as a note, so your AI assistant builds it properly on the next run.
+- **Export cut.** For plain video files, Cutnote renders your cut, speed changes, sound effects, mutes and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
+- **Component library.** The sidebar has four tabs: **Notes**, **Library**, **Captions** and **Sounds**. Library holds animated overlays (stat tiles, kinetic type, a customer crowd, before/after cards, price sliders, break-even graphs, storylines, series cards and more), grouped into collections you switch with a dropdown. Every card loops a live preview. Drag one onto the video or the timeline and it's added at once: it plays on the video at that moment inside a neon outline, and a neon block on the timeline's **Library** lane shows how long it plays. Drag the block to retime it, pull its right edge to change the length, or drag the outline's chip to move it on the frame. Each one is saved as a note, so your AI assistant builds it properly on the next run.
 - **Caption styles.** The Captions tab lists caption styles (classic, highlight, one word, boxed, typewriter…). Drop one on the video and it applies to the whole video, marked in magenta across the timeline.
 - **Updates.** A version chip in the header turns lime when a new Cutnote is out. **Update now** installs it and restarts in place, or switch on **Update automatically**.
 - **Approval gate.** For compositions, an *Approve* button records the exact build you signed off. A render script can refuse anything that isn't approved.
@@ -143,13 +143,13 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> | Back 1 s, stop, play (press <kbd>L</kbd> again to go faster). |
 | <kbd>←</kbd> <kbd>→</kbd> | Step one frame (add <kbd>⇧</kbd> for 10). |
 | <kbd>↑</kbd> <kbd>↓</kbd> | Jump to the previous or next cut. |
-| <kbd>B</kbd> / <kbd>V</kbd> | Blade or select tool. |
+| <kbd>V</kbd> <kbd>Y</kbd> <kbd>T</kbd> <kbd>B</kbd> | Select, slip, roll, blade. |
 | <kbd>⌘B</kbd> | Split at the playhead. |
 | <kbd>⌫</kbd> | Delete. |
 | <kbd>Q</kbd> <kbd>W</kbd> | Trim to the playhead. |
 | <kbd>⌘Z</kbd> <kbd>⇧⌘Z</kbd> | Undo, redo. |
 | <kbd>I</kbd> <kbd>O</kbd> <kbd>X</kbd> | Mark in, mark out, clear. |
-| <kbd>⌘L</kbd> | Loop the in/out range. |
+| <kbd>⌘L</kbd> | Loop playback (the in/out range, or the whole video). |
 | <kbd>N</kbd> | New note. |
 | <kbd>[</kbd> <kbd>]</kbd> | Previous or next note. |
 | <kbd>P</kbd> <kbd>R</kbd> <kbd>H</kbd> | Scribble, box, hide drawings. |
@@ -175,8 +175,9 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | `examples/demo/` | A demo composition and video to try it on. |
 | `docs/` | The project website (GitHub Pages). |
 | `library.js` | The Library and Captions tabs: browsing, drag and drop, the Library lane and the live preview on the video. |
+| `sfx.js` | The Sounds tab: previews, waveforms, and dragging sounds onto the timeline. |
 | `update.js` | The version chip, **Update now** and **Update automatically**. |
-| `library/` | The component library: one folder per component in `library/components/`, the runtime, and `SPEC.md` (how components are written and used). |
+| `library/` | The component library: one folder per component in `library/components/`, the runtime, and `SPEC.md` (how components are written and used). `library/sfx/` holds the sound effects and the script that makes them. |
 | `version.json` | The newest version and what changed. Installs check it to offer updates. |
 | `install.sh`, `install.ps1` | The setup for macOS/Linux and Windows. |
 | `AGENTS.md` | Instructions for AI agents installing, using or changing Cutnote. |

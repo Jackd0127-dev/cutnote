@@ -1,7 +1,11 @@
 {
-  "version": "1.2.9",
+  "version": "1.3.0",
   "date": "19 Nov 2026",
   "notes": [
-    "Nothing covering the list: hovering a component or caption style no longer pops a browser tooltip over the section headings. Open a card to read its full description."
+    "Sound effects: a new Sounds tab with 50 original effects (whooshes, pops, clicks, impacts, risers, glitches and more). Click to hear one, then drag it onto the timeline or press + to add it at the playhead.",
+    "Slow motion and speed up: select a footage piece or b-roll clip and pick a speed from 0.25× to 4×. It plays at that speed straight away.",
+    "Slip and Roll tools: Slip (Y) shows a different moment of a piece without moving it, and Roll (T) drags a cut between two pieces. Trim start and Trim end now have buttons too.",
+    "Mute and hide tracks: every track header has a speaker to mute it and an eye to hide it.",
+    "Timeline settings: turn snapping, the magnetic timeline, looping, follow-the-playhead and filmstrip thumbnails on or off. Loop now repeats the whole video when no range is marked."
   ]
 }
