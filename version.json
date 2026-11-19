@@ -1,12 +1,11 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.3",
   "date": "2026-11-19",
   "notes": [
+    "Click a component on the video or its block on the timeline to edit it in the sidebar: text, timing and style, with changes playing straight away.",
+    "New components are centred on the frame, and their dark backing no longer gets clipped.",
+    "Simpler settings panel; the tab underline slides between Notes, Library and Captions.",
     "Components you add now just play on the video: no outlines or bands, and slim blocks on the timeline.",
-    "Fixed: some videos tinted components with a cream background.",
-    "Picking a caption style explains how captions get built.",
-    "If Cutnote restarts (after an update, or when you restart it), open pages now reload by themselves at the same moment, so the video never freezes.",
-    "Sidebar tabs: Notes, Library and Captions.",
-    "Library: animated components in collections. Drag one onto the video and it plays there right away, with a neon block on the timeline you can drag to retime."
+    "Fixed: some videos tinted components with a cream background."
   ]
 }
