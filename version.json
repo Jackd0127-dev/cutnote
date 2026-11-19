@@ -1,11 +1,11 @@
 {
-  "version": "1.1.7",
+  "version": "1.1.8",
   "date": "2026-11-19",
   "notes": [
+    "Notes are cleaner cards, with a tidy Done / Edit / Delete toolbar on hover.",
     "Header menus open on hover, with a new Cutnote menu for the website and GitHub.",
     "Smoother opening and going back in the Library and Captions tabs, keeping your place.",
     "Crisp custom sliders with a lime fill, a centred + on cards, and a plain black gradient behind white-text previews.",
-    "Redesigned Library and Captions tabs: search, collection chips, clear wide previews, a + button to add at the playhead, and a simple caption list with Use.",
-    "Overlapping components get their own rows on the timeline."
+    "Redesigned Library and Captions tabs: search, collection chips, clear wide previews, a + button to add at the playhead, and a simple caption list with Use."
   ]
 }
