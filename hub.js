@@ -35,8 +35,18 @@
   body.hub-on #hub { opacity: 1; transform: none; pointer-events: auto; }
   #hub .hb-top { flex: none; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
   #hub .hb-brand { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
-  #hub .hb-brand .logo { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
-  #hub .hb-brand .logo svg { width: 15px; height: 15px; }
+  #hub .hb-brand .logo { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--ink); color: var(--accent); }
+  #hub .hb-brand .logo svg { width: 19px; height: 19px; }
+  #hub .hb-brand .logo .mk-hub path { fill: var(--ink); }
+  .mk svg { overflow: visible; }
+  #brandBtn .logo { width: 28px; height: 28px; border-radius: 8px; }
+  #brandBtn .logo svg { width: 19px; height: 19px; }
+  .mk-ph { transition: transform .45s cubic-bezier(.22,1,.36,1); }
+  #brandBtn:hover .mk-ph, #brandPop button:hover .mk-ph { transform: translateX(-4.5px); }
+  .mk-open { transition: transform .4s cubic-bezier(.22,1,.36,1); transform-origin: 16.9px 16.9px; }
+  #brandPop button:hover .mk-open, #hub .hb-brand:hover .mk-open { transform: scale(1.12); }
+  #brandPop .tile.mk svg { width: 22px; height: 22px; }
+  #brandPop .tile.dark.mk { color: var(--accent); } #brandPop .tile.dark .mk-hub path { fill: var(--ink); }
   #hub .hb-brand span { color: var(--dim); font-weight: 600; }
   #hub .sp { flex: 1; }
   #hub .hb-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 600 12.5px -apple-system, system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
@@ -124,6 +134,11 @@
   @media (prefers-reduced-motion: reduce) { #hub, .hb-card, .hb-dlg, .hb-modal { transition: none; animation: none; } }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
+  /* the marks: Editor = three clips on a timeline with a playhead; Hub = a grid of projects, one opening */
+  const LOGO_EDITOR = `<svg class="mk-ed" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5.4" width="10.5" height="3.7" rx="1.85" fill="currentColor"/><rect x="7.5" y="10.15" width="13.5" height="3.7" rx="1.85" fill="currentColor" opacity=".5"/><rect x="3" y="14.9" width="7.5" height="3.7" rx="1.85" fill="currentColor"/>
+    <g class="mk-ph"><path d="M15.6 6V21.2" stroke="var(--accent)" stroke-width="3.8" stroke-linecap="round"/><path d="M15.6 6V21.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12.6 2.1h6a.9.9 0 0 1 .9.9v2.2l-3.9 2.9-3.9-2.9V3a.9.9 0 0 1 .9-.9z" fill="currentColor" stroke="var(--accent)" stroke-width="1.2" stroke-linejoin="round"/></g></svg>`;
+  const LOGO_HUB = `<svg class="mk-hub" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="3.2" width="7.8" height="7.8" rx="2.3" fill="currentColor"/><rect x="13" y="3.2" width="7.8" height="7.8" rx="2.3" fill="currentColor" opacity=".45"/><rect x="3.2" y="13" width="7.8" height="7.8" rx="2.3" fill="currentColor" opacity=".45"/><rect class="mk-open" x="13" y="13" width="7.8" height="7.8" rx="2.3" fill="currentColor"/><path d="M15.7 15v3.8l3.2-1.9z" fill="var(--accent)"/></svg>`;
+  window.CutnoteMarks = { LOGO_EDITOR, LOGO_HUB };
   const I = {
     chev: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5 6 7.5l3-3"/></svg>',
     check: '<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
@@ -147,11 +162,10 @@
 
   /* ---------- header: "Cutnote Editor" with a menu to the Hub ---------- */
   const brand = document.querySelector("header .brand");
-  const logo = brand.querySelector(".logo").outerHTML;
-  brand.innerHTML = `<button type="button" id="brandBtn" aria-haspopup="true" aria-expanded="false">${logo}<b>Cutnote <span>Editor</span></b>${I.chev}</button>
+  brand.innerHTML = `<button type="button" id="brandBtn" aria-haspopup="true" aria-expanded="false"><span class="logo mk">${LOGO_EDITOR}</span><b>Cutnote <span>Editor</span></b>${I.chev}</button>
     <div id="brandPop" role="menu">
-      <button type="button" role="menuitem" data-go="editor" aria-current="true"><span class="tile"><svg><use href="#i-blade"/></svg></span><span><b>Cutnote Editor</b><small>Review, cut and build this project</small></span>${I.check}</button>
-      <button type="button" role="menuitem" data-go="hub" aria-current="false"><span class="tile dark">${I.grid}</span><span><b>Cutnote Hub</b><small>All your projects: open, rename, create</small></span>${I.check}</button>
+      <button type="button" role="menuitem" data-go="editor" aria-current="true"><span class="tile mk">${LOGO_EDITOR}</span><span><b>Cutnote Editor</b><small>Review, cut and build this project</small></span>${I.check}</button>
+      <button type="button" role="menuitem" data-go="hub" aria-current="false"><span class="tile dark mk">${LOGO_HUB}</span><span><b>Cutnote Hub</b><small>All your projects: open, rename, create</small></span>${I.check}</button>
     </div>`;
   const title = document.createElement("h1"); title.id = "title"; title.textContent = (typeof S !== "undefined" && S.info && (S.info.name || S.info.video)) || "";
   title.title = "Open Cutnote Hub to switch project"; title.style.cursor = "pointer"; title.onclick = () => H.show(true);
@@ -169,14 +183,14 @@
   /* ---------- the Hub screen ---------- */
   document.body.insertAdjacentHTML("beforeend", `<section id="hub" aria-label="Cutnote Hub" aria-hidden="true">
     <div class="hb-top">
-      <div class="hb-brand"><span class="logo"><svg><use href="#i-blade"/></svg></span>Cutnote <span>Hub</span></div>
+      <div class="hb-brand"><span class="logo mk">${LOGO_HUB}</span>Cutnote <span>Hub</span></div>
       <button type="button" class="hb-btn ghost" data-a="back">${I.back}<span class="lbl">Back to the editor</span></button>
       <span class="sp"></span>
       <label class="hb-search">${I.search}<input type="search" placeholder="Search projects" aria-label="Search projects" data-q></label>
       <button type="button" class="hb-btn" data-a="roots" title="Folders the Hub watches for projects">${I.folder}<span class="lbl">Folders</span></button>
       <button type="button" class="hb-btn primary" data-a="new">${I.plus}New project</button>
     </div>
-    <div class="hb-main"><div class="hb-head"><div><h2>Projects</h2><p data-sub>Loading…</p></div><span class="sp"></span>
+    <div class="hb-main"><div class="hb-head"><div><h2>Projects</h2><p><span data-sub>Loading…</span> · <a href="#" data-a="tour" style="color:inherit;text-underline-offset:3px">Take the tour</a></p></div><span class="sp"></span>
       <div class="hb-sort" role="tablist" aria-label="Sort"><button type="button" data-sort="opened" class="on">Recent</button><button type="button" data-sort="changed">Last edited</button><button type="button" data-sort="name">Name</button></div></div>
       <div class="hb-grid" data-grid></div></div>
   </section>`);
@@ -184,15 +198,25 @@
   const H = (window.CutnoteHub = { data: null, q: "", sort: (() => { try { return localStorage.getItem("cutnote:hubsort") || "opened"; } catch { return "opened"; } })() });
   hub.querySelectorAll("[data-sort]").forEach(b => b.classList.toggle("on", b.dataset.sort === H.sort));
 
-  H.show = on => {
+  const toured = () => { try { return localStorage.getItem("cutnote:hubtour") === "done"; } catch { return true; } };
+  H.show = (on, noTour) => {
     document.body.classList.toggle("hub-on", on); hub.setAttribute("aria-hidden", String(!on));
     $("#brandPop").querySelectorAll("[data-go]").forEach(b => b.setAttribute("aria-current", String((b.dataset.go === "hub") === on)));
-    if (on) { if (typeof S !== "undefined" && S.playing && typeof pause === "function") pause(); load(); if (location.hash !== "#hub") history.replaceState(null, "", "#hub"); }
+    if (on) {
+      if (typeof S !== "undefined" && S.playing && typeof pause === "function") pause();
+      if (!noTour && !toured()) H.tour(false); else load();   // the first visit offers the tour
+      if (location.hash !== "#hub") history.replaceState(null, "", "#hub");
+    }
     else if (location.hash === "#hub") history.replaceState(null, "", location.pathname + location.search);
   };
-  async function load() {
-    try { H.data = await fetch("/api/hub", { cache: "no-store" }).then(r => r.json()); } catch { hub.querySelector("[data-sub]").textContent = "Couldn't load your projects"; return; }
-    paint();
+  let loading = null;
+  function load() {
+    if (loading) return loading;
+    loading = (async () => {
+      try { H.data = await fetch("/api/hub", { cache: "no-store" }).then(r => r.json()); } catch { hub.querySelector("[data-sub]").textContent = "Couldn't load your projects"; return; }
+      paint();
+    })().finally(() => { loading = null; });
+    return loading;
   }
   const ago = iso => {
     if (!iso) return ""; const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -233,6 +257,7 @@
     if (a && a.dataset.a === "back") return H.show(false);
     if (a && a.dataset.a === "new") return newProject();
     if (a && a.dataset.a === "roots") return roots();
+    if (a && a.dataset.a === "tour") { e.preventDefault(); return H.tour(false); }
     if (a && a.dataset.a === "more" && c) { e.stopPropagation(); return menu(a, proj(c.dataset.id)); }
     if (c && !e.target.closest("[contenteditable=true]")) open(proj(c.dataset.id));
   });
@@ -361,6 +386,93 @@
     d.el.querySelector("[data-add]").onclick = async () => { const p = await pick("roots"); if (!p) return; try { await api({ action: "addRoot", path: p }); await load(); paintR(); } catch (e) { say(e.message); } };
     d.el.querySelector("[data-r]").onclick = async e => { const b = e.target.closest("[data-rm]"); if (!b) return; try { await api({ action: "removeRoot", path: H.data.roots[+b.dataset.rm] }); await load(); paintR(); } catch (err) { say(err.message); } };
   }
+
+  /* ---------- the guided tour: a spotlight walks round the Hub; Skip at every step; ends on the way back ---------- */
+  const tcss = `
+  #hbTour { position: fixed; inset: 0; z-index: 360; pointer-events: none; }
+  #hbTour .hole { position: fixed; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(8,10,16,.58), 0 0 0 2px var(--accent), 0 0 0 7px rgba(198,244,50,.25);
+    transition: left .45s cubic-bezier(.22,1,.36,1), top .45s cubic-bezier(.22,1,.36,1), width .45s cubic-bezier(.22,1,.36,1), height .45s cubic-bezier(.22,1,.36,1), border-radius .45s; }
+  #hbTour .hole.none { box-shadow: 0 0 0 9999px rgba(8,10,16,.58); }
+  #hbTour .tip { position: fixed; width: min(370px, calc(100vw - 32px)); padding: 18px 18px 14px; border-radius: 18px; background: var(--panel); color: var(--ink); pointer-events: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,.35), 0 0 0 1px var(--line); transition: left .45s cubic-bezier(.22,1,.36,1), top .45s cubic-bezier(.22,1,.36,1); animation: hbPop .3s cubic-bezier(.22,1,.36,1) both; }
+  #hbTour .tip .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--ink); color: var(--accent); margin-bottom: 12px; }
+  #hbTour .tip .ic svg { width: 24px; height: 24px; } #hbTour .tip .ic .mk-hub path { fill: var(--ink); }
+  #hbTour .tip small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text, var(--dim)); margin-bottom: 4px; }
+  #hbTour .tip h4 { margin: 0 0 6px; font-size: 17px; letter-spacing: -.01em; }
+  #hbTour .tip p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.5; }
+  #hbTour .tip p kbd { font-size: 11px; }
+  #hbTour .row { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  #hbTour .dots { display: flex; gap: 5px; margin-right: auto; }
+  #hbTour .dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line-2); transition: width .3s, background .3s; }
+  #hbTour .dots i.on { width: 18px; background: var(--accent); }
+  #hbTour .row button { flex: none; white-space: nowrap; height: 34px; padding: 0 14px; border-radius: 9px; border: 0; font: 700 12.5px -apple-system, system-ui, sans-serif; cursor: pointer; }
+  #hbTour .skip { background: none; color: var(--dim); } #hbTour .skip:hover { color: var(--ink); background: var(--hover); }
+  #hbTour .next { background: var(--ink); color: var(--panel); }
+  #hbTour .next.lime { background: var(--accent); color: var(--accent-ink); }
+  #hub.touring .hb-card.cur .hb-more, #hub.touring .hb-card:nth-child(2) .hb-more { opacity: 1; }`;
+  const tst = document.createElement("style"); tst.textContent = tcss; document.head.appendChild(tst);
+  const firstCard = () => grid.querySelector(".hb-card.cur") || grid.querySelector(".hb-card");
+  const STEPS = [
+    { ic: LOGO_HUB, k: "Cutnote Hub", t: "All your projects in one place", p: "Every video project on this computer lives here. Take a 20-second look round, or skip and explore.", next: "Show me round", lime: true },
+    { el: firstCard, k: "Projects", t: "Open any project", p: "Each card shows a frame from the footage, its open notes and when you last edited it. Click one and the editor switches to it." },
+    { el: () => { const c = firstCard(); return c && c.querySelector(".hb-more"); }, pad: 6, k: "More", t: "Rename, find or tidy up", p: "Rename it (only the name here changes, never the folder), show it in your file manager, take it off the list or move it to the Trash." },
+    { el: () => hub.querySelector('.hb-top [data-a="new"]'), pad: 6, k: "New project", t: "Start a new video", p: "Name it and drop in your footage. Cutnote makes the folder, copies the footage in and opens it." },
+    { el: () => hub.querySelector('[data-a="roots"]'), pad: 6, k: "Folders", t: "Projects find their own way here", p: "Point the Hub at the folders you keep videos in and new projects show up by themselves, including ones your AI assistant makes." },
+    { el: () => hub.querySelector(".hb-search"), pad: 6, k: "Search", t: "Find anything fast", p: "Search by name or folder, and sort by recent, last edited or name. <kbd>⌘F</kbd> jumps here." },
+    { el: () => hub.querySelector('[data-a="back"]'), pad: 6, k: "Back to editing", t: "Getting back to the editor", p: "Click <b>Back to the editor</b>, press <kbd>Esc</kbd>, or hover <b>Cutnote Editor</b> at the top left any time to switch between the editor and the Hub.", next: "Got it", lime: true },
+  ];
+  let tourEl = null, tourK = 0;
+  function tourDone(skipped) {
+    if (!tourEl) return;
+    tourEl.remove(); tourEl = null; hub.classList.remove("touring");
+    try { localStorage.setItem("cutnote:hubtour", "done"); } catch {}
+    if (skipped) say("Tour skipped. To get back to the editor: Back to the editor at the top left, or Esc");
+  }
+  function tourPaint() {
+    const st = STEPS[tourK], hole = tourEl.querySelector(".hole"), tip = tourEl.querySelector(".tip");
+    const el = st.el && st.el();
+    if (el) el.scrollIntoView({ block: "nearest" });
+    const r = el ? el.getBoundingClientRect() : null, pad = st.pad != null ? st.pad : 8;
+    if (r) Object.assign(hole.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px", borderRadius: (st.pad ? 12 : 20) + "px" });
+    else Object.assign(hole.style, { left: innerWidth / 2 + "px", top: innerHeight / 2 + "px", width: "0px", height: "0px" });
+    hole.classList.toggle("none", !r);
+    tip.innerHTML = `${st.ic ? `<div class="ic">${st.ic}</div>` : ""}<small>${st.k}</small><h4>${st.t}</h4><p>${st.p}</p>
+      <div class="row"><div class="dots">${STEPS.map((_, i) => `<i class="${i === tourK ? "on" : ""}"></i>`).join("")}</div>
+      ${tourK < STEPS.length - 1 ? `<button type="button" class="skip" data-t="skip">Skip tour</button>` : `<button type="button" class="skip" data-t="prev">Back</button>`}
+      <button type="button" class="next${st.lime ? " lime" : ""}" data-t="next">${st.next || "Next"}</button></div>`;
+    // the card sits beside the spotlight, wherever it fits
+    const tw = tip.offsetWidth, th = tip.offsetHeight, m = 16;
+    let x, y;
+    if (!r) { x = (innerWidth - tw) / 2; y = (innerHeight - th) / 2; }
+    else if (r.right + pad + m + tw < innerWidth) { x = r.right + pad + m; y = r.top; }
+    else if (r.left - pad - m - tw > 0) { x = r.left - pad - m - tw; y = r.top; }
+    else { x = r.left + r.width / 2 - tw / 2; y = r.bottom + pad + m; if (y + th > innerHeight - m) y = r.top - pad - m - th; }
+    tip.style.left = Math.max(m, Math.min(innerWidth - tw - m, x)) + "px"; tip.style.top = Math.max(m, Math.min(innerHeight - th - m, y)) + "px";
+    setTimeout(() => { const b = tip.querySelector(".next"); b && b.focus({ preventScroll: true }); }, 50);
+  }
+  H.tour = async (open) => {
+    if (open && !document.body.classList.contains("hub-on")) H.show(true, true);
+    await load();
+    if (tourEl) tourEl.remove();
+    tourK = 0; hub.classList.add("touring");
+    tourEl = document.createElement("div"); tourEl.id = "hbTour"; tourEl.innerHTML = `<div class="hole none"></div><div class="tip" role="dialog" aria-modal="true" aria-label="Cutnote Hub tour"></div>`;
+    document.body.appendChild(tourEl);
+    tourEl.addEventListener("click", e => {
+      const b = e.target.closest("[data-t]"); if (!b) return;
+      if (b.dataset.t === "skip") return tourDone(true);
+      if (b.dataset.t === "prev") { tourK = Math.max(0, tourK - 1); return tourPaint(); }
+      if (tourK >= STEPS.length - 1) return tourDone(false);
+      tourK++; tourPaint();
+    });
+    tourPaint();
+  };
+  addEventListener("resize", () => tourEl && tourPaint());
+  document.addEventListener("keydown", e => {
+    if (!tourEl) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); tourDone(true); }
+    else if (e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); tourEl.querySelector(".next").click(); }
+    else if (e.key === "ArrowLeft" && tourK > 0) { e.preventDefault(); e.stopImmediatePropagation(); tourK--; tourPaint(); }
+  }, true);
 
   document.addEventListener("keydown", e => {
     if (!document.body.classList.contains("hub-on")) return;
