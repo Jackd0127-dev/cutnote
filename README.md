@@ -2,9 +2,16 @@
 
 **Review, mark up and cut videos in your browser, then hand the notes to Claude.**
 
-[Website](https://jackd0127-dev.github.io/cutnote/) · [Install](#install) · [Try the demo](#try-the-demo) · [Keyboard](#keyboard)
+[Website](https://jackd0127-dev.github.io/cutnote/) · [Watch](#watch) · [Install](#install) · [Try the demo](#try-the-demo) · [Keyboard](#keyboard)
 
 ![Cutnote: a video with a drawing on the frame, notes in the sidebar and a timeline with a cut](docs/img/hero-light.jpg)
+
+## Watch
+
+| Cutnote in 30 seconds | The full workflow (5 min) |
+| --- | --- |
+| [![Cutnote launch video](docs/img/launch-poster.jpg)](https://jackd0127-dev.github.io/cutnote/) | [![Cutnote full workflow tutorial](docs/img/tutorial-poster.jpg)](https://jackd0127-dev.github.io/cutnote/#watch) |
+| [Watch on the website](https://jackd0127-dev.github.io/cutnote/) · [Download (MP4)](https://github.com/Jackd0127-dev/cutnote/releases/download/videos/Cutnote-Launch-1080p.mp4) | [Watch with chapters](https://jackd0127-dev.github.io/cutnote/#watch) · [Download (MP4)](https://github.com/Jackd0127-dev/cutnote/releases/download/videos/Cutnote-Tutorial-1080p.mp4) |
 
 Cutnote is a small local video review player and editor. Open a folder, and it plays your videos and [HyperFrames](https://www.npmjs.com/package/hyperframes) compositions live, with no render step. You pause anywhere, write a note, draw on the frame, and cut the footage on a timeline. Everything is saved as plain files that an AI assistant such as Claude Code (or a human editor) can read and act on.
 
@@ -38,7 +45,7 @@ It runs on your machine and needs no account or upload. It is one Python file pl
 - **Export cut.** For plain video files, Cutnote renders your cut, speed changes, sound effects, mutes and reframe with ffmpeg as a new file next to the original: `name (edited).mp4`. It never overwrites anything.
 - **Component library.** The sidebar has four tabs: **Notes**, **Library**, **Captions** and **Sounds**. Library holds animated overlays (stat tiles, kinetic type, a customer crowd, before/after cards, price sliders, break-even graphs, storylines, series cards and more), grouped into collections you switch with a dropdown. Every card loops a live preview. Drag one onto the video or the timeline and it's added at once: it plays on the video at that moment inside a neon outline, and a neon block on the timeline's **Library** lane shows how long it plays. Drag the block to retime it, pull its right edge to change the length, or drag the outline's chip to move it on the frame. Each one is saved as a note, so your AI assistant builds it properly on the next run.
 - **Caption styles.** The Captions tab lists caption styles (classic, highlight, one word, boxed, typewriter…). Drop one on the video and it applies to the whole video, marked in magenta across the timeline.
-- **Cutnote Hub.** Hover **Cutnote Editor** at the top left and pick **Cutnote Hub**: a project manager with every video project on your computer, each with a picture, open notes and when it was last edited. Open one to switch to it, rename it (only the name shown changes, never the folder), remove it from the list or move its folder to the Trash, and make a new project (drop footage in and it's copied into a fresh folder). Tell it which folders to watch and projects in them appear by themselves. Each card also has a **Content OS** button that opens that video's page in Content OS (or Content OS itself when it isn't linked yet). The first time you open Cutnote, a short tour shows you round the editor and then the Hub (skip it any time, or replay it from **Take the tour**). AI assistants add the projects they make with `review.py --add`. Everything is saved on your computer in `~/.config/cutnote/projects.json`.
+- **Cutnote Hub.** Hover **Cutnote Editor** at the top left and pick **Cutnote Hub** (the same menu takes you back): a project manager with every video project on your computer, each with a picture, open notes and when it was last edited. Open one to switch to it, rename it (only the name shown changes, never the folder), remove it from the list or move its folder to the Trash, and make a new project (drop footage in and it's copied into a fresh folder). Group projects into **stacks** (a series, a client, anything): make one with **New stack**, drag projects onto it, and click it to open just those projects, with **All projects** to go back. Stacks only tidy the Hub; folders on disk never move. Tell it which folders to watch and projects in them appear by themselves. Each card also has a **Content OS** button that opens that video's page in Content OS (or Content OS itself when it isn't linked yet). The first time you open Cutnote, a short tour shows you round the editor and then the Hub (skip it any time, or replay it from **Take the tour**). AI assistants add the projects they make with `review.py --add`. Everything is saved on your computer in `~/.config/cutnote/projects.json`.
 - **Updates.** A version chip in the header turns lime when a new Cutnote is out. **Update now** installs it and restarts in place, or switch on **Update automatically**.
 - **Approval gate.** For compositions, an *Approve* button records the exact build you signed off. A render script can refuse anything that isn't approved.
 - **Light mode by default, dark mode with <kbd>⇧D</kbd>**, custom dropdowns, and editor-standard shortcuts. Press <kbd>?</kbd> in the app for the full list.
@@ -176,7 +183,7 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | `review.html` | The app: player, notes, drawing, dropdowns, themes. |
 | `timeline.js` | The timeline editor and on-frame editing. |
 | `examples/demo/` | A demo composition and video to try it on. |
-| `docs/` | The project website (GitHub Pages). |
+| `docs/` | The project website. `.github/workflows/pages.yml` publishes it to GitHub Pages and adds the launch and tutorial videos from the `videos` release, so they never sit in the repo. |
 | `library.js` | The Library and Captions tabs: browsing, drag and drop, the Library lane and the live preview on the video. |
 | `sfx.js` | The Sounds tab: previews, waveforms, and dragging sounds onto the timeline. |
 | `clipfx.js` | The timeline's right-click menu, copy/paste, crop, extract audio and the Sound panel. |

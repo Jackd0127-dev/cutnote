@@ -1,11 +1,18 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "date": "20 Nov 2026",
+  "action": {
+    "label": "Show me the Hub",
+    "run": "hub-tour"
+  },
   "notes": [
-    "Right-click the timeline: copy, cut, paste, duplicate, speed, reverse, crop, mirror and extract audio, right where you need them.",
-    "Extract audio: pull a piece's sound onto its own Audio track, then tweak volume, fades, noise and voice clarity in the Sound panel.",
-    "Move your own footage: click it on the frame to drag it or resize it from a corner, like any overlay.",
-    "Help when a project won't load: a card explains what went wrong, gives steps, and a prompt to paste into Claude.",
-    "Tidier everywhere: compact New project and Folders sheets, no clipped names, copy buttons that flip to a tick, smoother Hub cards."
+    "Stacks in the Hub: group projects by series or client. New stack shows a live preview as you pick projects; drag more onto it, click it to open, All projects takes you back. Folders on disk never move.",
+    "Smoother everywhere: the Hub, sorting, stacks and tours glide instead of flashing, the sort switch slides to your pick, and the Hub has a new animated logo with the same menu as the editor.",
+    "Soft snapping: overlays, captions, footage, components, the crop window and drawings snap gently to the centre, thirds, quarters and edges, with thin guides. Hold ⌥ to move freely.",
+    "Better component settings: clear Content, Timing, Position and Style sections with hints, a sharp live preview, one-click centring, and Done/Remove always in reach.",
+    "New colour picker: a clean custom-colour button with a full picker, hex field, eyedropper and recent colours, for drawings, text and components.",
+    "Undo everything: ⌘Z and ⇧⌘Z cover every timeline edit, Library components included. No more surprise deletes when you click short blocks or toggle tracks.",
+    "Hide drawings works: the eye (H) hides every mark and clearly shows when drawings are hidden.",
+    "Nothing cut off: labels stay inside their clips and clear of the playhead, the video keeps its space on small windows and at high zoom, the drawing tools always fit, and the sidebar works on narrow screens. Plus ⌘E to export and Move to Trash in the Hub works again."
   ]
 }

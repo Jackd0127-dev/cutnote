@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -1103,7 +1103,8 @@ class H(BaseHTTPRequestHandler):
 # ---------- updates ----------
 # ---------- Cutnote Hub: the projects this computer knows about ----------
 # Kept in ~/.config/cutnote/projects.json: {"projects": [{path, name, added, opened}], "roots": [folders to watch], "hidden": [paths],
-# "newIn": where New project makes folders}. Every folder Cutnote opens is added; `review.py --add <folder>` adds one from a
+# "newIn": where New project makes folders, "stacks": [{id, name, paths, added}] (groups the person makes by hand: a project
+# sits in at most one stack, and stacks only change what the Hub shows, never the folders)}. Every folder Cutnote opens is added; `review.py --add <folder>` adds one from a
 # script (an AI making a new video calls it); folders under a watched root that hold a Project/ folder show up by themselves.
 # Renaming only changes the name shown in the Hub: folders on disk are never renamed or moved.
 PROJECTS = os.path.join(os.path.dirname(SETTINGS), "projects.json")
@@ -1126,7 +1127,24 @@ def hub_load():
         d = {}
     d = d if isinstance(d, dict) else {}
     d.setdefault("projects", []); d.setdefault("roots", []); d.setdefault("hidden", [])
+    d["stacks"] = [k for k in d.get("stacks") or [] if isinstance(k, dict) and k.get("id") and k.get("name")]
+    for k in d["stacks"]:
+        k["paths"] = [x for x in k.get("paths") or [] if isinstance(x, str)]
     return d
+
+
+def stack_of(d, path):
+    rp = os.path.realpath(path)
+    return next((k for k in d["stacks"] if any(os.path.realpath(x) == rp for x in k["paths"])), None)
+
+
+def stack_put(d, path, sid):
+    """Move a project into stack sid (None takes it out of any stack)."""
+    rp = os.path.realpath(path)
+    for k in d["stacks"]:
+        k["paths"] = [x for x in k["paths"] if os.path.realpath(x) != rp]
+        if k["id"] == sid:
+            k["paths"].append(path)
 
 
 class hub_file_lock:
@@ -1410,9 +1428,13 @@ def _hub_list(current):
         x = {"id": pid_of(e["path"]), "path": e["path"], "name": e.get("name") or os.path.basename(e["path"]),
              "folder": os.path.basename(e["path"]), "added": e.get("added"), "opened": e.get("opened"), "found": bool(e.get("found")),
              "current": rp == os.path.realpath(current), "content": e.get("content")}
+        k = stack_of(d, e["path"])
+        x["stack"] = k["id"] if k else None
         x.update(project_info(e["path"]))
         out.append(x)
-    return {"projects": out, "roots": d["roots"], "newIn": d.get("newIn") or default_new_in(), "platform": sys.platform,
+    stacks = [{"id": k["id"], "name": k["name"], "added": k.get("added"),
+               "ids": [x["id"] for x in out if x["stack"] == k["id"]]} for k in d["stacks"]]
+    return {"projects": out, "stacks": stacks, "roots": d["roots"], "newIn": d.get("newIn") or default_new_in(), "platform": sys.platform,
             "contentHome": d.get("contentHome") or CONTENT_HOME}
 
 
@@ -1427,6 +1449,40 @@ def hub_find(pid):
         if x["id"] == pid:
             return x
     return None
+
+
+def hub_stack(act, body):
+    """Stacks: groups of projects made by hand in the Hub. Deleting a stack keeps its projects (they go back to the grid)."""
+    known = {x["id"]: x["path"] for x in hub_list(H.st.video, fresh=False)["projects"]} if act == "stackCreate" else {}
+    with hub_file_lock():
+        d = hub_load()
+        if act == "stackCreate":
+            name = clean_name(body.get("name"))
+            if not name:
+                return 400, {"error": "Use a name without / \\ : * ? \" < > |"}
+            if any(k["name"].casefold() == name.casefold() for k in d["stacks"]):
+                return 409, {"error": f"There's already a stack called {name}"}
+            k = {"id": uuid.uuid4().hex[:10], "name": name, "paths": [], "added": datetime.now().isoformat(timespec="seconds")}
+            d["stacks"].append(k)
+            for pid in body.get("ids") or []:
+                if pid in known:
+                    stack_put(d, known[pid], k["id"])
+            hub_save(d)
+            return 200, {"id": k["id"]}
+        k = next((k for k in d["stacks"] if k["id"] == str(body.get("stack") or "")), None)
+        if not k:
+            return 404, {"error": "That stack isn't there any more"}
+        if act == "stackRename":
+            name = clean_name(body.get("name"))
+            if not name:
+                return 400, {"error": "Use a name without / \\ : * ? \" < > |"}
+            if any(o is not k and o["name"].casefold() == name.casefold() for o in d["stacks"]):
+                return 409, {"error": f"There's already a stack called {name}"}
+            k["name"] = name
+        else:
+            d["stacks"] = [o for o in d["stacks"] if o is not k]
+        hub_save(d)
+        return 200, {"ok": True}
 
 
 def hub_action(body):
@@ -1477,6 +1533,8 @@ def hub_action(body):
             d = hub_load(); d["newIn"] = where; hub_save(d)
         e = hub_add(path, name=name)
         return 200, {"id": pid_of(e["path"]), "path": e["path"]}
+    if act in ("stackCreate", "stackRename", "stackDelete"):
+        return hub_stack(act, body)
     pid = str(body.get("id") or "")
     x = hub_find(pid)
     if not x:
@@ -1500,6 +1558,15 @@ def hub_action(body):
             return 400, {"error": "Paste a link that starts with https://"}
         hub_add(x["path"], content=clean_url(u) or "")
         return 200, {"ok": True}
+    if act == "stack":   # move this project into a stack ("" or null takes it out)
+        sid = str(body.get("stack") or "") or None
+        with hub_file_lock():
+            d = hub_load()
+            if sid and not any(k["id"] == sid for k in d["stacks"]):
+                return 404, {"error": "That stack isn't there any more"}
+            stack_put(d, x["path"], sid)
+            hub_save(d)
+        return 200, {"ok": True}
     if act == "rename":
         name = clean_name(body.get("name"))
         if not name:
@@ -1514,13 +1581,14 @@ def hub_action(body):
             if why:
                 return 409, {"error": why}
             try:
-                move_to_trash(rp)
+                move_to_trash(os.path.realpath(x["path"]))
             except Exception as ex:
                 return 500, {"error": str(ex)}
         with hub_file_lock():
             d = hub_load()
             rp = os.path.realpath(x["path"])
             d["projects"] = [p for p in d["projects"] if os.path.realpath(p.get("path", "")) != rp]
+            stack_put(d, x["path"], None)
             if act == "remove":   # so a watched folder doesn't bring it straight back
                 d["hidden"] = sorted(set(d["hidden"]) | {x["path"]})
             hub_save(d)
