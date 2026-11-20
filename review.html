@@ -122,6 +122,7 @@
   #frame > #elsel { z-index: 3; pointer-events: none; display: none; inset: auto; width: auto; height: auto; outline: 1.5px solid var(--accent); outline-offset: 0; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   #elsel i { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid #111; border-radius: 2px; }
   #elsel i[data-h="0"] { left: -5px; top: -5px; } #elsel i[data-h="1"] { right: -5px; top: -5px; } #elsel i[data-h="2"] { right: -5px; bottom: -5px; } #elsel i[data-h="3"] { left: -5px; bottom: -5px; }
+  #elsel.in span { top: 6px; left: 6px; }
   #elsel span { position: absolute; left: -1px; top: -24px; background: var(--accent); color: var(--accent-ink); font: 600 11px/1 -apple-system, system-ui, sans-serif; padding: 4px 7px; border-radius: 5px; white-space: nowrap; }
   /* drawing toolbar */
   #frame > #ink { z-index: 3; pointer-events: auto; touch-action: none; }
@@ -297,6 +298,13 @@
   #play svg { width: 16px; height: 16px; }
   #tlbar { display: flex; align-items: center; gap: 8px; padding: 0 12px 8px; flex-wrap: wrap; }
   #tlbar .sp { flex: 1; }
+  .cpy { position: relative; }
+  .cpy svg { transition: opacity .25s ease, transform .45s cubic-bezier(.22,1.4,.36,1); }
+  .cpy .c2 { position: absolute; left: 50%; top: 50%; margin: 0; translate: -50% -50%; opacity: 0; transform: scale(.3) rotate(-45deg); color: #1fb35a; }
+  .cpy .c2 use { stroke-width: 2.6; }
+  .cpy.done .c1 { opacity: 0; transform: scale(.4) rotate(20deg); }
+  .cpy.done .c2 { opacity: 1; transform: none; }
+  .cpy.done { background: rgba(31,179,90,.12); border-color: rgba(31,179,90,.35); transition: background .25s, border-color .25s; }
   #tlbar .dd.off { opacity: .45; pointer-events: none; }
   #tlbar.compact .seg button kbd { display: none; }
   #tlbar.compact #tlTools button, #tlbar.compact #tlTrimS, #tlbar.compact #tlTrimE, #tlbar.compact #tlSplit, #tlbar.compact #tlDel { font-size: 0; gap: 0; padding: 0 9px; }
@@ -443,7 +451,7 @@
     </div>
     <div id="notesHead">
       <h2>Notes <span class="badge" id="count">0</span></h2><span class="sp"></span>
-      <button class="ib icon" id="copy" title="Copy this version's open notes as text"><svg><use href="#i-copy"/></svg></button>
+      <button class="ib icon cpy" id="copy" title="Copy this version's open notes as text"><svg class="c1"><use href="#i-copy"/></svg><svg class="c2"><use href="#i-check"/></svg></button>
     </div>
     <div id="notesFilters">
       <div class="seg" id="fStatus"><button data-f="open" class="on">Open</button><button data-f="done">Done</button><button data-f="all">All</button></div>
@@ -519,7 +527,15 @@ const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return
 const api = (p, body) => fetch(p, body ? { method: "POST", headers: { "Content-Type": "application/json", "X-Cutnote-Project": (S.info && S.info.project) || "" }, body: JSON.stringify(body) } : {})
   .then(r => { if (r.status === 409 && r.headers.get("X-Cutnote-Stale")) { location.replace(location.pathname); throw new Error("This tab was showing another project"); } return r.json(); });
 function toast(msg) { const el = $("#toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 1800); }
-function err(msg) { const el = $("#err"); el.textContent = msg || ""; el.style.display = msg ? "block" : "none"; }
+function err(msg) {
+  const el = $("#err"); el.textContent = msg || ""; el.style.display = msg ? "block" : "none";
+  // the serious ones get the help card: what happened, steps, and a prompt for Claude
+  if (!msg || !window.CutnoteProblem) return;
+  const comp = S.comp && S.comp.label;
+  if (/^No (compositions|versions)/.test(msg)) CutnoteProblem("empty");
+  else if (/HyperFrames player not found/.test(msg)) CutnoteProblem("player");
+  else if (/^Can't play|^Player (error|playbackerror)/.test(msg)) CutnoteProblem("play", { comp, detail: msg.replace(/^Player \w+: ?/, "").slice(0, 200) });
+}
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ico = id => `<svg><use href="#i-${id}"/></svg>`;
 
@@ -813,8 +829,19 @@ $("#copy").onclick = () => {
   const list = S.notes.filter(n => n.status !== "done" && n.comp === (S.comp && S.comp.id)).sort((a, b) => a.t - b.t);
   const txt = `Review notes for ${S.info.video}, ${S.comp.label} (${S.info.notes}):\n` +
     list.map(n => `- ${fmt(n.t)}${n.end != null ? "–" + fmt(n.end) : ""} [${n.kind}] ${n.text}`).join("\n");
-  navigator.clipboard.writeText(txt).then(() => toast("Copied " + list.length + " notes"), () => toast("Copy failed"));
+  navigator.clipboard.writeText(txt).then(() => { copyTick($("#copy")); toast("Copied " + list.length + " notes"); }, () => toast("Copy failed"));
 };
+// any copy button: the copy icon turns into a tick, then eases back
+function copyTick(btn) {
+  if (!btn) return;
+  if (!btn.classList.contains("cpy")) {   // give it the two icons the first time
+    const icon = btn.querySelector("svg"); if (!icon) return;
+    icon.classList.add("c1"); icon.insertAdjacentHTML("afterend", '<svg class="c2"><use href="#i-check"/></svg>'); btn.classList.add("cpy");
+  }
+  clearTimeout(btn._cpT); btn.classList.remove("done"); void btn.offsetWidth; btn.classList.add("done");
+  btn._cpT = setTimeout(() => btn.classList.remove("done"), 1600);
+}
+window.copyTick = copyTick;
 
 /* ---------- drawing on the frame: scribble + box, any colour; select, move, resize, delete; saved with the note ---------- */
 const COLORS = ["#ff3b30", "#ffcc00", "#c6f432", "#34c7ff", "#ff4fd8", "#ffffff", "#111111"];
@@ -1008,13 +1035,13 @@ function inspEdit(key, patch, live) {
   if (!key) return;
   if (!IN.begun) { tlBegin(); IN.begun = true; }
   const g = feGeom(), kel = g && feResolve(key, g.fr.d);
-  feSet(key, patch, kel ? feName(kel) : IN.name);
-  if (live) { const fr = compFrame(); if (fr) applyFrameEdits(fr); } else { IN.begun = false; tlCommit(); }
+  feSet(key, patch, isMainKey(key) ? "Your footage" : kel ? feName(kel) : IN.name);
+  if (live) { const fr = compFrame(); if (fr) applyFrameEdits(fr); else applyVideoFe(); } else { IN.begun = false; tlCommit(); }
 }
 function inspCommit() { if (IN.begun) { IN.begun = false; tlCommit(); } if (TL.needSync) setTimeout(tlSync, 0); }
 function inspOpen(on) { $("#insp").classList.toggle("on", on); }
 function renderInsp() {
-  const key = FE.sel, open = !!key && S.comp && S.comp.kind === "code" && INK.tool === "select";
+  const key = FE.sel, open = !!key && S.comp && (S.comp.kind === "code" || key === "@main") && INK.tool === "select";
   if (!open) { if (IN.key) { inspCommit(); IN.key = null; IN.sig = ""; } inspOpen(false); return; }
   const g = feGeom(), el = g && feResolve(key, g.fr.d);
   const tk = FE.textKey && FE.textFor === key ? FE.textKey : (el && feText0(el) ? key : null);
@@ -1023,7 +1050,7 @@ function renderInsp() {
   const sig = [key, tk, JSON.stringify(o), JSON.stringify(to), vis].join("|");
   if (sig === IN.sig && IN.key === key) return;
   if (IN.key !== key) inspCommit();
-  IN.key = key; IN.tk = tk; IN.sig = sig; IN.name = el ? feName(el) : key;
+  IN.key = key; IN.tk = tk; IN.sig = sig; IN.name = isMainKey(key) ? "Your footage" : el ? feName(el) : key;
   inspOpen(true);
   $("#inspName").textContent = IN.name;
   const tel = tk && g ? feResolve(tk, g.fr.d) : null;
@@ -1372,6 +1399,7 @@ document.addEventListener("DOMContentLoaded", init);
   })();
 </script>
 <script src="/library.js"></script>
+<script src="/clipfx.js"></script>
 <script src="/sfx.js"></script>
 <script src="/hub.js"></script>
 <script src="/update.js"></script>

@@ -49,13 +49,13 @@
   #brandPop .tile.dark.mk { color: var(--accent); } #brandPop .tile.dark .mk-hub path { fill: var(--ink); }
   #hub .hb-brand span { color: var(--dim); font-weight: 600; }
   #hub .sp { flex: 1; }
-  #hub .hb-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 600 12.5px -apple-system, system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
-  #hub .hb-btn:hover { border-color: var(--line-2); background: var(--raise); }
-  #hub .hb-btn svg { width: 14px; height: 14px; }
-  #hub .hb-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  #hub .hb-btn.primary:hover { filter: brightness(.97); }
-  #hub .hb-btn.ghost { border-color: transparent; color: var(--dim); }
-  #hub .hb-btn.ghost:hover { color: var(--ink); background: var(--hover); }
+  .hb-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 600 12.5px -apple-system, system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
+  .hb-btn:hover { border-color: var(--line-2); background: var(--raise); }
+  .hb-btn svg { width: 14px; height: 14px; }
+  .hb-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .hb-btn.primary:hover { filter: brightness(.97); }
+  .hb-btn.ghost { border-color: transparent; color: var(--dim); }
+  .hb-btn.ghost:hover { color: var(--ink); background: var(--hover); }
   #hub .hb-search { position: relative; width: min(320px, 30vw); }
   #hub .hb-search svg { position: absolute; left: 11px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
   #hub .hb-search input { width: 100%; height: 34px; padding: 0 12px 0 33px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 13px; }
@@ -69,14 +69,14 @@
   #hub .hb-sort button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
   #hub .hb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; max-width: 1400px; margin: 0 auto; }
   .hb-card { position: relative; display: flex; flex-direction: column; border-radius: 16px; background: var(--panel); box-shadow: 0 0 0 1px var(--line); cursor: pointer; text-align: left;
-    transition: box-shadow .45s cubic-bezier(.22,1,.36,1), transform .55s cubic-bezier(.22,1,.36,1); animation: hbIn .35s cubic-bezier(.22,1,.36,1) both; will-change: transform; }
+    transition: box-shadow .45s cubic-bezier(.22,1,.36,1), transform .55s cubic-bezier(.22,1,.36,1); animation: hbIn .4s cubic-bezier(.22,1,.36,1) backwards; will-change: transform; }
   /* hover: a slow lift and a lime neon edge */
   .hb-card:hover, .hb-card:focus-visible { outline: none; transform: translateY(-6px);
     box-shadow: 0 0 0 2px var(--accent), 0 0 18px 2px rgba(198,244,50,.55), 0 0 46px 6px rgba(198,244,50,.22), 0 22px 44px rgba(0,0,0,.16); }
   .hb-card.cur { box-shadow: 0 0 0 2px var(--accent); }
   .hb-card.missing:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 16px 40px rgba(0,0,0,.12); }
   .hb-card.missing { opacity: .6; }
-  @keyframes hbIn { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes hbIn { from { opacity: 0; translate: 0 10px; } }
   .hb-pic { position: relative; aspect-ratio: 4 / 5; border-radius: 16px 16px 0 0; overflow: hidden; background: linear-gradient(150deg, var(--panel-2), var(--raise)); }
   .hb-pic img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s cubic-bezier(.22,1,.36,1); }
   .hb-card:hover .hb-pic img { transform: scale(1.03); }
@@ -126,27 +126,46 @@
   .hb-menu .danger, .hb-menu .danger svg { color: #e5484d; }
   .hb-modal { position: fixed; inset: 0; z-index: 340; display: grid; place-items: center; background: rgba(10,12,18,.45); backdrop-filter: blur(4px); animation: hbFade .18s ease both; }
   @keyframes hbFade { from { opacity: 0; } }
-  .hb-dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; border-radius: 20px; background: var(--panel); box-shadow: 0 30px 80px rgba(0,0,0,.35); padding: 22px; animation: hbPop .26s cubic-bezier(.22,1,.36,1) both; }
+  /* sheets: one compact card, never scrolling, with a soft lime edge like the rest of Cutnote */
+  .hb-dlg { position: relative; width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: hidden; border-radius: 20px; background: var(--panel); padding: 20px;
+    box-shadow: 0 0 0 1px rgba(198,244,50,.55), 0 0 30px rgba(198,244,50,.18), 0 30px 80px rgba(0,0,0,.35); animation: hbPop .3s cubic-bezier(.22,1,.36,1) both; }
+  .hb-dlg .hb-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .hb-dlg .hb-hd i { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-style: normal; box-shadow: 0 6px 16px rgba(120,160,0,.3); }
+  .hb-dlg .hb-hd i svg { width: 19px; height: 19px; }
+  .hb-dlg .hb-hd h3 { margin: 0; } .hb-dlg .hb-hd p { margin: 1px 0 0; color: var(--dim); font-size: 12.5px; line-height: 1.4; }
+  .hb-x { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 9px; border: 0; background: none; color: var(--dim); cursor: pointer; font-size: 15px; }
+  .hb-x:hover { background: var(--hover); color: var(--ink); }
   @keyframes hbPop { from { opacity: 0; transform: translateY(10px) scale(.98); } }
   .hb-dlg h3 { margin: 0 0 4px; font-size: 18px; font-weight: 750; letter-spacing: -.01em; }
   .hb-dlg > p { margin: 0 0 16px; color: var(--dim); font-size: 13px; line-height: 1.45; }
-  .hb-dlg label.f { display: grid; gap: 6px; margin-bottom: 14px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  .hb-dlg label.f { display: grid; gap: 6px; min-width: 0; margin-bottom: 12px; font-size: 12px; font-weight: 600; color: var(--dim); }
+  .hb-dlg label.f small { font-weight: 500; color: var(--faint); }
   .hb-dlg input[type=text] { height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 14px; }
   .hb-dlg input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--panel); }
-  .hb-where { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 12.5px; font-weight: 500; }
+  .hb-where { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 6px 6px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 12.5px; font-weight: 500; }
   .hb-where span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
-  .hb-drop { display: grid; place-items: center; gap: 6px; padding: 22px 14px; border-radius: 14px; border: 1.5px dashed var(--line-2); color: var(--dim); font-size: 13px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .hb-drop { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 12px; border: 1.5px dashed var(--line-2); color: var(--dim); font-size: 12.5px; text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
   .hb-drop.over, .hb-drop:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
   .hb-drop svg { width: 22px; height: 22px; }
-  .hb-files { display: grid; gap: 4px; margin-top: 8px; font-size: 12px; color: var(--dim); }
+  .hb-files { display: grid; gap: 4px; margin-top: 6px; max-height: 92px; overflow: auto; font-size: 12px; color: var(--dim); }
+  .hb-files:empty { display: none; }
   .hb-files div { display: flex; gap: 8px; align-items: center; } .hb-files b { color: var(--ink); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hb-files i { font-style: normal; font-variant-numeric: tabular-nums; }
   .hb-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
   .hb-btn.danger { background: #e5484d !important; border-color: #e5484d !important; color: #fff !important; }
-  .hb-roots { display: grid; gap: 6px; margin: 4px 0 6px; }
-  .hb-roots div { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12.5px; }
-  .hb-roots span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
-  .hb-roots button { border: 0; background: none; color: var(--dim); cursor: pointer; font-size: 15px; padding: 0 4px; }
+  .hb-roots { display: grid; gap: 6px; margin: 2px 0 4px; max-height: 236px; overflow: auto; }
+  .hb-root { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); transition: border-color .15s; }
+  .hb-root:hover { border-color: var(--line-2); }
+  .hb-root .ic { flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text, var(--ink)); }
+  .hb-root .ic svg { width: 16px; height: 16px; }
+  .hb-root .tx { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .hb-root .tx b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hb-root .tx small { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hb-root .n { flex: none; font-size: 11.5px; font-weight: 600; color: var(--dim); padding: 3px 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+  .hb-root button { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 0; background: none; color: var(--faint); cursor: pointer; font-size: 13px; }
+  .hb-root button:hover { background: #e5484d18; color: #e5484d; }
+  .hb-empty2 svg { width: 26px; height: 26px; color: var(--faint); }
+  .hb-empty2 { display: grid; place-items: center; gap: 6px; padding: 22px; border-radius: 12px; border: 1.5px dashed var(--line-2); color: var(--dim); font-size: 12.5px; text-align: center; }
   .hb-err { color: #e5484d; font-size: 12.5px; margin-top: -6px; margin-bottom: 10px; min-height: 0; }
   @media (max-width: 720px) { #hub .hb-search { display: none; } #hub .hb-top .lbl { display: none; } }
   @media (prefers-reduced-motion: reduce) { #hub, .hb-card, .hb-dlg, .hb-modal { transition: none; animation: none; } }`;
@@ -289,7 +308,7 @@
   async function open(p) {
     if (!p) return;
     if (p.current) return H.show(false);
-    if (!p.exists) return say("Its folder is missing. Is the drive connected?");
+    if (!p.exists) return window.CutnoteProblem("missing", { name: p.name, path: p.path, id: p.id });
     try { await api({ action: "open", id: p.id }); } catch (e) { return say(e.message); }
     try { sessionStorage.removeItem("cutnote:resume"); } catch {}
     location.replace(location.pathname);
@@ -343,12 +362,13 @@
 
   /* dialogs */
   function modal(html) {
-    const m = document.createElement("div"); m.className = "hb-modal"; m.innerHTML = `<div class="hb-dlg" role="dialog" aria-modal="true">${html}</div>`;
+    const m = document.createElement("div"); m.className = "hb-modal"; m.innerHTML = `<div class="hb-dlg" role="dialog" aria-modal="true"><button type="button" class="hb-x" aria-label="Close">✕</button>${html}</div>`;
     document.body.appendChild(m);
     const close = () => { m.remove(); document.removeEventListener("keydown", key, true); };
     const key = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
     document.addEventListener("keydown", key, true);
     m.addEventListener("pointerdown", e => { if (e.target === m) close(); });
+    m.querySelector(".hb-x").onclick = () => close();
     return { el: m.firstElementChild, close };
   }
   function linkContent(p) {
@@ -373,19 +393,20 @@
   async function pick(prompt) { try { return (await api({ action: "pick", prompt })).path; } catch { return null; } }
   function newProject() {
     let where = (H.data && H.data.newIn) || "", files = [];
-    const d = modal(`<h3>New project</h3><p>Cutnote makes a folder for it with <b>Footage</b> and <b>Exports</b> inside, and adds it here. Your AI assistant saves the projects it makes here too.</p>
+    const short = p => { const xs = p.split(/[\\/]/).filter(Boolean); return xs.length > 2 ? "…/" + xs.slice(-2).join("/") : p; };
+    const d = modal(`<div class="hb-hd"><i>${I.plus}</i><div><h3>New project</h3><p>A folder with Footage and Exports, added to your Hub.</p></div></div>
       <label class="f">Name<input type="text" data-n placeholder="e.g. Product launch video" maxlength="80" autocomplete="off"></label>
       <div class="hb-err" data-e></div>
-      <label class="f">Save in<div class="hb-where"><span data-w title="${esc(where)}">${esc(where)}</span><button type="button" class="hb-btn" data-c>Change…</button></div></label>
-      <label class="f">Footage <span style="font-weight:500;color:var(--faint)">(optional, copied in, your originals stay where they are)</span>
-        <div class="hb-drop" data-d tabindex="0">${I.upload}<span>Drop videos, sounds or pictures here, or click to choose</span></div><input type="file" multiple accept="video/*,audio/*,image/*" hidden data-f>
+      <label class="f">Save in<div class="hb-where"><span data-w title="${esc(where)}" style="direction:ltr">${esc(short(where))}</span><button type="button" class="hb-btn" data-c>Change…</button></div></label>
+      <label class="f">Footage <small>optional · copied in, your originals stay put</small>
+        <div class="hb-drop" data-d tabindex="0">${I.upload}<span>Drop videos, sounds or pictures, or click to choose</span></div><input type="file" multiple accept="video/*,audio/*,image/*" hidden data-f>
         <div class="hb-files" data-l></div></label>
       <div class="hb-acts"><button type="button" class="hb-btn ghost" data-x>Cancel</button><button type="button" class="hb-btn primary" data-go>Create project</button></div>`);
     const $d = s => d.el.querySelector(s), nameIn = $d("[data-n]"), err = $d("[data-e]");
     setTimeout(() => nameIn.focus(), 30);
     nameIn.onkeydown = e => { e.stopPropagation(); if (e.key === "Enter") $d("[data-go]").click(); };
     $d("[data-x]").onclick = d.close;
-    $d("[data-c]").onclick = async () => { const p = await pick("new"); if (p) { where = p; $d("[data-w]").textContent = p; $d("[data-w]").title = p; } };
+    $d("[data-c]").onclick = async () => { const p = await pick("new"); if (p) { where = p; $d("[data-w]").textContent = short(p); $d("[data-w]").title = p; } };
     const list = () => { $d("[data-l]").innerHTML = files.map((f, i) => `<div><b>${esc(f.name)}</b><i data-p="${i}">${(f.size / 1048576).toFixed(f.size > 1048576 * 100 ? 0 : 1)} MB</i></div>`).join(""); };
     const add = fl => { for (const f of fl) if (/^(video|audio|image)\//.test(f.type) || /\.(mp4|mov|m4v|webm|mkv|avi|mp3|wav|m4a|aac|png|jpe?g|heic|webp|gif)$/i.test(f.name)) files.push(f); list(); };
     const drop = $d("[data-d]");
@@ -418,15 +439,89 @@
     });
   }
   function roots() {
-    const d = modal(`<h3>Folders the Hub watches</h3><p>Any project inside these folders (a folder holding a <b>Project</b> folder) shows up here by itself. Projects you open or create are always added.</p>
+    const d = modal(`<div class="hb-hd"><i>${I.folder}</i><div><h3>Watched folders</h3><p>New projects in these folders show up in your Hub by themselves.</p></div></div>
       <div class="hb-roots" data-r></div>
-      <div class="hb-acts" style="justify-content:space-between"><button type="button" class="hb-btn" data-add>${I.plus}Add a folder…</button><button type="button" class="hb-btn primary" data-x>Done</button></div>`);
-    const paintR = () => { const rs = (H.data && H.data.roots) || []; d.el.querySelector("[data-r]").innerHTML = rs.length ? rs.map((r, i) => `<div><span title="${esc(r)}">${esc(r)}</span><button type="button" data-rm="${i}" aria-label="Stop watching">✕</button></div>`).join("") : `<div style="justify-content:center;color:var(--faint)">None yet</div>`; };
+      <div class="hb-acts" style="justify-content:space-between;margin-top:14px"><button type="button" class="hb-btn" data-add>${I.plus}Add a folder…</button><button type="button" class="hb-btn primary" data-x>Done</button></div>`);
+    const count = r => ((H.data && H.data.projects) || []).filter(p => p.path === r || p.path.startsWith(r.replace(/\/$/, "") + "/")).length;
+    const paintR = () => {
+      const rs = (H.data && H.data.roots) || [];
+      d.el.querySelector("[data-r]").innerHTML = rs.length ? rs.map((r, i) => { const parts = r.split(/[\\/]/).filter(Boolean), n = count(r);
+        return `<div class="hb-root"><span class="ic">${I.folder}</span><span class="tx"><b>${esc(parts[parts.length - 1] || r)}</b><small title="${esc(r)}">${esc(parts.slice(0, -1).join(" › ") || "/")}</small></span>
+          <span class="n">${n} project${n === 1 ? "" : "s"}</span><button type="button" data-rm="${i}" title="Stop watching this folder" aria-label="Stop watching">✕</button></div>`; }).join("")
+        : `<div class="hb-empty2">${I.folder}<span>No folders yet. Add the folder you keep your videos in.</span></div>`;
+    };
     paintR();
     d.el.querySelector("[data-x]").onclick = () => { d.close(); load(); };
     d.el.querySelector("[data-add]").onclick = async () => { const p = await pick("roots"); if (!p) return; try { await api({ action: "addRoot", path: p }); await load(); paintR(); } catch (e) { say(e.message); } };
     d.el.querySelector("[data-r]").onclick = async e => { const b = e.target.closest("[data-rm]"); if (!b) return; try { await api({ action: "removeRoot", path: H.data.roots[+b.dataset.rm] }); await load(); paintR(); } catch (err) { say(err.message); } };
   }
+
+  /* ---------- when a project can't load: what happened, steps to fix it, and a prompt to paste into Claude ---------- */
+  const pcss = `
+  .hb-prob { width: min(520px, calc(100vw - 32px)); }
+  .hb-prob .hb-hd i { background: #ffb340; color: #2a1500; box-shadow: 0 6px 18px rgba(255,170,40,.35); }
+  .hb-prob ol { margin: 4px 0 12px; padding: 0; list-style: none; display: grid; gap: 8px; counter-reset: s; }
+  .hb-prob li { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); counter-increment: s; }
+  .hb-prob li::before { content: counter(s); flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text, var(--ink)); font-size: 11px; font-weight: 800; }
+  .hb-prob li code { font-size: 11.5px; padding: 1px 5px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); }
+  .hb-prob .path { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 7px 7px 7px 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font: 500 11.5px ui-monospace, SF Mono, Menlo, monospace; color: var(--dim); }
+  .hb-prob .path span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hb-prob .ask { border-radius: 12px; border: 1px solid rgba(198,244,50,.6); background: linear-gradient(180deg, var(--accent-soft), transparent 120%); padding: 10px 10px 10px 12px; }
+  .hb-prob .ask .t { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .hb-prob .ask .t .hb-btn { margin-left: auto; height: 28px; }
+  .hb-prob .ask p { margin: 0; font: 500 11.5px/1.5 ui-monospace, SF Mono, Menlo, monospace; color: var(--dim); white-space: pre-wrap; }
+  .hb-btn.cpy .c2 { color: #1fb35a; }`;
+  const pst = document.createElement("style"); pst.textContent = pcss; document.head.appendChild(pst);
+  const PROBLEMS = {
+    empty: (x) => ({ t: "Nothing to play in this project", what: "Cutnote opened the folder but couldn't find a video or an edit inside it.",
+      steps: ["Check the drive or folder is still there (an external drive may be unplugged or asleep).", "Make sure the video files or the edit's HTML are inside this folder, not somewhere else.", "Paste the prompt below into Claude: it'll look for the files and set the project up again.", "Or open another project from Cutnote Hub."],
+      prompt: `Cutnote opened my project folder at "${x.path}" but found nothing to play (no video files and no HyperFrames composition). Please look inside it and its subfolders (Footage/, Project/<name> Edit/, Exports/) and tell me what's there. If the files were moved, find where they are now and put things back so Cutnote can open it. If there's footage but no edit yet, set the edit up. Don't delete or rename anything without asking me.` }),
+    play: (x) => ({ t: "This video won't play", what: `Cutnote found the project, but the browser can't play ${x.comp ? "“" + x.comp + "”" : "this version"}.` + (x.detail ? ` It said: ${x.detail}` : ""),
+      steps: ["Try another version from the version menu at the top.", "If the file is still being written or rendered, wait for it to finish, then reload.", "Some formats don't play in browsers: an MP4 (H.264 video, AAC audio) always does.", "Paste the prompt below into Claude to check the file and convert it if needed."],
+      prompt: `Cutnote can't play "${x.comp || "a version"}" in my project at "${x.path}".${x.detail ? ` The error was: ${x.detail}.` : ""} Please check the file (is it complete, not corrupt, which codecs it uses with ffprobe). If it's a format browsers can't play, make a browser-friendly copy next to it (MP4, H.264 + AAC) without touching the original, and tell me what you found. If it's a HyperFrames composition, run its checks and fix what's broken.` }),
+    player: (x) => ({ t: "The video player isn't installed", what: "Cutnote plays edits with the HyperFrames player, and it couldn't find it on this computer.",
+      steps: ["Open a terminal and run <code>npx hyperframes --version</code> once: it downloads the player.", "Reload this page.", "Still stuck? Run <code>python3 review.py --doctor</code> to see what's missing, or paste the prompt below into Claude."],
+      prompt: `Cutnote says the HyperFrames player isn't installed on my computer, so it can't play my edits. Please check Node.js and npx work, run "npx hyperframes --version" to install the player, then run Cutnote's "review.py --doctor" and fix anything it reports. My project is at "${x.path}".` }),
+    slow: (x) => ({ t: "This is taking a while to load", what: "The project opened, but its video still hasn't loaded.",
+      steps: ["If it's on an external drive, check it's plugged in and awake.", "Very large or long videos can take a moment: give it a few seconds more.", "Reload the page, or try another version from the menu at the top.", "Paste the prompt below into Claude to find out why."],
+      prompt: `Cutnote opened my project at "${x.path}" but the video never finishes loading. Please check the files are all there and readable, that the version I'm opening isn't broken or huge, and that Cutnote's server is running without errors. Tell me what's wrong and fix it if you can, without deleting anything.` }),
+    missing: (x) => ({ t: "That project's folder is missing", what: `Cutnote can't find “${x.name || "this project"}” where it was.`,
+      steps: ["If it's on an external drive, plug it in and try again.", "If you moved the folder, open it from its new place, or ask Claude to find it.", "If it's gone for good, remove it from the Hub with ⋯ › Remove from Hub."],
+      prompt: `My Cutnote project "${x.name || ""}" used to be at "${x.path}" and Cutnote can't find it now. Please search my drives for that folder (it may have been moved or renamed), tell me where it is, and add it back to Cutnote Hub with: python3 review.py --add "<the folder>" "${x.name || ""}". Don't move or delete anything.` }),
+  };
+  let probOpen = false;
+  window.CutnoteProblem = (kind, x = {}) => {
+    if (probOpen || !PROBLEMS[kind]) return;
+    probOpen = true;
+    const X = Object.assign({ path: (typeof S !== "undefined" && S.info && S.info.root) || "" }, x), P = PROBLEMS[kind](X);
+    const d = modal(`<div class="hb-hd"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5v.5"/><path d="M10.3 3.9L2.6 17.5A2 2 0 004.3 20.5h15.4a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" stroke-linejoin="round"/></svg></i><div><h3>${esc(P.t)}</h3><p>${esc(P.what)}</p></div></div>
+      ${X.path ? `<div class="path"><span title="${esc(X.path)}">${esc(X.path)}</span></div>` : ""}
+      <ol>${P.steps.map(t => `<li><span>${t}</span></li>`).join("")}</ol>
+      <div class="ask"><div class="t">${LOGO_EDITOR.replace('class="mk-ed"', 'class="mk-ed" style="width:16px;height:16px"')}Ask Claude to fix it<button type="button" class="hb-btn cpy" data-cp><svg class="c1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg><svg class="c2" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Copy prompt</button></div><p>${esc(P.prompt)}</p></div>
+      <div class="hb-acts"><button type="button" class="hb-btn ghost" data-reload>Try again</button><button type="button" class="hb-btn" data-reveal>Show the folder</button><button type="button" class="hb-btn primary" data-hub>${LOGO_HUB.replace('class="mk-hub"', 'class="mk-hub" style="width:15px;height:15px"')}Open Cutnote Hub</button></div>`);
+    d.el.classList.add("hb-prob");
+    const done = () => { probOpen = false; };
+    const close0 = d.close; d.close = () => { done(); close0(); };
+    d.el.querySelector(".hb-x").onclick = d.close;
+    d.el.parentElement.addEventListener("pointerdown", e => { if (e.target === d.el.parentElement) done(); });
+    d.el.querySelector("[data-cp]").onclick = e => navigator.clipboard.writeText(P.prompt).then(() => { (window.copyTick || (() => {}))(e.currentTarget); say("Prompt copied: paste it into Claude"); }, () => say("Couldn't copy: select the text instead"));
+    d.el.querySelector("[data-reload]").onclick = () => location.reload();
+    d.el.querySelector("[data-reveal]").onclick = () => { const id = x.id || (typeof S !== "undefined" && S.info && S.info.project); if (id) api({ action: "reveal", id }).catch(err => say(err.message)); };
+    d.el.querySelector("[data-hub]").onclick = () => { d.close(); H.show(true); };
+  };
+  // an error raised before this file loaded still gets its card
+  { const e0 = document.getElementById("err"); if (e0 && e0.textContent && typeof err === "function") setTimeout(() => err(e0.textContent), 0); }
+  // nothing playable, or the video never loads: say so instead of leaving a blank editor
+  setTimeout(function watchLoad() {
+    if (typeof S === "undefined" || !S.info) return setTimeout(watchLoad, 500);
+    if (!S.info.comps || !S.info.comps.length) return;   // the "nothing to play" case is reported as it happens
+    const t0 = Date.now();
+    (function wait() {
+      if (S.player && S.player.ready) return;
+      if (Date.now() - t0 > 25000) { if (!document.querySelector("#hub.on, .hb-modal") && !document.body.classList.contains("hub-on")) window.CutnoteProblem("slow"); return; }
+      setTimeout(wait, 1000);
+    })();
+  }, 1500);
 
   /* ---------- the guided tour: a spotlight walks round the Hub; Skip at every step; ends on the way back ---------- */
   const tcss = `

@@ -1,15 +1,11 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "date": "20 Nov 2026",
-  "action": {
-    "label": "Show me round",
-    "run": "tour"
-  },
   "notes": [
-    "Editor walk-round: new to Cutnote? A short tour shows you round the editor, then the Hub. Replay it from the Cutnote menu.",
-    "Content OS on every project: each Hub card has a button that opens the video in Content OS (or Content OS itself).",
-    "Smoother Hub cards: they lift slowly with a lime neon edge and a glowing Open button in the middle.",
-    "Nicer ⋯ menu: it slides open smoothly, and can link a project to Content OS.",
-    "Tidier What's new: this screen now fits on one page."
+    "Right-click the timeline: copy, cut, paste, duplicate, speed, reverse, crop, mirror and extract audio, right where you need them.",
+    "Extract audio: pull a piece's sound onto its own Audio track, then tweak volume, fades, noise and voice clarity in the Sound panel.",
+    "Move your own footage: click it on the frame to drag it or resize it from a corner, like any overlay.",
+    "Help when a project won't load: a card explains what went wrong, gives steps, and a prompt to paste into Claude.",
+    "Tidier everywhere: compact New project and Folders sheets, no clipped names, copy buttons that flip to a tick, smoother Hub cards."
   ]
 }
