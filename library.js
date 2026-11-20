@@ -41,6 +41,7 @@
   .lp-card .pv { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 11px; overflow: hidden; background: var(--panel-2); box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s; pointer-events: none; }
   .lp-card:hover .pv { box-shadow: 0 0 0 1.5px var(--line-2), 0 8px 22px rgba(0,0,0,.12); }
   .lp-card:active { cursor: grabbing; }
+  .lp-card:focus, .lp-row:focus { outline: none; }
   .lp-card b { display: block; font-size: 12.5px; font-weight: 600; margin: 7px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .lp-card small { display: block; font-size: 11px; color: var(--faint); margin: 1px 2px 0; }
   .lp-card .add svg { width: 14px; height: 14px; display: block; }
@@ -65,7 +66,8 @@
   @keyframes lpBack { from { opacity: 0; transform: translateX(-14px); } }
   @media (prefers-reduced-motion: reduce) { .lp-det, .lp-body.back > * { animation: none; } }
   .lp-det .back { height: 28px; padding: 0 10px 0 8px; margin-bottom: 12px; font-size: 12px; }
-  .lp-det .big { width: 100%; margin: 0 0 14px; }
+  .lp-det .big { width: 100%; margin: 0 0 14px; min-height: 40px; }
+  .lp-det .big .vl-pv, .lp-card .vl-pv, .lp-row .vl-pv { text-rendering: geometricPrecision; }
   .lp-det h2 { margin: 0 0 4px; font-size: 15px; }
   .lp-det p { margin: 0 0 12px; color: var(--dim); font-size: 12.5px; }
   .lp-det .f { margin: 0 0 9px; }
@@ -82,24 +84,55 @@
   .lp-det .phead .dot { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: #c6f432; box-shadow: 0 0 0 3px rgba(198,244,50,.25); }
   .lp-det .phead .dot.cap { background: #f3a6e6; box-shadow: 0 0 0 3px rgba(243,166,230,.3); }
   .lp-det .phead small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 2px; }
-  .lp-det details.fs { border-top: 1px solid var(--line); padding: 10px 0 4px; }
-  .lp-det details.fs summary { cursor: pointer; list-style: none; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
-  .lp-det details.fs summary::-webkit-details-marker { display: none; }
-  .lp-det details.fs summary::after { content: "▾"; float: right; transition: transform .2s; }
-  .lp-det details.fs:not([open]) summary::after { transform: rotate(-90deg); }
-  .lp-det .fl { display: block; margin: 0 0 10px; }
-  .lp-det .fl > span { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
-  .lp-det .fl.row { display: flex; align-items: center; justify-content: space-between; }
-  .lp-det .fl.row > span { margin: 0; }
-  .lp-det .fl input[type=text], .lp-det .fl textarea, .lp-det .num input { width: 100%; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 8px; padding: 7px 9px; font: 13px/1.4 inherit; }
-  .lp-det .fl textarea { resize: vertical; } .lp-det .fl textarea.mono { font: 11.5px ui-monospace, Menlo, monospace; }
-  .lp-det .fl input:focus, .lp-det .fl textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .lp-det .num { display: flex; align-items: center; gap: 6px; max-width: 140px; } .lp-det .num span { color: var(--dim); font-size: 12px; }
-  .lp-det .rng { display: flex; align-items: center; gap: 12px; } .lp-det .rng input { flex: 1; }
-  .lp-det .rng output { min-width: 40px; height: 26px; padding: 0 6px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); }
-  .lp-det .seg.sm { display: inline-flex; } .lp-det .seg.sm button { height: 28px; padding: 0 12px; text-transform: capitalize; }
-  .lp-det .row2 { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .lp-det .row2 button { flex: 1; }
+  .lp-det .phead { margin: 2px 0 12px; }
+  .lp-det .phead > div { min-width: 0; }
+  .lp-det .phead h2 { overflow-wrap: anywhere; }
+  .lp-det .phead small { line-height: 1.4; }
+  .lp-det .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .lp-det .chips span { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--raise); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lp-det .pvw { position: relative; margin: 0 0 14px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); background: var(--panel-2); }
+  .lp-det .pvw .big { margin: 0; }
+  .lp-det .pvw .tag { position: absolute; left: 8px; top: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(12,13,15,.62); color: #fff; font-size: 10.5px; font-weight: 600; letter-spacing: .02em; pointer-events: none; }
+  /* sections: Content · Timing · Position & size · Style, then Advanced (closed) */
+  .lp-det .fs { margin: 0 0 12px; padding: 12px 12px 2px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
+  .lp-det .fs > h3, .lp-det details.fs > summary { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .lp-det .fs > h3 svg, .lp-det details.fs > summary svg { width: 14px; height: 14px; flex: none; color: var(--faint); }
+  .lp-det details.fs > summary { cursor: pointer; list-style: none; border-radius: 6px; }
+  .lp-det details.fs > summary::-webkit-details-marker { display: none; }
+  .lp-det details.fs > summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border: solid var(--faint); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translate(-2px, -2px); transition: transform .2s; }
+  .lp-det details.fs:not([open]) > summary { margin-bottom: 10px; }
+  .lp-det details.fs:not([open]) > summary::after { transform: rotate(-45deg); }
+  .lp-det .fl { display: block; margin: 0 0 14px; min-width: 0; }
+  .lp-det .fl > .lb { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink); }
+  .lp-det .fl > .lb small { font-size: 11px; font-weight: 500; color: var(--faint); }
+  .lp-det .fl.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .lp-det .fl.row > .lb { margin: 0; }
+  .lp-det .hint { display: block; margin-top: 6px; font-size: 11.5px; line-height: 1.45; color: var(--faint); }
+  .lp-det .fl input[type=text], .lp-det .fl textarea, .lp-det .num input, .lp-det .rng .rv { width: 100%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 9px;
+    padding: 8px 10px; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; transition: border-color .12s, box-shadow .12s; }
+  .lp-det .fl textarea { display: block; resize: vertical; min-height: 38px; max-height: 260px; overflow-wrap: anywhere; field-sizing: content; }
+  .lp-det .fl textarea.one { resize: none; }
+  .lp-det .fl textarea.mono { font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+  .lp-det .fl input:focus, .lp-det .fl textarea:focus, .lp-det .num input:focus, .lp-det .rng .rv:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .lp-det .num { position: relative; display: flex; align-items: center; gap: 8px; max-width: 168px; }
+  .lp-det .num input { padding-right: 26px; font-variant-numeric: tabular-nums; }
+  .lp-det .num .u { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 12px; pointer-events: none; }
+  .lp-det .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .lp-det .two .num { max-width: none; }
+  .lp-det .rng { display: flex; align-items: center; gap: 12px; } .lp-det .rng input[type=range] { flex: 1; min-width: 0; }
+  .lp-det .rng .rv { flex: none; width: 66px; padding: 5px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+  .lp-det .seg.sm { display: inline-flex; flex-wrap: wrap; max-width: 100%; } .lp-det .seg.sm button { height: 28px; padding: 0 12px; text-transform: capitalize; }
+  .lp-det .lp-col { display: inline-flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px 0 6px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+    font: 12px ui-monospace, "SF Mono", Menlo, monospace; text-transform: uppercase; transition: border-color .12s; }
+  .lp-det .lp-col:hover, .lp-det .lp-col.open { border-color: var(--line-2); }
+  .lp-det .lp-col i { width: 22px; height: 22px; border-radius: 6px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(127,127,127,.4); }
+  .lp-det .acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+  .lp-det .acts .ib { height: 28px; padding: 0 10px; font-size: 12px; }
+  .lp-det .acts .ib svg { width: 14px; height: 14px; }
+  .lp-det .row2 { position: sticky; bottom: -16px; z-index: 2; display: flex; gap: 8px; margin: 4px -12px -16px; padding: 12px 12px 16px; background: var(--panel); border-top: 1px solid var(--line); }
+  .lp-det .row2 button { flex: 1; height: 34px; }
   .lp-det .ib.danger { color: var(--fix); }
+  .lp-det .ib.danger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--fix) 45%, transparent); background: color-mix(in srgb, var(--fix) 8%, var(--panel-2)); }
   .lp-cur { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; margin: 12px 0 0; border-radius: 12px; border: 1.5px solid ${PINK}; background: rgba(255,63,216,.07); }
   .lp-cur b { font-size: 12.5px; } .lp-cur small { display: block; color: var(--dim); font-size: 11.5px; }
   .lp-cur button { margin-left: auto; }
@@ -107,11 +140,11 @@
   #libGhost { position: fixed; left: -1000px; top: -1000px; padding: 7px 12px; border-radius: 10px; background: #c6f432; color: #141a00; font: 700 12px -apple-system, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
   #libGhost.cap { background: #f3a6e6; color: #3a0632; }
   /* drop target over the video while dragging */
-  #libDrop { position: absolute; inset: 0; z-index: 30; display: none; align-items: flex-end; justify-content: center; padding-bottom: 18px;
-    border: 2px dashed ${NEON}; border-radius: 10px; background: rgba(57,255,136,.08); }
-  #libDrop span { padding: 6px 12px; border-radius: 16px; background: ${NEON}; color: #04210f; font-size: 12px; font-weight: 700; }
+  #libDrop { position: absolute; inset: 0; z-index: 30; display: none; align-items: flex-end; justify-content: center; padding: 0 12px 18px;
+    border-radius: inherit; background: rgba(57,255,136,.08); box-shadow: inset 0 0 0 2px ${NEON}; }
+  #libDrop span { max-width: 100%; padding: 6px 12px; border-radius: 16px; background: ${NEON}; color: #04210f; font-size: 12px; font-weight: 700; text-align: center; }
   body.lib-drag #libDrop { display: flex; }
-  body.lib-drag.lib-cap #libDrop { border-color: ${PINK}; background: rgba(255,63,216,.08); }
+  body.lib-drag.lib-cap #libDrop { box-shadow: inset 0 0 0 2px ${PINK}; background: rgba(255,63,216,.08); }
   body.lib-drag.lib-cap #libDrop span { background: ${PINK}; color: #fff; }
   body.lib-drag #tlwrap { outline: 2px dashed ${NEON}; outline-offset: -2px; }
   #frame.over #libDrop { background: rgba(57,255,136,.16); }
@@ -144,7 +177,9 @@
     background: #c6f432; color: #141a00; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; }
   .ll-blk.cap { background: #f3a6e6; color: #3a0632; cursor: pointer; }
   .ll-blk:active { cursor: grabbing; }
-  .ll-blk i { font-style: normal; font-weight: 600; opacity: .75; overflow: hidden; text-overflow: ellipsis; }
+  .ll-blk i { font-style: normal; font-weight: 600; opacity: .75; }
+  .ll-blk .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ll-blk.nox { padding-right: 8px; }
   .ll-blk .x { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 4px; border: 0; padding: 0; background: rgba(0,0,0,.18); color: inherit; font-size: 11px; line-height: 16px; cursor: pointer; }
   .ll-blk .rs { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
   .ll-blk.cap .rs { display: none; }
@@ -231,7 +266,7 @@
   }
   addEventListener("resize", slideBar);
   requestAnimationFrame(slideBar);
-  $("#sideTabs").addEventListener("click", e => { const b = e.target.closest("button[data-p]"); if (b) SP.show(b.dataset.p); });
+  $("#sideTabs").addEventListener("click", e => { const b = e.target.closest("button[data-p]"); if (b) { D.pick = false; SP.show(b.dataset.p); } });
 
   /* ---------- loading the runtime + components ---------- */
   function script(src) { return new Promise(res => { const s = document.createElement("script"); s.src = src; s.onload = s.onerror = res; document.head.appendChild(s); }); }
@@ -245,6 +280,9 @@
         return;
       }
       if (!window.gsap) await script("/lib/vendor/gsap.min.js");
+      // previews scale a 1080x1920 design down into a card: forced 3D layers get rastered once and then scaled, which
+      // blurs text mid-animation. 2D transforms repaint at the card's real size (and the screen's pixel density).
+      try { gsap.config({ force3D: false }); } catch (e) {}
       await script("/lib/runtime.js");
       await script("/lib/editor.js");
       VideoLibrary.base = info.base;
@@ -269,15 +307,26 @@
   /* ---------- previews: loop while visible, pause otherwise ---------- */
   let io = null;
   function dropPreviews(pane) {
-    for (const [host, pv] of D.previews) if (P[pane].contains(host)) { pv.destroy(); D.previews.delete(host); }
+    for (const [host, pv] of D.previews) if (P[pane].contains(host)) { pv.destroy(); D.previews.delete(host); ro.unobserve(host); if (io) io.unobserve(host); }
     if (D.ed && P[pane].contains(D.ed.host)) { D.ed.api.destroy(); D.ed = null; }
   }
+  // a preview is built at its card's real width; if the card changes size (pane shown, sidebar resized) it's rebuilt,
+  // never stretched, so it stays sharp
+  const ro = new ResizeObserver(es => {
+    for (const e of es) {
+      const host = e.target, w = Math.round(host.clientWidth), pv = D.previews.get(host);
+      if (!pv || !w || Math.abs(w - (host._pvw || 0)) < 3) continue;
+      clearTimeout(host._pvT); host._pvT = setTimeout(() => { const cur = D.previews.get(host); if (!cur || !host.isConnected) return; cur.destroy(); D.previews.delete(host); mkPreview(host, host._def, host.clientWidth, host._asp); playVisible(); }, 120);
+    }
+  });
   function mkPreview(host, def, width, aspect) {
-    const pv = VideoLibrary.preview(host, def.id, { width, aspect: aspect || 4 / 5, autoplay: false, radius: 0 });
+    if (!def) return;
+    const pv = VideoLibrary.preview(host, def.id, { width: Math.round(width), aspect: aspect || 4 / 5, autoplay: false, radius: 0 });
     if (!pv) return;
+    host._pvw = Math.round(width); host._def = def; host._asp = aspect;
     D.previews.set(host, pv);
     if (!io) io = new IntersectionObserver(es => { es.forEach(e => { e.target._vis = e.isIntersecting; }); playVisible(); });
-    io.observe(host);
+    io.observe(host); ro.observe(host);
   }
   function playVisible() {
     for (const [host, pv] of D.previews) {
@@ -353,28 +402,48 @@
     body.querySelectorAll(".lp-row .pv").forEach(el => mkPreview(el, VideoLibrary.components[el.closest("[data-id]").dataset.id], el.clientWidth || 330, 2.2));
     playVisible();
   }
-  /* ---------- the settings form: simple fields, grouped, the fiddly ones tucked under "More" ---------- */
+  /* ---------- the settings form: clear sections, a label and a short hint per setting, the fiddly ones under Advanced ---------- */
+  const SEC_ICON = {
+    Content: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg>',
+    Timing: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>',
+    Position: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>',
+    Style: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
+    Advanced: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>',
+  };
   const GROUP = p => {
-    if (["text", "longtext", "lines", "image", "color"].includes(p.type)) return "Text";
+    if (["text", "longtext", "lines", "image"].includes(p.type)) return "Content";
     if (["time", "times"].includes(p.type) || /At$|duration/i.test(p.key)) return "Timing";
-    if (["box", "json"].includes(p.type)) return "More";
+    if (p.type === "box" || /^(x|y|cx|cy|left|top)$/i.test(p.key) || /(centre|center) line|position/i.test(p.label || "")) return "Position";
+    if (p.type === "json") return "Advanced";
     return "Style";
   };
+  const unitOf = p => { const m = /\((s|px|%|°)\)\s*$/i.exec(p.label || ""); return m ? m[1] : p.type === "time" || p.type === "times" || p.key === "duration" ? "s" : ""; };
+  const HINTS = {
+    lines: "One line per row. Put [words in brackets] to colour them.",
+    image: "A link to a picture or an .mp4, or a file in the library's preview folder.",
+    time: "Seconds after it starts. Leave it empty to skip this beat.",
+    times: "Seconds after it starts, one per item, separated by commas.",
+    box: "Where it sits on the 1080 × 1920 design: left, top, right, bottom in px.",
+    json: "Raw settings, for fine-tuning by hand.",
+  };
+  let fid = 0;
   function field(p, v) {
-    const k = esc(p.key), lab = esc((p.label || p.key).replace(/\s*\((s|px|[^)]*\[[^)]*\][^)]*)\)\s*$/i, ""));
-    const unit = p.type === "time" || p.type === "times" || p.key === "duration" ? "s" : "";
+    const k = esc(p.key), id = "lpf" + (++fid), unit = unitOf(p);
+    const lab = esc((p.label || p.key).replace(/\s*\((s|px|%|°|[^)]*\[[^)]*\][^)]*)\)\s*$/i, "").replace(/\s*\[[^\]]*\]\s*$/, ""));
+    const lb = `<span class="lb">${p.type === "select" || p.type === "color" ? lab : `<label for="${id}">${lab}</label>`}${unit && p.type !== "number" && p.type !== "time" ? ` <small>${unit}</small>` : ""}</span>`;
+    const hint = p.hint || p.help || HINTS[p.type] || "";
     let inp;
-    if (p.type === "bool") inp = `<span class="switch"><input type="checkbox" data-k="${k}" ${v ? "checked" : ""}><i></i></span>`;
-    else if (p.type === "select") inp = `<div class="seg sm">${p.options.map(o => `<button type="button" data-k="${k}" data-v="${esc(o)}" class="${o === v ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
-    else if (p.type === "lines") inp = `<textarea data-k="${k}" rows="${Math.min(5, Math.max(2, (v || []).length))}" placeholder="One per line. Put [lime] words in brackets.">${esc((v || []).join("\n"))}</textarea>`;
-    else if (p.type === "longtext") inp = `<textarea data-k="${k}" rows="3">${esc(v)}</textarea>`;
-    else if (p.type === "number" && p.min != null && p.max != null) inp = `<div class="rng"><input type="range" data-k="${k}" min="${p.min}" max="${p.max}" step="${p.step || 1}" value="${esc(v)}"><output>${esc(v)}</output></div>`;
-    else if (p.type === "number" || p.type === "time") inp = `<div class="num"><input type="number" data-k="${k}" step="${p.type === "time" ? 0.1 : p.step || 1}" value="${v == null ? "" : esc(v)}" placeholder="${p.type === "time" ? "off" : ""}">${unit ? `<span>${unit}</span>` : ""}</div>`;
-    else if (p.type === "times" || p.type === "box") inp = `<input type="text" data-k="${k}" value="${esc((v || []).join(", "))}">`;
-    else if (p.type === "json") inp = `<textarea data-k="${k}" rows="2" class="mono">${esc(JSON.stringify(v))}</textarea>`;
-    else if (p.type === "color") inp = `<input type="color" data-k="${k}" value="${esc(v)}">`;
-    else inp = `<input type="text" data-k="${k}" value="${esc(v)}">`;
-    return `<label class="fl${p.type === "bool" ? " row" : ""}"><span>${lab}</span>${inp}</label>`;
+    if (p.type === "bool") return `<div class="fl row">${lb}<span class="switch"><input type="checkbox" id="${id}" data-k="${k}" ${v ? "checked" : ""}><i></i></span></div>`;
+    if (p.type === "select") inp = `<div class="seg sm" role="radiogroup" aria-label="${lab}">${p.options.map(o => `<button type="button" role="radio" aria-checked="${o === v}" data-k="${k}" data-v="${esc(o)}" class="${o === v ? "on" : ""}">${esc(o)}</button>`).join("")}</div>`;
+    else if (p.type === "lines") inp = `<textarea id="${id}" data-k="${k}" rows="${Math.min(6, Math.max(2, (v || []).length))}" placeholder="One per line">${esc((v || []).join("\n"))}</textarea>`;
+    else if (p.type === "longtext") inp = `<textarea id="${id}" data-k="${k}" rows="3">${esc(v)}</textarea>`;
+    else if (p.type === "number" && p.min != null && p.max != null) inp = `<div class="rng"><input type="range" id="${id}" data-k="${k}" min="${p.min}" max="${p.max}" step="${p.step || 1}" value="${esc(v)}" aria-label="${lab}"><input type="number" class="rv" data-k="${k}" min="${p.min}" max="${p.max}" step="${p.step || 1}" value="${esc(v)}" aria-label="${lab}${unit ? " (" + unit + ")" : ""}"></div>`;
+    else if (p.type === "number" || p.type === "time") inp = `<div class="num"><input type="number" id="${id}" data-k="${k}" step="${p.type === "time" ? 0.1 : p.step || 1}" value="${v == null ? "" : esc(v)}" placeholder="${p.type === "time" ? "off" : ""}">${unit ? `<span class="u">${unit}</span>` : ""}</div>`;
+    else if (p.type === "times" || p.type === "box") inp = `<input type="text" id="${id}" data-k="${k}" value="${esc((v || []).join(", "))}" spellcheck="false">`;
+    else if (p.type === "json") inp = `<textarea id="${id}" data-k="${k}" rows="3" class="mono" spellcheck="false">${esc(JSON.stringify(v))}</textarea>`;
+    else if (p.type === "color") inp = `<button type="button" class="lp-col" data-ck="${k}" style="--c:${esc(v)}" aria-label="${lab}: ${esc(v)}" aria-haspopup="dialog"><i></i><span>${esc(String(v || "").toUpperCase())}</span></button>`;
+    else inp = `<textarea id="${id}" data-k="${k}" rows="1" class="one">${esc(v)}</textarea>`;   // one line that wraps instead of hiding its end
+    return `<div class="fl">${lb}${inp}${hint ? `<span class="hint">${esc(hint)}</span>` : ""}</div>`;
   }
   function readField(p, el) {
     const raw = el.type === "checkbox" ? el.checked : el.dataset.v != null ? el.dataset.v : el.value;
@@ -385,28 +454,45 @@
       case "lines": return String(raw).split("\n").map(x => x.trim()).filter(Boolean);
       case "times": case "box": return String(raw).split(/[\s,]+/).filter(Boolean).map(Number);
       case "json": try { return JSON.parse(raw); } catch { return undefined; }
+      case "text": return String(raw).replace(/\s*\n\s*/g, " ");
       default: return raw;
     }
   }
-  // builds the form into host; onChange(params) fires (debounced) after every edit
+  const section = (name, title, body, open) => !body ? "" : name === "Advanced"
+    ? `<details class="fs"${open ? " open" : ""}><summary>${SEC_ICON[name]}${title}</summary>${body}</details>`
+    : `<section class="fs"><h3>${SEC_ICON[name]}${title}</h3>${body}</section>`;
+  // builds the form into host; onChange(params) fires (debounced) after every edit. extra: { Timing, Position } html put first in those sections
   function buildForm(host, def, params, onChange, extra) {
-    const groups = { Text: [], Timing: [], Style: [], More: [] };
+    extra = extra || {};
+    const groups = { Content: [], Timing: [], Position: [], Style: [], Advanced: [] };
     for (const p of def.params) groups[GROUP(p)].push(p);
-    const sec = (name, list, open) => list.length || (name === "Timing" && extra) ? `<details class="fs" ${open ? "open" : ""}><summary>${name}</summary>${name === "Timing" && extra ? extra : ""}${list.map(p => field(p, params[p.key])).join("")}</details>` : "";
-    host.innerHTML = sec("Text", groups.Text, true) + sec("Timing", groups.Timing, true) + sec("Style", groups.Style, true) + sec("More", groups.More, false);
+    const body = name => (extra[name] || "") + groups[name].map(p => field(p, params[p.key])).join("");
+    host.innerHTML = section("Content", "Content", body("Content")) + section("Timing", "Timing", body("Timing")) + section("Position", "Position &amp; size", body("Position"))
+      + section("Style", "Style", body("Style")) + section("Advanced", "Advanced", body("Advanced"), false);
     let h = 0;
     const fire = () => { clearTimeout(h); h = setTimeout(() => onChange(params), 350); };
+    const fill = el => { const lo = +el.min || 0, hi = +el.max || 100; el.style.setProperty("--p", ((+el.value - lo) / ((hi - lo) || 1) * 100) + "%"); };
     const upd = el => {
       const k = el.dataset.k; if (!k) return;
       const p = def.params.find(x => x.key === k); if (!p) return;
+      if (el.classList.contains("rv")) { if (el.value === "") return; const r = el.previousElementSibling; r.value = el.value; fill(r); }
       const v = readField(p, el); if (v === undefined) return;
       params[k] = v;
-      if (el.type === "range") el.nextElementSibling.textContent = el.value;
-      if (el.dataset.v != null) el.parentElement.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === el));
+      if (el.type === "range") el.nextElementSibling.value = el.value;
+      if (el.dataset.v != null) el.parentElement.querySelectorAll("button").forEach(b => { b.classList.toggle("on", b === el); b.setAttribute("aria-checked", String(b === el)); });
       fire();
     };
     host.addEventListener("input", e => upd(e.target));
-    host.addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) upd(b); });
+    host.addEventListener("click", e => {
+      const b = e.target.closest("button[data-k]"); if (b) { upd(b); return; }
+      const cb = e.target.closest("button[data-ck]"); if (!cb || !window.CutColor) return;
+      const k = cb.dataset.ck, p = def.params.find(x => x.key === k); if (!p) return;
+      const show = c => { cb.style.setProperty("--c", c); cb.querySelector("span").textContent = c.toUpperCase(); cb.setAttribute("aria-label", (p.label || k) + ": " + c); };
+      CutColor.toggle(cb, { value: params[k], presets: ["#ffffff", "#111111", "#c8ff3a", "#ffcc00", "#ff3b30", "#34c7ff", "#ff4fd8", "#8b5cf6"],
+        onInput: c => { params[k] = c; show(c); }, onChange: c => { params[k] = c; show(c); fire(); } });
+    });
+    // one-line text: Enter doesn't add a line break
+    host.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("textarea.one")) { e.preventDefault(); e.target.blur(); } });
   }
 
   // a library card opened before adding it: preview, settings, Add
@@ -418,7 +504,7 @@
     body.querySelector(".back").onclick = () => { D.detail[kind] = null; D.back = kind; render(kind); };
     const big = body.querySelector(".big");
     let pv = null;
-    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: big.clientWidth || 300, aspect: kind === "cap" ? 2.2 : 4 / 3, params: Object.assign({}, params, def.preview && def.preview.params), radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
+    const show = () => { if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: Math.round(big.clientWidth || body.clientWidth - 24 || 300), aspect: kind === "cap" ? 2.2 : 4 / 3, params: Object.assign({}, params, def.preview && def.preview.params), radius: 12 }); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
     show();
     buildForm(body.querySelector(".form"), def, params, show);
     body.querySelector(".go").onclick = () => place(def, S.t, null, null, JSON.parse(JSON.stringify(params)));
@@ -429,7 +515,7 @@
     const p = placements().find(q => q.id === id); if (!p) return;
     const def = VideoLibrary.components[p.c.id]; if (!def) return;
     const kind = p.cap ? "cap" : "lib";
-    D.editing = id; D.selected = id;
+    D.editing = id; D.selected = id; D.pick = true; D.formFor = id;
     SP.show(kind);
     ensureLoaded().then(() => {
       if (!P[kind].dataset.built) render(kind);
@@ -437,32 +523,108 @@
       P[kind].querySelector(".lp-head").style.display = "none";
       const body = P[kind].querySelector("[data-body]");
       const params = Object.assign(VideoLibrary.defaults(def.id), JSON.parse(JSON.stringify(p.c.params || {})));
-      body.innerHTML = `<div class="lp-det pl"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
-        <div class="phead"><span class="dot${p.cap ? " cap" : ""}"></span><div><h2>${esc(p.cap ? short(def.name) + " captions" : def.name)}</h2>
-        <small>${p.cap ? "Whole video · Claude builds them on the next run" : `On your video at ${fmt(p.t)} · Claude builds it on the next run`}</small></div></div>
-        <div class="form"></div><div class="row2"><button class="ib danger" type="button" data-a="del">Remove</button><button class="ib primary" type="button" data-a="done">Done</button></div></div>`;
-      const extra = p.cap ? "" : `<label class="fl"><span>Starts at</span><div class="num"><input type="number" data-x="t" step="0.1" min="0" value="${(+p.t).toFixed(2)}"><span>s</span></div></label>
-        <label class="fl"><span>Plays for</span><div class="num"><input type="number" data-x="dur" step="0.1" min="0.5" value="${(+p.dur).toFixed(1)}"><span>s</span></div></label>`;
+      const name = p.cap ? short(def.name) + " captions" : def.name;
+      body.innerHTML = `<div class="lp-det pl" aria-label="${esc(name)} settings"><button class="ib back" type="button">← ${kind === "cap" ? "All caption styles" : "All components"}</button>
+        <div class="phead"><span class="dot${p.cap ? " cap" : ""}"></span><div><h2>${esc(name)}</h2>
+        <small>${p.cap ? "Restyles every caption in the video" : "Plays live on your video"} · Claude builds it on the next run</small><div class="chips" data-chips></div></div></div>
+        <div class="pvw"><div class="big"></div><span class="tag">Preview</span></div>
+        <div class="form"></div><div class="row2"><button class="ib danger" type="button" data-a="del" title="Remove it from the video (⌫). ⌘Z brings it back">Remove</button><button class="ib primary" type="button" data-a="done" title="Close the settings (Esc)">Done</button></div></div>`;
+      const chips = () => { const q = placements().find(x => x.id === rid(id)) || p, el = body.querySelector("[data-chips]"); if (!el) return; el.innerHTML = q.cap ? "<span>Whole video</span>" : `<span>${fmt(q.t)} → ${fmt(q.t + q.dur)}</span><span>${(+q.dur).toFixed(1)} s</span>${q.s && q.s !== 1 ? `<span>${Math.round(q.s * 100)}%</span>` : ""}`; };
+      chips();
+      // a sharp live preview of these settings, rebuilt at its real size (never a scaled-up picture)
+      const big = body.querySelector(".big"); let pv = null, pvT = 0;
+      const preview = () => { if (!big.isConnected) return; if (pv) pv.destroy(); pv = VideoLibrary.preview(big, def.id, { width: Math.round(big.clientWidth || body.clientWidth - 24 || 300), aspect: p.cap ? 2.2 : 16 / 10, params: Object.assign({}, params, def.preview && def.preview.params), radius: 0 }); if (pv) pv.tl.play(0); D.ed = { host: body, api: { destroy: () => pv && pv.destroy() } }; };
+      const previewSoon = () => { clearTimeout(pvT); pvT = setTimeout(preview, 200); };
+      preview();
+      new ResizeObserver(() => { const w = Math.round(big.clientWidth); if (pv && w && pv.box && Math.abs(w - pv.box.offsetWidth) > 3) previewSoon(); }).observe(big);
+      const whole = !!boxOf(p).whole;
+      const extra = {};
+      if (!p.cap) extra.Timing = `<div class="two"><div class="fl"><span class="lb"><label for="lpT">Starts at</label></span><div class="num"><input id="lpT" type="number" data-x="t" step="0.1" min="0" value="${(+p.t).toFixed(2)}"><span class="u">s</span></div></div>
+        <div class="fl"><span class="lb"><label for="lpD">Plays for</label></span><div class="num"><input id="lpD" type="number" data-x="dur" step="0.1" min="0.5" value="${(+p.dur).toFixed(1)}"><span class="u">s</span></div></div></div>
+        <div class="acts"><button class="ib" type="button" data-pa="here" title="Start it where the playhead is now">Start at the playhead</button></div>`;
+      if (!whole) extra.Position = `<div class="acts" role="group" aria-label="Line it up">
+          <button class="ib" type="button" data-pa="cx" title="Centre it left to right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18"/><rect x="6" y="8" width="12" height="8" rx="2"/></svg>Centre across</button>
+          <button class="ib" type="button" data-pa="cy" title="Centre it top to bottom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18"/><rect x="8" y="6" width="8" height="12" rx="2"/></svg>Centre down</button>
+          <button class="ib" type="button" data-pa="reset" title="Put it back where it places itself, at its own size">Reset</button></div>
+        <div class="two"><div class="fl"><span class="lb"><label for="lpX">Across</label></span><div class="num"><input id="lpX" type="number" data-pp="x" step="1"><span class="u">px</span></div></div>
+        <div class="fl"><span class="lb"><label for="lpY">Down</label></span><div class="num"><input id="lpY" type="number" data-pp="y" step="1"><span class="u">px</span></div></div></div>
+        <div class="fl"><span class="lb"><label for="lpS">Size</label> <small>%</small></span><div class="rng"><input id="lpS" type="range" data-pp="s" min="25" max="300" step="1" aria-label="Size"><input type="number" class="rv" data-pp="s" min="25" max="400" step="1" aria-label="Size (%)"></div>
+        <span class="hint">Where its centre sits on the ${S.W} × ${S.H} video. Or drag it on the video: it snaps softly to the centre, thirds and edges (hold ⌥ to move freely).</span></div>`;
       const form = body.querySelector(".form");
+      let h = 0, pT = 0;
       const save = async () => {
-        const n = (S.notes || []).find(x => x.id === id); if (!n) return;
-        const patch = { id, component: Object.assign({}, n.component, { params: JSON.parse(JSON.stringify(params)) }) };
+        const n = (S.notes || []).find(x => x.id === rid(id)); if (!n) return;
+        const patch = { id: n.id, component: Object.assign({}, n.component, { params: JSON.parse(JSON.stringify(params)) }) };
         if (!p.cap) {
           const t = Math.max(0, +form.querySelector('[data-x="t"]').value || 0), dur = Math.max(0.5, +form.querySelector('[data-x="dur"]').value || p.dur);
           patch.component.params.duration = dur; patch.t = +t.toFixed(3); patch.end = +(t + dur).toFixed(3); patch.frame = Math.round(t * FPS);
         }
         D.measured.clear();
+        const was = snap(id);
         await noteOp("update", patch); layoutLanes(); draw(); sync(true);
+        if (was) step("settings", [[id, was, snap(id)]], "form:" + id);
+        chips(); posFill();
       };
-      buildForm(form, def, params, save, extra);
-      let h = 0; form.addEventListener("input", e => { if (e.target.dataset.x) { clearTimeout(h); h = setTimeout(save, 350); } });
-      body.querySelector(".back").onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
-      body.querySelector('[data-a="done"]').onclick = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
+      buildForm(form, def, params, () => { previewSoon(); save(); }, extra);
+      // position + size in the video's own px (the component's centre); saved like a drag on the video: one undo step
+      const posNow = () => { const q = placements().find(x => x.id === rid(id)); if (!q) return null; const b = boxOf(q), m = MAP(); return { q, b, m, x: Math.round(m.ox + (b.cx + q.dx) * m.k), y: Math.round(m.oy + (b.cy + q.dy) * m.k) }; };
+      const posFill = () => {
+        if (whole || !form.isConnected) return; const o = posNow(); if (!o || o.b.whole) return;
+        const set = (sel, v) => { const el = form.querySelector(sel); if (el && document.activeElement !== el) el.value = v; };
+        set('[data-pp="x"]', o.x); set('[data-pp="y"]', o.y); set('#lpS', Math.round(o.q.s * 100)); set('.rv[data-pp="s"]', Math.round(o.q.s * 100));
+        const r = form.querySelector("#lpS"); if (r) r.style.setProperty("--p", ((Math.min(300, Math.round(o.q.s * 100)) - 25) / 275 * 100) + "%");
+      };
+      const place2 = async (patch, label, coalesce) => {
+        const o = posNow(); if (!o) return;
+        const c = Object.assign({}, o.q.c, patch), b = measureBox(o.q.c.id, o.q.c.params);
+        if (b && b.x1 > b.x0) { c.x = Math.round(o.m.ox + ((b.x0 + b.x1) / 2 + (+c.dx || 0)) * o.m.k); c.y = Math.round(o.m.oy + ((b.y0 + b.y1) / 2 + (+c.dy || 0)) * o.m.k); }
+        const was = snap(id);
+        liveMove(o.q.id, c.dx, c.dy, +c.scale || 1);
+        try { await noteOp("update", { id: o.q.id, component: c }); if (was) step(label, [[id, was, snap(id)]], coalesce); }
+        catch (err) { toast("Couldn't save that"); }
+        sync(true); paintFrame(); chips(); posFill();
+      };
+      form.addEventListener("input", e => {
+        if (e.target.dataset.x) { clearTimeout(h); h = setTimeout(save, 350); return; }
+        const pp = e.target.dataset.pp; if (!pp || e.target.value === "") return;
+        const o = posNow(); if (!o) return;
+        if (pp === "s") {
+          const v = Math.max(25, Math.min(400, Math.round(+e.target.value) || 100));
+          form.querySelectorAll('[data-pp="s"]').forEach(x => { if (x !== e.target) x.value = v; });
+          liveMove(o.q.id, o.q.dx, o.q.dy, v / 100); clearTimeout(pT); pT = setTimeout(() => place2({ scale: v === 100 ? 1 : v / 100 }, "size", "size:" + id), 300); return;
+        }
+        const v = +e.target.value, dx = pp === "x" ? Math.round((v - o.m.ox) / o.m.k - o.b.cx) : o.q.dx, dy = pp === "y" ? Math.round((v - o.m.oy) / o.m.k - o.b.cy) : o.q.dy;
+        liveMove(o.q.id, dx, dy, o.q.s); clearTimeout(pT); pT = setTimeout(() => place2({ dx, dy }, "position", "pos:" + id), 300);
+      });
+      form.addEventListener("click", e => {
+        const a = e.target.closest("[data-pa]"); if (!a) return;
+        if (a.dataset.pa === "here") { form.querySelector('[data-x="t"]').value = (+S.t).toFixed(2); save(); return; }
+        const o = posNow(); if (!o) return;
+        if (a.dataset.pa === "cx") place2({ dx: Math.round(VideoLibrary.W / 2 - o.b.cx) }, "centre across");
+        else if (a.dataset.pa === "cy") place2({ dy: Math.round(VideoLibrary.H / 2 - o.b.cy) }, "centre down");
+        else { const [dx, dy] = offsetFor(o.q.c.id, o.q.c.params, null, null); place2({ dx, dy, scale: 1 }, "reset position"); }
+      });
+      posFill();
+      const done = () => { D.editing = null; D.selected = null; D.detail[kind] = null; D.back = kind; render(kind); paintFrame(); };
+      body.querySelector(".back").onclick = done;
+      body.querySelector('[data-a="done"]').onclick = done;
       body.querySelector('[data-a="del"]').onclick = async () => { D.editing = null; await removePlacement(id); D.detail[kind] = null; render(kind); toast("Removed"); };
+      // Esc: leave a field first, then close the panel
+      body.querySelector(".lp-det").addEventListener("keydown", e => {
+        if (e.key !== "Escape" || (window.CutColor && CutColor.isOpen)) return;
+        e.preventDefault(); e.stopPropagation();
+        if (e.target.matches("input, textarea")) e.target.blur(); else done();
+      });
       if (!p.cap) { if (!(S.t >= p.t && S.t <= p.t + p.dur)) seek(p.t + Math.min(1.4, p.dur * 0.55)); reveal(p.t, p.dur); }
     });
   }
   D.openPlacement = openPlacement;
+  // the settings of a component that's gone (removed, or undone) close
+  function closeGoneForm() {
+    if (!D.formFor || snap(D.formFor)) return;
+    D.formFor = null;
+    for (const k of ["lib", "cap"]) if (P[k].dataset.built && P[k].querySelector(".lp-det.pl")) { D.detail[k] = null; render(k); }
+  }
 
   /* ---------- placements = open notes with a component ---------- */
   function placements() {
@@ -483,7 +645,7 @@
   // components that overlap in time (including their floating labels) get their own rows; captions take a thin row under them
   const ROW = 24, CAPROW = 16;
   function laneRows() {
-    const spans = [], at = new Map(), lab = 2.4;   // keep ~2.4 s clear after each block for its label
+    const spans = [], at = new Map(), lab = 0;   // names sit inside their blocks, so blocks only need their own time
     const ps = placements().filter(q => !q.cap).sort((a, b) => a.t - b.t);
     const want = p => (D.drag && D.drag.id === p.id && D.drag.row != null) ? D.drag.row : (p.c.layer != null ? +p.c.layer : null);
     const free = (r, a, b) => !(spans[r] || []).some(([x, y]) => a < y && b > x);
@@ -542,6 +704,42 @@
   }
   D.reveal = reveal;
 
+  /* ---------- undo / redo (⌘Z / ⇧⌘Z): every add, move, resize, setting change and removal is one step ---------- */
+  const ALIAS = new Map();   // a note removed then put back gets a new id: old id -> new id
+  const rid = id => { while (ALIAS.has(id)) id = ALIAS.get(id); return id; };
+  const snap = id => { const n = (S.notes || []).find(x => x.id === rid(id)); return n ? JSON.parse(JSON.stringify(n)) : null; };
+  const bare = n => { const o = Object.assign({}, n); delete o.id; delete o.created; delete o.updated; return o; };
+  async function putNote(id, want) {   // make note `id` look like `want` (null = not there)
+    const cur = (S.notes || []).find(x => x.id === rid(id));
+    if (!want) { if (cur) await noteOp("delete", { id: cur.id }); return; }
+    if (cur) { await noteOp("update", Object.assign(bare(want), { id: cur.id })); return; }
+    const before = new Set((S.notes || []).map(n => n.id)), body = bare(want);
+    if (body.drawing && Array.isArray(body.drawing.shapes) && typeof inkExport === "function") body.drawing = Object.assign({}, body.drawing, inkExport(body.drawing.shapes, +body.t || 0), { withFrame: body.drawing.withFrame });
+    await noteOp("add", body);
+    const added = (S.notes || []).find(n => !before.has(n.id)); if (added) ALIAS.set(rid(id), added.id);
+  }
+  // entries: [[id, before, after]]; coalesce: a key so quick repeats (typing in a setting) stay one step
+  function step(label, entries, coalesce) {
+    if (!entries.length || typeof histPush !== "function") return null;
+    const top = UNDO[UNDO.length - 1];
+    if (coalesce && top && top.lib && top.coalesce === coalesce && Date.now() - top.at < 2000) {
+      for (const [id, , after] of entries) { const e = top.entries.find(x => rid(x[0]) === rid(id)); if (e) e[2] = after; else top.entries.push([id, null, after]); }
+      top.at = Date.now(); return top;
+    }
+    const apply = async k => {
+      for (const e of (k === 1 ? entries : [...entries].reverse())) await putNote(e[0], e[k]);
+      D.measured.clear(); D.selected = null; D.editing = null; D.pick = false; layoutLanes(); draw(); sync(true);
+      if (P.cap.dataset.built) render("cap");
+      closeGoneForm();
+    };
+    const st = { lib: true, label, entries, coalesce, at: Date.now(), undo: () => apply(1), redo: () => apply(2) };
+    histPush(st); if (D.bar && D.bar !== st) $("#libUndo").classList.remove("on");
+    return st;
+  }
+  // ⌫ reaches a component only when it was the last thing picked (its block, its box on the video, or just added)
+  D.unpick = () => { if (!D.pick && !D.selected && !D.editing) return; D.pick = false; D.selected = null; D.editing = null; paintFrame(); D.paintLane(); };
+  D.deleteSelected = () => { const id = D.selected; if (!D.pick || !id || !placements().some(p => p.id === id)) return false; D.editing = null; removePlacement(id).then(() => toast("Removed (⌘Z brings it back)")); return true; };
+
   /* ---------- adding: saved straight away as a note ---------- */
   async function place(def, t, x, y, params) {
     if (!S.comp) { toast("Open a version first"); return; }
@@ -564,6 +762,7 @@
     try { await noteOp("add", note); } catch (e) { toast("Couldn't add it: " + (e.message || e)); return; }
     const added = (S.notes || []).find(n => !before.has(n.id));
     for (const old of replaced) await noteOp("delete", { id: old.id });
+    const st = step(cap ? "caption style" : def.name, [...(added ? [[added.id, null, snap(added.id)]] : []), ...replaced.map(o => [o.id, JSON.parse(JSON.stringify(o)), null])]);
     if (!cap && Math.abs(S.t - t) > 0.02) seek(t);
     layoutLanes(); draw(); sync(true);
     reveal(cap ? 0 : t, cap ? 0 : dur);
@@ -573,14 +772,17 @@
       D.measured.clear();
       openPlacement(added.id);
       if (!cap) setTimeout(() => { seek(t + Math.min(1.4, dur * 0.55)); sync(true); paintFrame(); }, 120);
-      else { D.selected = added.id; paintFrame(); }
+      else { D.selected = added.id; D.pick = true; paintFrame(); }
     }
     if (cap && P.cap.dataset.built) render("cap");
     if (cap) capExplainer(short(def.name));
-    undoBar(added, replaced, cap ? `${short(def.name)} captions for the whole video. Claude builds them on the next run.` : `${def.name} added at ${fmt(t)}. Claude builds it on the next run.`, cap);
+    undoBar(st, cap ? `${short(def.name)} captions for the whole video. Claude builds them on the next run.` : `${def.name} added at ${fmt(t)}. Claude builds it on the next run.`, cap);
   }
   async function removePlacement(id) {
-    await noteOp("delete", { id });
+    const was = snap(id);
+    await noteOp("delete", { id: rid(id) });
+    if (was) step(was.component && was.component.name || "component", [[id, was, null]]);
+    closeGoneForm();
     layoutLanes(); draw(); sync(true);
     if (P.cap.dataset.built) render("cap");
   }
@@ -606,19 +808,20 @@
     requestAnimationFrame(() => el.classList.add("on"));
     setTimeout(() => el.querySelector("button").focus(), 50);
   }
-  function undoBar(n, replaced, msg, cap) {
+  function undoBar(st, msg, cap) {
     const bar = $("#libUndo");
+    D.bar = st;
     bar.classList.toggle("cap", !!cap);
     bar.querySelector("span").textContent = msg;
     bar.classList.add("on");
     const hide = () => { clearTimeout(undoBar.h); undoBar.h = setTimeout(() => { if (bar.matches(":hover")) hide(); else bar.classList.remove("on"); }, 10000); };
     hide();
+    // the bar's Undo is the same step as ⌘Z: it comes off the undo list and can be redone
     bar.querySelector("button").onclick = async () => {
       bar.classList.remove("on");
-      if (n) await noteOp("delete", { id: n.id });
-      for (const old of replaced || []) { const o = Object.assign({}, old); delete o.id; delete o.created; delete o.updated; await noteOp("add", o); }
-      layoutLanes(); draw(); sync(true); if (P.cap.dataset.built) render("cap");
-      toast(replaced && replaced.length ? "Back to the previous caption style" : "Removed");
+      if (!st || HIST.busy) return;
+      if (UNDO[UNDO.length - 1] !== st) { toast("You've changed it since: press " + CnKeys.text("⌘Z") + " to step back"); return; }
+      UNDO.pop(); REDO.push(st); await histRun(st, true);
     };
   }
 
@@ -683,33 +886,22 @@
     const w = $("#tl").clientWidth;
     D._rows = laneRows();
     const html = [];
-    // names never get cut off or run into each other: inside the block when they fit, beside it when there's room before
-    // the next block on that row, else shortened with … (the full name is in the tooltip)
-    const mctx = D._m || (D._m = document.createElement("canvas").getContext("2d"));
-    mctx.font = "600 11px -apple-system, system-ui, sans-serif";
+    // names sit inside their own block, shortened with … when it's short (the full name is in the tooltip); never floating beside it
     const LR = D._rows || (D._rows = laneRows());
     const items = ps.map(p => {
       const a = p.cap ? 0 : toE(p.t), b = p.cap ? progDur() : toE(p.t + p.dur);
       return { p, x0: X(a), x1: X(b), row: p.cap ? -1 : (LR.at.get(p.id) || 0) };
     }).sort((u, v) => u.x0 - v.x0);
-    const lastEnd = new Map();
-    items.forEach((it, k) => {
+    items.forEach(it => {
       const p = it.p; let x0 = it.x0, x1 = it.x1;
       if (x1 < G || x0 > w) return;
       x0 = Math.max(G, x0); x1 = Math.min(w, x1);
       const label = p.cap ? `Captions · ${esc(short(p.c.name))} <i>whole video</i>` : `${esc(p.c.name)} <i>${fmt(p.t)}</i>`;
       const plain = p.cap ? `Captions · ${short(p.c.name)} whole video` : `${p.c.name} ${fmt(p.t)}`;
       const by = p.cap ? g.y + LR.n * (ROW + 2) : g.y + it.row * (ROW + 2), bh = p.cap ? CAPROW : ROW;
-      const tw = mctx.measureText(plain).width + 4;
-      const next = items.slice(k + 1).find(o => o.row === it.row && o.x0 > it.x0 + 0.5);
-      const nextX = next ? Math.max(G, next.x0) : w;
-      const inside = p.cap || tw + 38 <= Math.min(x1, nextX) - x0;   // room for the name and the × button
-      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}${D.selected === p.id || D.editing === p.id ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${inside ? label : ""}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
-      if (inside) { lastEnd.set(it.row, x0 + tw + 38); return; }
-      const left = Math.max(x1 + 6, (lastEnd.get(it.row) || 0) + 6), room = Math.min(nextX, w) - left - 6;
-      if (room < 36) return;   // no room at all: the tooltip has the name
-      html.push(`<div class="ll-lbl" style="left:${left}px;top:${by + bh / 2}px;max-width:${Math.floor(room)}px" title="${esc(plain)}">${label}</div>`);
-      lastEnd.set(it.row, left + Math.min(tw, room));
+      const bw = Math.max(18, x1 - x0), withX = bw >= 64;   // a short block is all grab area: its × would cover it (remove it with ⌫ or Remove)
+      const name = bw - (withX ? 30 : 16) >= 24 ? `<span class="nm">${label}</span>` : "";
+      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}${withX ? "" : " nox"}${D.selected === p.id || D.editing === p.id ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${bw}px;top:${by}px;height:${bh}px" title="${esc(plain)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${name}${withX ? `<button class="x" type="button" title="Remove (⌫)">×</button>` : ""}<span class="rs"></span></div>`);
     });
     const out = html.join("");
     if (lane._html !== out) { lane.innerHTML = out; lane._html = out; }   // the timeline redraws every frame while playing
@@ -719,7 +911,8 @@
     const blk = e.target.closest(".ll-blk"); if (!blk) return;
     const p = placements().find(q => q.id === blk.dataset.id); if (!p) return;
     e.preventDefault(); e.stopPropagation();
-    if (e.target.closest(".x")) { removePlacement(p.id); return; }
+    if (typeof TL !== "undefined") { TL.sel = null; if (typeof FE !== "undefined") FE.sel = null; }
+    if (e.target.closest(".x")) { removePlacement(p.id).then(() => toast("Removed (⌘Z brings it back)")); return; }
     if (p.cap) { openPlacement(p.id); return; }
     // retime in program time (what the timeline shows), so it follows the pointer even when the video has cuts
     const per = S.view.len / ($("#tl").clientWidth - G), E0 = toE(p.t);
@@ -742,7 +935,8 @@
         if (d.row != null && d.row !== row0) patch.component = Object.assign({}, p.c, { layer: d.row });
       }
       else { patch.component = Object.assign({}, p.c, { params: Object.assign({}, p.c.params, { duration: d.dur }) }); patch.end = +(p.t + d.dur).toFixed(3); }
-      try { await noteOp("update", patch); toast(d.mode !== "move" ? `Plays for ${d.dur.toFixed(1)} s` : patch.component ? `Moved to row ${d.row + 1}${d.row === 0 ? " (in front)" : ""}` : `Moved to ${fmt(patch.t)}`); }
+      const was = snap(p.id);
+      try { await noteOp("update", patch); if (was) step(p.c.name, [[p.id, was, snap(p.id)]]); toast(d.mode !== "move" ? `Plays for ${d.dur.toFixed(1)} s` : patch.component ? `Moved to row ${d.row + 1}${d.row === 0 ? " (in front)" : ""}` : `Moved to ${fmt(patch.t)}`); }
       catch (err) { toast("Couldn't save that change"); }
       finally { D.drag = null; layoutLanes(); draw(); sync(true); }
       if (d.mode === "move" && patch.t != null) seek(patch.t);
@@ -780,7 +974,7 @@
     const out = html.join("");
     if (box._html !== out) { box.innerHTML = out; box._html = out; }
   }
-  D.select = id => { D.selected = id || null; paintFrame(); };
+  D.select = id => { D.selected = id || null; D.pick = !!id; paintFrame(); };
   // select, move (drag it) and resize (drag a corner) a placed component on the video, with the Select tool
   frEl.addEventListener("pointerdown", e => {
     if (e.button !== 0 || !window.VideoLibrary) return;
@@ -797,21 +991,37 @@
     const fr = frEl.getBoundingClientRect(), m = MAP(), per = S.W / fr.width / m.k;   // screen px -> component px
     const q = boxOf(p), ccx = fr.left + (m.ox + (q.cx + p.dx) * m.k) * fr.width / S.W, ccy = fr.top + (m.oy + (q.cy + p.dy) * m.k) * fr.width / S.W;
     const r0 = Math.hypot(e.clientX - ccx, e.clientY - ccy) || 1;
+    // client box of the component as it sits now, and the lines it can snap to (frame + the other components showing)
+    const kk = m.k * fr.width / S.W, cbox = q.whole ? null : { left: fr.left + (m.ox + q.x0 * m.k) * fr.width / S.W, top: fr.top + (m.oy + q.y0 * m.k) * fr.width / S.W, width: (q.x1 - q.x0) * kk, height: (q.y1 - q.y0) * kk };
+    const others = [...frEl.querySelectorAll(".lb-box")].filter(b => b !== boxEl).map(b => { const r = b.getBoundingClientRect(), pd = b.classList.contains("cap") ? 0 : 10 * kk; return { left: r.left + pd, top: r.top + pd, width: r.width - 2 * pd, height: r.height - 2 * pd }; });
+    const lines = CutSnap.targets(others);
     D.drag = { id: p.id, mode: handle ? "size" : "move", x0: e.clientX, y0: e.clientY, dx0: p.dx, dy0: p.dy, s0: p.s, moved: false };
     trackDrag(ev => {
       const d = D.drag; if (!d) return;
       if (Math.abs(ev.clientX - d.x0) + Math.abs(ev.clientY - d.y0) > 3) d.moved = true;
-      if (d.mode === "move") { d.dx = Math.round(d.dx0 + (ev.clientX - d.x0) * per); d.dy = Math.round(d.dy0 + (ev.clientY - d.y0) * per); }
-      else d.s = Math.max(0.25, Math.min(4, +(d.s0 * Math.hypot(ev.clientX - ccx, ev.clientY - ccy) / r0).toFixed(3)));
+      if (d.mode === "move") {
+        let mx = ev.clientX - d.x0, my = ev.clientY - d.y0;
+        if (ev.shiftKey) { if (Math.abs(mx) > Math.abs(my)) my = 0; else mx = 0; }   // ⇧ keeps it on one axis
+        const sn = cbox ? CutSnap.move({ left: cbox.left + mx, top: cbox.top + my, width: cbox.width, height: cbox.height }, ev, { lines, lockX: ev.shiftKey && mx === 0, lockY: ev.shiftKey && my === 0 }) : { dx: 0, dy: 0 };
+        const rq = (v, exact) => exact ? Math.round(v * 100) / 100 : Math.round(v);
+        d.dx = rq(d.dx0 + (mx + sn.dx) * per, sn.x); d.dy = rq(d.dy0 + (my + sn.dy) * per, sn.y);
+      } else {
+        let sc = Math.max(0.25, Math.min(4, d.s0 * Math.hypot(ev.clientX - ccx, ev.clientY - ccy) / r0));
+        if (cbox) sc = Math.max(0.25, Math.min(4, CutSnap.scale(ccx, ccy, cbox.width / 2 / d.s0, cbox.height / 2 / d.s0, sc, ev, { lines })));
+        d.s = +sc.toFixed(4);
+      }
       paintFrame(); const z = placements().find(x => x.id === p.id); if (z) liveMove(p.id, z.dx, z.dy, z.s);
     }, async cancelled => {
+      CutSnap.hide();
       const d = D.drag;
+
       if (!d || cancelled || !d.moved) { D.drag = null; liveMove(p.id, p.c.dx, p.c.dy, +p.c.scale || 1); paintFrame(); return; }
       const c = Object.assign({}, p.c);
       if (d.mode === "move") { c.dx = d.dx; c.dy = d.dy; } else c.scale = d.s;
       const b = measureBox(p.c.id, p.c.params);
       if (b && b.x1 > b.x0) { c.x = Math.round(m.ox + ((b.x0 + b.x1) / 2 + (+c.dx || 0)) * m.k); c.y = Math.round(m.oy + ((b.y0 + b.y1) / 2 + (+c.dy || 0)) * m.k); }
-      try { await noteOp("update", { id: p.id, component: c }); toast(d.mode === "move" ? "Moved" : `Size ${Math.round(d.s * 100)}%`); }
+      const was = snap(p.id);
+      try { await noteOp("update", { id: p.id, component: c }); if (was) step(p.c.name, [[p.id, was, snap(p.id)]]); toast(d.mode === "move" ? "Moved" : `Size ${Math.round(d.s * 100)}%`); }
       catch (err) { toast("Couldn't save that"); }
       finally { D.drag = null; sync(true); }
     });

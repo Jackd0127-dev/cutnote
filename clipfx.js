@@ -58,7 +58,7 @@
     check: '<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   };
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-  const K = k => (isMac ? "⌘" : "Ctrl+") + k;
+  const K = k => (isMac ? "⌘" : "Ctrl+") + k, DEL = isMac ? "⌫" : "Del";
 
   /* ---------- clipboard: a footage piece or a sound ---------- */
   const CB = (window.TLClip = { item: null });
@@ -254,6 +254,7 @@
     e.preventDefault();
     const x = e.offsetX, y = e.offsetY; if (x < G) return;
     const h = hitAt(x, y), E = T(x);
+    if (window.LibDrawer && LibDrawer.unpick) LibDrawer.unpick();
     const base = [{ t: "Copy", ic: I.copy, kbd: K("C"), do: () => copySel() }, { t: "Cut", ic: I.cut, kbd: K("X"), do: cutSel },
       { t: "Paste", ic: I.paste, kbd: K("V"), off: !CB.item, do: paste }, { t: "Duplicate", ic: I.dup, kbd: K("D"), do: duplicate }];
     if (h.zone === "seg") {
@@ -267,7 +268,7 @@
         { t: "Mirror horizontally", ic: I.mh, on: !!s.flipH, do: () => segSet(h.i, { flipH: !s.flipH }, s.flipH ? "Not mirrored" : "Mirrored left to right") },
         { t: "Mirror vertically", ic: I.mv, on: !!s.flipV, do: () => segSet(h.i, { flipV: !s.flipV }, s.flipV ? "Not flipped" : "Flipped upside down") }, "-",
         s.mute ? { t: "Put audio back", ic: I.back, do: () => restoreAudio(h.i) } : { t: "Extract audio", ic: I.aud, do: () => extractAudio(h.i) }, "-",
-        { t: "Delete", ic: I.trash, kbd: "⌫", danger: true, off: segs().length < 2, do: tlDelete }], "Footage " + fmt(s.in) + "–" + fmt(s.out));
+        { t: "Delete", ic: I.trash, kbd: DEL, danger: true, off: segs().length < 2, do: tlDelete }], "Footage " + fmt(s.in) + "–" + fmt(s.out));
       return;
     }
     if (h.zone === "clip") {
@@ -279,7 +280,7 @@
           { t: "Sound options…", ic: I.snd, do: () => SND.open(it) },
           { t: it.mute ? "Unmute" : "Mute", ic: I.snd, do: () => { tlBegin(); it.mute = !it.mute || undefined; tlCommit(); } },
           ...(it.kind === "ext" ? [{ t: "Put back into the footage", ic: I.back, do: () => putBack(it) }] : []), "-",
-          { t: "Delete", ic: I.trash, kbd: "⌫", danger: true, do: tlDelete }], it.name || "Sound");
+          { t: "Delete", ic: I.trash, kbd: DEL, danger: true, do: tlDelete }], it.name || "Sound");
         return;
       }
       const o = (S.ed && S.ed.clips && S.ed.clips[c.key]) || {}, ed = editable(c);
@@ -289,7 +290,7 @@
         { t: "Crop…", ic: I.crop, on: !!o.crop, off: !ed, do: () => cropPanel({ kind: "clip", c }) },
         { t: "Mirror horizontally", ic: I.mh, on: !!o.flipH, off: !ed, do: () => clipSet(c, { flipH: !o.flipH }) },
         { t: "Mirror vertically", ic: I.mv, on: !!o.flipV, off: !ed, do: () => clipSet(c, { flipV: !o.flipV }) }, "-");
-      items.push({ t: "Delete", ic: I.trash, kbd: "⌫", danger: true, off: !ed, do: tlDelete });
+      items.push({ t: "Delete", ic: I.trash, kbd: DEL, danger: true, off: !ed, do: tlDelete });
       show(e.clientX, e.clientY, items, c.type === "cap" ? "Caption" : c.id);
       return;
     }
@@ -367,9 +368,8 @@
   /* ---------- keys: ⌘C ⌘X ⌘V ⌘D on the timeline ---------- */
   document.addEventListener("keydown", e => {
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
-    const tag = (e.target.tagName || "").toLowerCase();
-    if (tag === "textarea" || tag === "input" || tag === "select" || e.target.isContentEditable || document.body.classList.contains("hub-on")
-      || document.querySelector(".hb-modal, #hbTour, #wnew") || cropT) return;
+    const ck = window.CnKeys;
+    if (!ck || ck.blocked() || ck.typing(e.target) || ck.control(e.target) || (e.target.closest && e.target.closest(".dd.open")) || cropT || TL.drag) return;
     if (getSelection && String(getSelection()).length) return;   // copying text on the page stays normal
     const k = e.key.toLowerCase();
     if (k === "c" && TL.sel) { e.preventDefault(); copySel(); }

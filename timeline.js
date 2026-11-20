@@ -6,6 +6,82 @@
    Edits play live here and are saved per version in review-notes.json "edits"; the editing session bakes them into a clean
    rebuild from source footage, then clears them. Nothing here touches the composition file. */
 
+/* ---------- soft snapping for anything dragged on the frame ----------
+   Shared by on-frame pieces (overlays, captions, b-roll, your footage), Library components and caption styles, the
+   delivery crop window and drawing marks. Lines: the frame's edges, centre, thirds and quarters (and the crop window's
+   when a delivery format is set), plus other pieces' edges and centres. Soft: within LOCK px of a line it sits exactly
+   on it; out to R px it eases back to the pointer, so nothing jumps. Hold ⌥ (or ⌘) to move freely. Thin guides show
+   while something sits on a line. All values are client (CSS) px. */
+const CutSnap = (() => {
+  const FR = [0, 0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1], R = 8, LOCK = 4;
+  let el = null;
+  const off = e => !!(e && (e.altKey || e.metaKey || e.ctrlKey));
+  const frameRect = () => { const f = document.getElementById("frame"); return f ? f.getBoundingClientRect() : null; };
+  // the lines to snap to: { x: [{ v, k, f }], y: [...] }
+  function targets(others, o) {
+    const r = frameRect(), L = { x: [], y: [] }; if (!r || !r.width) return L;
+    const add = (b, fr, k) => { for (const f of fr) { L.x.push({ v: b.left + b.width * f, k, f }); L.y.push({ v: b.top + b.height * f, k, f }); } };
+    add(r, FR, "frame");
+    const f = typeof S !== "undefined" && S.ed && S.ed.format;
+    if (f && !(o && o.noCrop) && typeof cropBox === "function") { const b = cropBox(f); add({ left: r.left + b.x * r.width, top: r.top + b.y * r.height, width: b.w * r.width, height: b.h * r.height }, FR, "crop"); }
+    for (const b of others || []) if (b && b.width > 2 && b.height > 2) add(b, [0, 0.5, 1], "el");
+    return L;
+  }
+  // how far to shift a feature that is `o` px from its line: exact inside LOCK, eased back to 0 at R
+  function pull(o) { const a = Math.abs(o); if (a >= R) return null; if (a <= LOCK) return -o; return Math.sign(o) * (a - LOCK) * R / (R - LOCK) - o; }
+  // the frame's centre wins a near-tie, then the nearest line
+  const rank = (o, ln) => Math.abs(o) - (ln.k !== "el" && ln.f === 0.5 ? 0.75 : 0) - (ln.k === "crop" ? 0.25 : 0);
+  function axis(feats, lines) {
+    let best = null;
+    for (const v of feats) for (const ln of lines) { const o = v - ln.v; if (Math.abs(o) < R && (!best || rank(o, ln) < best.r)) best = { o, ln, r: rank(o, ln) }; }
+    if (!best) return null;
+    const sh = pull(best.o); return sh == null ? null : { shift: sh, v: best.ln.v, exact: Math.abs(best.o + sh) < 0.01 };
+  }
+  // a box being dragged (client px: left, top, width, height) -> the nudge { dx, dy } that snaps it
+  function move(box, e, o) {
+    o = o || {};
+    if (off(e)) { hide(); return { dx: 0, dy: 0 }; }
+    const L = o.lines || targets(o.others, o);
+    const ax = o.lockX ? null : axis([box.left, box.left + box.width / 2, box.left + box.width], L.x);
+    const ay = o.lockY ? null : axis([box.top, box.top + box.height / 2, box.top + box.height], L.y);
+    show(ax && ax.exact ? ax.v : null, ay && ay.exact ? ay.v : null);
+    return { dx: ax ? ax.shift : 0, dy: ay ? ay.shift : 0, x: !!(ax && ax.exact), y: !!(ay && ay.exact) };
+  }
+  // a box scaled about its centre (cx, cy), hw/hh its half size at scale 1 -> the scale that puts its nearest edge on a line
+  function scale(cx, cy, hw, hh, s, e, o) {
+    o = o || {};
+    if (off(e) || !(hw > 0 && hh > 0)) { hide(); return s; }
+    const L = o.lines || targets(o.others, o);
+    let best = null;
+    for (const [c, h, lines, ax] of [[cx, hw, L.x, "x"], [cy, hh, L.y, "y"]]) for (const sg of [-1, 1]) {
+      const edge = c + sg * h * s;
+      for (const ln of lines) { if (Math.sign(ln.v - c) !== sg || Math.abs(ln.v - c) < 4) continue; const d = edge - ln.v; if (Math.abs(d) < R && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, ln, c, h, ax, sg }; }
+    }
+    if (!best) { hide(); return s; }
+    const sh = pull(best.d); if (sh == null) { hide(); return s; }
+    const edge = best.c + best.sg * best.h * s + sh, s2 = Math.abs(edge - best.c) / best.h;
+    const exact = Math.abs(best.d + sh) < 0.01;
+    show(exact && best.ax === "x" ? best.ln.v : null, exact && best.ax === "y" ? best.ln.v : null);
+    return s2;
+  }
+  function guides() {
+    const f = document.getElementById("frame"); if (!f) return null;
+    if (!el) { el = document.createElement("div"); el.id = "snapG"; el.setAttribute("aria-hidden", "true"); el.innerHTML = '<i class="gx"></i><i class="gy"></i>'; }
+    if (el.parentNode !== f) f.appendChild(el);
+    return el;
+  }
+  function show(x, y) {
+    const g = (x != null || y != null || el) ? guides() : null; if (!g) return;
+    const r = frameRect(), [gx, gy] = g.children;
+    if (x != null) gx.style.left = (x - r.left) + "px";
+    if (y != null) gy.style.top = (y - r.top) + "px";
+    gx.classList.toggle("on", x != null); gy.classList.toggle("on", y != null);
+  }
+  function hide() { if (el) for (const i of el.children) i.classList.remove("on"); }
+  return { targets, move, scale, hide, off, R, LOCK };
+})();
+window.CutSnap = CutSnap;
+
 const TL = {
   tool: "select", wave: store.get("hfr:wave") === "1", snap: store.get("hfr:snap") !== "0", magnet: store.get("hfr:magnet") !== "0", follow: store.get("hfr:follow") !== "0", strip: store.get("hfr:strip") !== "0", sel: null, drag: null, hist: [], fut: [], playSeg: null,
   h: Math.max(200, Math.min(640, +(store.get("hfr:tlh") || 300))), media: null, img: null, pending: null, lanes: [], geom: null,
@@ -112,23 +188,54 @@ function restorePlaces(m) {
 const fmtOf = () => (S.ed && S.ed.format) || null;
 
 /* ---------- history + saving ---------- */
-const UNDO = [];   // "tl" | {ink: owner, shapes} | "draft": what ⌘Z steps back through, newest last
-function tlBegin() { TL.hist.push(clone(S.ed || null)); if (TL.hist.length > 200) TL.hist.shift(); TL.fut = []; UNDO.push("tl"); if (UNDO.length > 400) UNDO.shift(); }
-function undoAny() {
-  while (UNDO.length) {
-    const u = UNDO.pop();
+// UNDO: "tl" | {ink: owner, shapes} | "draft" | {undo, redo} (a step kept elsewhere, e.g. a Library placement): what ⌘Z steps back through, newest last.
+// REDO: "tl" | {undo, redo}: what ⇧⌘Z steps forward through. Any new edit clears it.
+const UNDO = [], REDO = [];
+const HIST = { busy: false };
+function tlBegin() { TL.hist.push(clone(S.ed || null)); if (TL.hist.length > 200) TL.hist.shift(); TL.fut = []; REDO.length = 0; UNDO.push("tl"); if (UNDO.length > 400) UNDO.shift(); }
+// record an edit that isn't part of S.ed (it undoes and redoes itself, maybe asynchronously)
+function histPush(step) { UNDO.push(step); if (UNDO.length > 400) UNDO.shift(); REDO.length = 0; TL.fut = []; tlStatus(); }
+function histDrop(step) { for (const L of [UNDO, REDO]) { const i = L.lastIndexOf(step); if (i >= 0) L.splice(i, 1); } tlStatus(); }
+async function histRun(step, back) {
+  HIST.busy = true;
+  try { await (back ? step.undo() : step.redo()); toast((back ? "Undo" : "Redo") + (step.label ? ": " + step.label : "")); }
+  catch { toast(back ? "Couldn't undo that" : "Couldn't redo that"); }
+  finally { HIST.busy = false; tlStatus(); }
+}
+// ⌘Z. tlOnly (the timeline's own Undo button): skip drawing marks, step back through timeline and Library edits only.
+function undoAny(tlOnly) {
+  if (HIST.busy || TL.drag) return;
+  if (window.CropOpen) { toast("Finish the crop first: Done or Cancel"); return; }
+  for (let i = UNDO.length - 1; i >= 0; i--) {
+    const u = UNDO[i];
+    if (tlOnly && (u === "draft" || (u && u.ink))) continue;
+    UNDO.splice(i, 1);
     if (u === "tl") { if (TL.hist.length) { tlUndo(true); return; } continue; }
     if (u === "draft") { if (INK.draft.length) { INK.draft.pop(); INK.sel = null; updateAt(); inkBump(); return; } continue; }
     if (u && u.ink) { const arr = ownerShapes(u.ink); if (arr) { arr.splice(0, arr.length, ...u.shapes); INK.sel = null; inkCommit(u.ink, true); toast("Undo"); return; } continue; }
+    if (u && u.undo) { REDO.push(u); histRun(u, true); return; }
   }
-  tlUndo(true);
+  if (TL.hist.length) tlUndo(true);
+}
+// ⇧⌘Z / ⌘Y
+function redoAny() {
+  if (HIST.busy || TL.drag) return;
+  if (window.CropOpen) { toast("Finish the crop first: Done or Cancel"); return; }
+  while (REDO.length) {
+    const r = REDO.pop();
+    if (r === "tl") { if (TL.fut.length) { tlRedo(true); return; } continue; }
+    if (r && r.redo) { UNDO.push(r); histRun(r, false); return; }
+  }
 }
 function tlCommit() {
   if (S.ed && !edActive()) S.ed = null;
   layoutLanes(); applyClipEdits(); tlStatus(); fmtSync(); draw(); tlSave();
 }
-function tlUndo(fromStack) { if (!TL.hist.length) return; if (!fromStack) { const k = UNDO.lastIndexOf("tl"); if (k >= 0) UNDO.splice(k, 1); } TL.fut.push(clone(S.ed || null)); S.ed = TL.hist.pop(); TL.sel = null; tlCommit(); toast("Undo"); }
-function tlRedo() { if (!TL.fut.length) return; TL.hist.push(clone(S.ed || null)); UNDO.push("tl"); S.ed = TL.fut.pop(); TL.sel = null; tlCommit(); toast("Redo"); }
+// after undo / redo nothing stays selected, on the timeline or on the frame (a leftover frame selection would take the next ⌫)
+// a timeline or frame selection (or none) replaces a picked Library component
+const libUnpick = () => { if (window.LibDrawer && LibDrawer.unpick) LibDrawer.unpick(); };
+function tlUndo(fromStack) { if (!TL.hist.length) return; if (!fromStack) { const k = UNDO.lastIndexOf("tl"); if (k >= 0) UNDO.splice(k, 1); } TL.fut.push(clone(S.ed || null)); REDO.push("tl"); S.ed = TL.hist.pop(); TL.sel = null; FE.sel = null; libUnpick(); tlCommit(); toast("Undo"); }
+function tlRedo(fromStack) { if (!TL.fut.length) return; if (!fromStack) { const k = REDO.lastIndexOf("tl"); if (k >= 0) REDO.splice(k, 1); } TL.hist.push(clone(S.ed || null)); UNDO.push("tl"); S.ed = TL.fut.pop(); TL.sel = null; FE.sel = null; libUnpick(); tlCommit(); toast("Redo"); }
 function tlSave() {
   if (!S.comp) return;
   clearTimeout(TL.saveT);
@@ -159,7 +266,8 @@ function tlSync() {
   const mine = S.ed && edActive() ? edPayload() : null;
   if (canon(srv) === canon(mine)) return;
   S.ed = edFrom(srv);
-  TL.sel = null; TL.hist = []; TL.fut = [];
+  TL.sel = null; FE.sel = null; libUnpick(); TL.hist = []; TL.fut = [];
+  for (const L of [UNDO, REDO]) for (let i = L.length - 1; i >= 0; i--) if (L[i] === "tl") L.splice(i, 1);
   layoutLanes(); applyClipEdits(); tlStatus(); fmtSync(); draw();
 }
 function edSummary() {
@@ -241,7 +349,8 @@ function tlStatus() {
   el.classList.toggle("on", !!n);
   $("#tlReset").style.display = n ? "" : "none";
   $("#tlExport").style.display = n && vid ? "inline-flex" : "none";
-  $("#tlUndo").disabled = !TL.hist.length; $("#tlRedo").disabled = !TL.fut.length;
+  $("#tlUndo").disabled = !TL.hist.length && !UNDO.some(u => u && u.undo);
+  $("#tlRedo").disabled = !REDO.some(r => (r === "tl" && TL.fut.length) || (r && r.redo));
 }
 
 /* ---------- live preview of clip edits inside the composition ---------- */
@@ -404,9 +513,13 @@ function feSelect(key) {
 const feBox = document.createElement("div"); feBox.id = "elsel";
 feBox.innerHTML = '<i data-h="0"></i><i data-h="1"></i><i data-h="2"></i><i data-h="3"></i><span></span>';
 function feDraw() {
+  // a frame selection of a timeline clip lives only as long as that clip is selected on the timeline (undo, reset and
+  // sync clear the timeline selection; a leftover frame selection would otherwise take the next ⌫ and hide the clip)
+  if (FE.sel && !TL.sel && !FE.drag && FE.sel[0] === "#" && S.clips.some(x => x.elId === FE.sel.slice(1))) FE.sel = null;
   if (!FE.sel && TL.sel && TL.sel.kind === "clip") { const c = S.clips.find(x => x.key === TL.sel.key); if (c && c.elId && editable(c) && c.type !== "audio") FE.sel = "#" + c.elId; }
   if (FE.sel && TL.sel && TL.sel.kind === "clip") { const c = S.clips.find(x => x.key === TL.sel.key); if (c && c.elId && "#" + c.elId !== FE.sel && editable(c) && c.type !== "audio") FE.sel = "#" + c.elId; }
-  const s = INK.tool === "select" && !INK.hidden ? feSelected() : null, fr = $("#frame").getBoundingClientRect();
+  const s = INK.tool === "select" ? feSelected() : null,   // on-frame pieces aren't drawings: hiding drawings keeps their selection box
+  fr = $("#frame").getBoundingClientRect();
   if (!s) { if (FE.box) { feBox.style.display = "none"; FE.box = null; } return; }
   FE.box = { x: s.r.x, y: s.r.y, w: s.r.w, h: s.r.h };
   Object.assign(feBox.style, { display: "block", left: (s.r.x - fr.left) + "px", top: (s.r.y - fr.top) + "px", width: s.r.w + "px", height: s.r.h + "px" });
@@ -434,16 +547,19 @@ function feSet(key, patch, name) {
 // pointer down on the frame with the select tool, after no drawing mark was hit
 function feDown(e) {
   if (!S.comp || (S.comp.kind !== "code" && S.comp.kind !== "video")) return false;
+  libUnpick();
   const k = feCorner(e.clientX, e.clientY), sel = k >= 0 ? feSelected() : null;
   if (sel) {
     const o = feEdits()[sel.key] || {}, cx = sel.r.x + sel.r.w / 2, cy = sel.r.y + sel.r.h / 2;
-    FE.drag = { kind: "scale", key: sel.key, name: sel.key === "@main" || (mainClip() && sel.el.id && sel.el.id === mainClip().elId) ? "Your footage" : feName(sel.el), cx, cy, d0: Math.max(4, Math.hypot(e.clientX - cx, e.clientY - cy)), s0: o.s || 1 };
+    FE.drag = { kind: "scale", key: sel.key, name: sel.key === "@main" || (mainClip() && sel.el.id && sel.el.id === mainClip().elId) ? "Your footage" : feName(sel.el), cx, cy, d0: Math.max(4, Math.hypot(e.clientX - cx, e.clientY - cy)), s0: o.s || 1,
+      hw: sel.r.w / 2 / (o.s || 1), hh: sel.r.h / 2 / (o.s || 1), lines: CutSnap.targets(feOthers(sel.el, sel.g)) };
   } else {
     const h = feHit(e.clientX, e.clientY);
     if (!h || !h.key) { if (FE.sel) feSelect(null); return false; }
     feSelect(h.key); if (!h.main) feTextPick(h); else { FE.textKey = null; FE.textFor = h.key; }
     const o = feEdits()[h.key] || {};
-    FE.drag = { kind: "move", key: h.key, name: h.main ? "Your footage" : feName(h.el), x0: e.clientX, y0: e.clientY, dx0: o.dx || 0, dy0: o.dy || 0, k: h.g.video ? h.g.vk : h.g.k };
+    FE.drag = { kind: "move", key: h.key, name: h.main ? "Your footage" : feName(h.el), x0: e.clientX, y0: e.clientY, dx0: o.dx || 0, dy0: o.dy || 0, k: h.g.video ? h.g.vk : h.g.k,
+      box0: h.r, lines: CutSnap.targets(feOthers(h.el, h.g)) };
   }
   TL.drag = { kind: "frame" };   // hold back server syncs until the drag ends
   if (S.playing) pause();
@@ -453,15 +569,36 @@ function feMove(e) {
   const d = FE.drag; if (!d) return false;
   if (!d.began) { if (d.kind === "move" && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 3) return true; tlBegin(); d.began = true; }
   if (d.kind === "move") {
-    let dx = Math.round(d.dx0 + (e.clientX - d.x0) / d.k), dy = Math.round(d.dy0 + (e.clientY - d.y0) / d.k);
-    if (e.shiftKey) { if (Math.abs(dx - d.dx0) > Math.abs(dy - d.dy0)) dy = d.dy0; else dx = d.dx0; }   // ⇧ keeps it on one axis
+    let mx = e.clientX - d.x0, my = e.clientY - d.y0, lockX = false, lockY = false;
+    if (e.shiftKey) { if (Math.abs(mx) > Math.abs(my)) { my = 0; lockY = true; } else { mx = 0; lockX = true; } }   // ⇧ keeps it on one axis
+    // soft snap: the piece's edges and centre to the frame's centre, thirds, quarters and edges (⌥ moves freely)
+    const sn = d.box0 ? CutSnap.move({ left: d.box0.x + mx, top: d.box0.y + my, width: d.box0.w, height: d.box0.h }, e, { lines: d.lines, lockX, lockY }) : { dx: 0, dy: 0 };
+    const q = (v, exact) => exact ? Math.round(v * 100) / 100 : Math.round(v);
+    const dx = q(d.dx0 + (mx + sn.dx) / d.k, sn.x), dy = q(d.dy0 + (my + sn.dy) / d.k, sn.y);
     feSet(d.key, { dx, dy }, d.name);
-  } else feSet(d.key, { s: Math.round(Math.max(0.1, Math.min(8, d.s0 * Math.hypot(e.clientX - d.cx, e.clientY - d.cy) / d.d0)) * 1000) / 1000 }, d.name);
+  } else {
+    let s = Math.max(0.1, Math.min(8, d.s0 * Math.hypot(e.clientX - d.cx, e.clientY - d.cy) / d.d0));
+    if (d.hw) s = CutSnap.scale(d.cx, d.cy, d.hw, d.hh, s, e, { lines: d.lines });   // an edge lands softly on a line
+    feSet(d.key, { s: Math.round(Math.max(0.1, Math.min(8, s)) * 10000) / 10000 }, d.name);
+  }
   const fr = compFrame(); if (fr) applyFrameEdits(fr); else applyVideoFe();
   return true;
 }
+// other pieces showing now (client rects), so a dragged piece can line up with them; never the footage or full-screen layers
+function feOthers(skip, g) {
+  if (!g || g.video) return [];
+  const out = [];
+  try {
+    for (const [, el] of compEls(g.fr)) {
+      if (el === skip || el.contains(skip) || skip.contains(el) || !feUnit(el, g) || feOpacity(el, g.fr.w) < 0.05) continue;
+      const r = feRect(el, g); if (r.w > 2 && r.h > 2) out.push({ left: r.x, top: r.y, width: r.w, height: r.h });
+      if (out.length > 24) break;
+    }
+  } catch (err) {}
+  return out;
+}
 function feUp() {
-  const d = FE.drag; if (!d) return false; FE.drag = null; TL.drag = null;
+  const d = FE.drag; if (!d) return false; FE.drag = null; TL.drag = null; CutSnap.hide();
   if (d.began) { tlCommit(); toast(d.kind === "move" ? "Moved" : "Resized to " + Math.round(((feEdits()[d.key] || {}).s || 1) * 100) + "%"); }
   if (TL.needSync) setTimeout(tlSync, 0);
   return true;
@@ -805,7 +942,7 @@ function tlSetVol(v) {
 }
 function tlReset() {
   if (!edActive() || !confirm("Throw away all timeline edits on " + S.comp.label + "?")) return;
-  tlBegin(); S.ed = null; TL.sel = null; tlCommit(); fmtSync();
+  tlBegin(); S.ed = null; TL.sel = null; FE.sel = null; libUnpick(); tlCommit(); fmtSync();
 }
 function zoomBy(f, aroundX) {
   const w = cv.clientWidth - G, D = progDur() || 10;
@@ -913,7 +1050,17 @@ function draw() {
     else if (ln.type === "wave") drawWave(g, ss, starts);
     else if (ln.clips) { for (const c of ln.clips) drawClip(c, g, ctx.globalAlpha); if (g.h >= 12) laneLabels(g); }
     ctx.globalAlpha = 1;
-    if (ln.type === "sfx" && !ln.clips.length && g.ln.row === 0 && w - G > 200) { ctx.fillStyle = TC.faint; ctx.font = "11px -apple-system, system-ui, sans-serif"; ctx.fillText("Drag sounds here from the Sounds tab", Math.max(G, X(0)) + 10, g.y + g.h / 2 + 4); }
+    if (ln.type === "sfx" && !ln.clips.length && g.ln.row === 0) {   // an empty Sound FX track: a drop zone with its hint inside it
+      const zx = Math.max(G, X(0)) + 2, zw = Math.min(w, X(PD)) - 2 - zx;
+      if (zw > 60) {
+        ctx.save(); ctx.strokeStyle = TC["tl-line"]; ctx.setLineDash([4, 3]); rr(zx + .5, g.y + .5, zw - 1, g.h - 1, 4); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.rect(zx, g.y, zw, g.h); ctx.clip();
+        ctx.fillStyle = TC.faint; ctx.font = "11px -apple-system, system-ui, sans-serif";
+        const t = fitText("Drag sounds here from the Sounds tab", zw - 20), tx = t ? dodgePlayhead(zx + 10, ctx.measureText(t).width, zx + 10, zx + zw - 10) : null;
+        if (t && tx != null) ctx.fillText(t, tx, g.y + g.h / 2 + 4);
+        ctx.restore();
+      }
+    }
   }
   // notes
   for (const n of S.notes) {
@@ -947,7 +1094,13 @@ function draw() {
   ctx.save(); ctx.beginPath(); ctx.rect(G, 0, w - G, RULER); ctx.clip();
   ctx.fillStyle = TC.dim; ctx.strokeStyle = TC["tl-tick"]; ctx.beginPath(); ctx.font = "10px ui-monospace, SF Mono, Menlo, monospace";
   const sub = stp / 5;
-  for (let t = Math.ceil(v0 / sub) * sub; t <= v1; t += sub) { const x = Math.round(X(t)) + .5; const major = Math.abs(t / stp - Math.round(t / stp)) < 1e-6; ctx.moveTo(x, major ? 10 : 17); ctx.lineTo(x, RULER); if (major) ctx.fillText(stp < 1 ? fmt(t) : fmt(t).replace(/\.00$/, ""), x + 3, 11); }
+  const phx = X(toE(S.t));
+  for (let t = Math.ceil(v0 / sub) * sub; t <= v1; t += sub) {
+    const x = Math.round(X(t)) + .5; const major = Math.abs(t / stp - Math.round(t / stp)) < 1e-6; ctx.moveTo(x, major ? 10 : 17); ctx.lineTo(x, RULER);
+    if (major) { const lb = stp < 1 ? fmt(t) : fmt(t).replace(/\.00$/, ""), lw = ctx.measureText(lb).width; let lx = x + 3;
+      if (lx < phx + 8 && lx + lw > phx - 8) lx = phx + 8;   // the playhead's head would cover it: step past it
+      ctx.fillText(lb, lx, 11); }
+  }
   ctx.stroke(); ctx.restore();
   // track headers
   ctx.fillStyle = TC["tl-ruler"]; ctx.fillRect(0, RULER, G, h - RULER);
@@ -1014,7 +1167,10 @@ function drawProgram(g, ss, starts, v0, v1) {
     const sel = TL.sel && TL.sel.kind === "seg" && TL.sel.i === i;
     ctx.restore();
     ctx.lineWidth = sel ? 2 : 1; ctx.strokeStyle = sel ? TC.accent : TC["tl-edge"]; rr(x0 + .5, g.y + .5, wv - 1, g.h - 1, 5); ctx.stroke(); ctx.lineWidth = 1;
-    if (wv > 70) { ctx.fillStyle = TC["tl-label-bg"]; const lbl = fmt(s.in) + "–" + fmt(s.out); const tw = ctx.measureText(lbl).width + 8; rr(x0 + 4, g.y + 4, tw, 14, 3); ctx.fill(); ctx.fillStyle = TC["tl-label"]; ctx.fillText(lbl, x0 + 8, g.y + 14); }
+    ctx.save(); rr(x0, g.y, wv, g.h, 5); ctx.clip();   // a piece's labels and badges stay inside the piece
+    { const lbl = fmt(s.in) + "–" + fmt(s.out), tw = ctx.measureText(lbl).width + 8;   // its source range, when it fits
+      const lx = dodgePlayhead(Math.max(x0, G) + 4, tw, Math.max(x0, G) + 4, x1 - 4);   // never under the playhead line
+      if (lx != null) { ctx.fillStyle = TC["tl-label-bg"]; rr(lx, g.y + 4, tw, 14, 3); ctx.fill(); ctx.fillStyle = TC["tl-label"]; ctx.fillText(lbl, lx + 4, g.y + 14); } }
     const fxs = [s.rev && "Reversed", (s.flipH || s.flipV) && "Mirrored", s.crop && "Cropped", s.mute && "Audio out"].filter(Boolean);
     if (fxs.length && wv > 60) {   // what's been done to this piece
       ctx.font = "600 9.5px -apple-system, system-ui, sans-serif"; let bx = x0 + 4;
@@ -1026,6 +1182,7 @@ function drawProgram(g, ss, starts, v0, v1) {
       ctx.fillStyle = spOf(s) < 1 ? "#6ec1ff" : "#ffb340"; rr(Math.max(x0 + 4, x1 - tw - 4), g.y + g.h - 18, tw, 14, 7); ctx.fill();
       ctx.fillStyle = "#0b1020"; ctx.font = "600 10px -apple-system, system-ui, sans-serif"; ctx.fillText(lbl, Math.max(x0 + 4, x1 - tw - 4) + 5, g.y + g.h - 8); ctx.font = "10px -apple-system, system-ui, sans-serif";
     }
+    ctx.restore();
   }
   // cut marks between spans
   ctx.fillStyle = TC.cut;
@@ -1043,8 +1200,19 @@ function drawWave(g, ss, starts) {
   }
   ctx.fillStyle = TC["tl-bg"]; for (let i = 1; i < ss.length; i++) ctx.fillRect(X(starts[i]) - 1, g.y, 2, g.h);
 }
-// clip names on one track, laid out together: inside a block when they fit, beside it when there's room before the next
-// block, else shortened with … ; names never overlap each other and never get cut mid-letter
+// where to put a label of width w (preferred x, allowed lo..hi) so the playhead line never runs through it; null = no room
+function dodgePlayhead(x, w, lo, hi) {
+  const px = X(toE(S.t)), gap = 5;
+  if (x + w > hi + 0.5) return null;
+  if (S.playing || px < x - 2 || px > x + w + 2 || px < G) return x;   // (while playing it stays put: the line only passes over it)
+  if (px + gap + w <= hi) return px + gap;          // just after the playhead
+  if (px - gap - w >= lo) return px - gap - w;      // or just before it
+  return null;
+}
+// shorten a label with … so it fits a width ("" when not even two letters fit)
+function fitText(t, w) { if (ctx.measureText(t).width <= w) return t; while (t.length > 1 && ctx.measureText(t + "…").width > w) t = t.slice(0, -1); return t.length > 1 && ctx.measureText(t + "…").width <= w ? t + "…" : ""; }
+// clip names on one track: always inside their own block (never floating beside it), shortened with … when the block is
+// short, and left out when there's no room at all (hovering shows the full name). Names never overlap each other.
 function laneLabels(g) {
   const W = cv.clientWidth, items = [];
   for (const c of g.ln.clips || []) {
@@ -1055,20 +1223,20 @@ function laneLabels(g) {
   ctx.save();
   let lastEnd = -Infinity;
   const y = g.y + g.h / 2 + 4;
-  const fit = (t, w) => { if (ctx.measureText(t).width <= w) return t; while (t.length > 1 && ctx.measureText(t + "…").width > w) t = t.slice(0, -1); return t.length > 1 ? t + "…" : ""; };
   items.forEach((it, k) => {
     const c = it.c;
     const text = c.type === "cap" ? c.text : c.id + (c.type === "other" && c.text ? "  " + c.text : "") + (c.sfx && c.sfx.vol != null && c.sfx.vol !== 1 ? "  " + Math.round(c.sfx.vol * 100) + "%" : "");
     if (!text) return;
     ctx.font = (c.sfx ? "600 " : "") + (g.h >= 18 ? "11px" : "10px") + " -apple-system, system-ui, sans-serif";
-    const tw = ctx.measureText(text).width, inkIn = c.type === "cap" ? TC["cap-ink"] : c.sfx ? "#2a1500" : "#fff";
+    const inkIn = c.type === "cap" ? TC["cap-ink"] : c.sfx ? "#2a1500" : "#fff";
     const nx = items.slice(k + 1).find(o => o.x0 > it.x0 + 0.5), nextX = nx ? nx.x0 : W;
-    const x0 = Math.max(G, it.x0), start = Math.max(x0 + 5, lastEnd + 6), inRoom = Math.min(it.x1, nextX) - start - 5;
-    if (tw <= inRoom) { ctx.fillStyle = inkIn; ctx.fillText(text, start, y); lastEnd = start + tw; return; }
-    const left = Math.max(it.x1 + 5, lastEnd + 6), room = Math.min(nextX, W) - left - 6;
-    if (tw <= room) { ctx.fillStyle = TC.dim; ctx.fillText(text, left, y); lastEnd = left + tw; return; }
-    if (room >= inRoom && room > 24) { const t = fit(text, room); ctx.fillStyle = TC.dim; ctx.fillText(t, left, y); lastEnd = left + ctx.measureText(t).width; return; }
-    if (inRoom > 24) { const t = fit(text, inRoom); ctx.fillStyle = inkIn; ctx.fillText(t, start, y); lastEnd = start + ctx.measureText(t).width; }
+    const sp = c.sfx ? 1 : eff(c).sp, badge = sp !== 1 && it.x1 - it.x0 > 40 && it.x1 <= nextX ? ctx.measureText(sp + "×").width + 12 : 0;   // leave the speed badge clear
+    const x0 = Math.max(G, it.x0), start = Math.max(x0 + 5, lastEnd + 6), end = Math.min(it.x1 - badge, nextX, W) - 5, room = end - start;
+    if (room < 14) return;
+    const t = fitText(text, room); if (!t) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, g.y, Math.max(0, end + 5 - x0), g.h); ctx.clip();
+    ctx.fillStyle = inkIn; ctx.fillText(t, start, y); ctx.restore();
+    lastEnd = start + ctx.measureText(t).width;
   });
   ctx.restore();
 }
@@ -1095,7 +1263,7 @@ function drawClip(c, g, alpha) {
         ctx.restore();
       }
     }
-    if (e.sp !== 1 && wv > 40) { ctx.fillStyle = "rgba(0,0,0,.35)"; const lbl = e.sp + "×", tw = ctx.measureText(lbl).width + 8; rr(x1 - tw - 3, g.y + 2, tw, g.h - 4, 3); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(lbl, x1 - tw + 1, g.y + g.h / 2 + 4); }
+    if (e.sp !== 1 && wv > 40) { ctx.save(); rr(x0, g.y, wv, g.h, 3); ctx.clip(); ctx.fillStyle = "rgba(0,0,0,.35)"; const lbl = e.sp + "×", tw = ctx.measureText(lbl).width + 8; rr(x1 - tw - 3, g.y + 2, tw, g.h - 4, 3); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(lbl, x1 - tw + 1, g.y + g.h / 2 + 4); ctx.restore(); }
     ctx.globalAlpha = A;
     if (sel) { ctx.strokeStyle = TC.playhead; ctx.lineWidth = 2; rr(x0 + 1, g.y + 1, wv - 2, g.h - 2, 3); ctx.stroke(); ctx.lineWidth = 1; }
 
@@ -1149,6 +1317,7 @@ function iconAt(x, y) {
 cv.addEventListener("pointerdown", e => {
   if (e.button !== 0) return;
   cv.setPointerCapture(e.pointerId);
+  libUnpick();   // anything on the timeline canvas (a clip, a track switch, the ruler) takes over from a Library pick
   const x = e.offsetX, y = e.offsetY, h = hitAt(x, y);
   if (x < G) { const ic = iconAt(x, y); if (ic) laneToggle(laneKey(ic.g), ic.what); return; }
   if (INK.sel) { INK.sel = null; inkBump(); }
@@ -1377,7 +1546,7 @@ $("#tlbar").addEventListener("mousedown", e => { if (e.target.closest("button"))
 document.querySelectorAll("#tlbar [data-ttool]").forEach(b => b.onclick = () => tlSetTool(b.dataset.ttool));
 $("#tlSplit").onclick = () => tlSplitAt(toE(S.t));
 $("#tlDel").onclick = tlDelete;
-$("#tlUndo").onclick = tlUndo; $("#tlRedo").onclick = tlRedo;
+$("#tlUndo").onclick = () => undoAny(true); $("#tlRedo").onclick = () => redoAny();
 $("#tlReset").onclick = tlReset;
 $("#tlExport").onclick = async () => {
   const b = $("#tlExport");
@@ -1421,7 +1590,7 @@ function tlSetToggle(k) {
 }
 function tlSetPaint() {
   $("#tlSnap").classList.toggle("on", TL.snap);
-  $("#tlSetPop").innerHTML = TLSET.map(o => `<button type="button" class="tls-o" role="menuitemcheckbox" aria-checked="${!!tlSetGet(o.k)}" data-k="${o.k}"><span class="tls-sw"></span><span class="tls-t"><b>${o.label}</b><small>${o.sub}</small></span>${o.hint ? `<kbd>${o.hint}</kbd>` : ""}</button>`).join("");
+  $("#tlSetPop").innerHTML = TLSET.map(o => `<button type="button" class="tls-o" role="menuitemcheckbox" aria-checked="${!!tlSetGet(o.k)}" data-k="${o.k}"><span class="tls-sw"></span><span class="tls-t"><b>${o.label}</b><small>${o.sub}</small></span>${o.hint ? `<kbd>${CnKeys.text(o.hint)}</kbd>` : ""}</button>`).join("");
 }
 $("#tlSetBtn").onclick = e => {
   e.stopPropagation(); const r = $("#tlSet"); r.classList.toggle("open");
@@ -1452,11 +1621,21 @@ function tlSelSync() {
   $("#ddVol").style.display = vol == null ? "none" : ""; if (vol != null) DDVOL.set(vol);
 }
 $("#tlZin").onclick = () => zoomBy(1 / 1.6); $("#tlZout").onclick = () => zoomBy(1.6); $("#tlFit").onclick = fitView;
-function setTlH(px) { TL.h = Math.max(160, Math.min(Math.round(innerHeight * 0.7), px)); $("#tlwrap").style.height = TL.h + "px"; store.set("hfr:tlh", String(TL.h)); draw(); }
-setTlH(TL.h);
-new ResizeObserver(() => { const b = $("#tlbar"); b.classList.toggle("compact", b.clientWidth < 980); }).observe($("#tlbar"));
+// the timeline keeps the height you gave it, but never squeezes the video: on a short window (or at a high browser zoom)
+// it gives way so the stage keeps at least ~40% of the room (the stored height comes back when there's space again)
+function tlRoom() {
+  if (matchMedia("(max-width: 900px)").matches) return Math.max(150, Math.round(innerHeight * 0.45));
+  const fixed = ($("header") ? $("header").offsetHeight : 52) + $("#transport").offsetHeight + $("#tlbar").offsetHeight + $("#tlgrip").offsetHeight + 2;
+  const free = innerHeight - fixed;
+  return Math.max(150, Math.min(Math.round(innerHeight * 0.7), free - Math.max(170, Math.round(free * 0.42))));
+}
+function applyTlH() { const h = Math.max(150, Math.min(TL.h, tlRoom())); if ($("#tlwrap").style.height !== h + "px") { $("#tlwrap").style.height = h + "px"; draw(); } }
+function setTlH(px, keep) { TL.h = Math.max(160, Math.min(Math.round(innerHeight * 0.7), px)); if (!keep) store.set("hfr:tlh", String(TL.h)); applyTlH(); draw(); }
+setTlH(TL.h, true);
+addEventListener("resize", applyTlH);
+new ResizeObserver(() => { const b = $("#tlbar"); b.classList.toggle("compact", b.clientWidth < 980); requestAnimationFrame(applyTlH); }).observe($("#tlbar"));
 $("#tlgrip").addEventListener("pointerdown", e => {
-  const y0 = e.clientY, h0 = TL.h; e.target.setPointerCapture(e.pointerId);
+  const y0 = e.clientY, h0 = Math.min(TL.h, $("#tlwrap").offsetHeight || TL.h); e.target.setPointerCapture(e.pointerId);
   const mv = ev => setTlH(h0 - (ev.clientY - y0));
   const up = () => { e.target.removeEventListener("pointermove", mv); e.target.removeEventListener("pointerup", up); };
   e.target.addEventListener("pointermove", mv); e.target.addEventListener("pointerup", up);
