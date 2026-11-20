@@ -683,18 +683,34 @@
     const w = $("#tl").clientWidth;
     D._rows = laneRows();
     const html = [];
-    for (const p of ps) {
+    // names never get cut off or run into each other: inside the block when they fit, beside it when there's room before
+    // the next block on that row, else shortened with … (the full name is in the tooltip)
+    const mctx = D._m || (D._m = document.createElement("canvas").getContext("2d"));
+    mctx.font = "600 11px -apple-system, system-ui, sans-serif";
+    const LR = D._rows || (D._rows = laneRows());
+    const items = ps.map(p => {
       const a = p.cap ? 0 : toE(p.t), b = p.cap ? progDur() : toE(p.t + p.dur);
-      let x0 = X(a), x1 = X(b);
-      if (x1 < G || x0 > w) continue;
+      return { p, x0: X(a), x1: X(b), row: p.cap ? -1 : (LR.at.get(p.id) || 0) };
+    }).sort((u, v) => u.x0 - v.x0);
+    const lastEnd = new Map();
+    items.forEach((it, k) => {
+      const p = it.p; let x0 = it.x0, x1 = it.x1;
+      if (x1 < G || x0 > w) return;
       x0 = Math.max(G, x0); x1 = Math.min(w, x1);
       const label = p.cap ? `Captions · ${esc(short(p.c.name))} <i>whole video</i>` : `${esc(p.c.name)} <i>${fmt(p.t)}</i>`;
-      const LR = D._rows || (D._rows = laneRows());
-      const by = p.cap ? g.y + LR.n * (ROW + 2) : g.y + (LR.at.get(p.id) || 0) * (ROW + 2), bh = p.cap ? CAPROW : ROW;
-      const narrow = !p.cap && x1 - x0 < 150;
-      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}${D.selected === p.id || D.editing === p.id ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${narrow ? "" : label}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
-      if (narrow) html.push(`<div class="ll-lbl" style="left:${Math.max(x0, Math.min(w - 230, x1 + 6))}px;top:${by + bh / 2}px">${label}</div>`);
-    }
+      const plain = p.cap ? `Captions · ${short(p.c.name)} whole video` : `${p.c.name} ${fmt(p.t)}`;
+      const by = p.cap ? g.y + LR.n * (ROW + 2) : g.y + it.row * (ROW + 2), bh = p.cap ? CAPROW : ROW;
+      const tw = mctx.measureText(plain).width + 4;
+      const next = items.slice(k + 1).find(o => o.row === it.row && o.x0 > it.x0 + 0.5);
+      const nextX = next ? Math.max(G, next.x0) : w;
+      const inside = p.cap || tw + 38 <= Math.min(x1, nextX) - x0;   // room for the name and the × button
+      html.push(`<div class="ll-blk${p.cap ? " cap" : ""}${D.selected === p.id || D.editing === p.id ? " sel" : ""}" data-id="${esc(p.id)}" style="left:${x0}px;width:${Math.max(18, x1 - x0)}px;top:${by}px;height:${bh}px" title="${esc(p.c.name)}: ${p.cap ? "caption style for the whole video" : "drag to move it; drag the right edge to change how long it plays"}">${inside ? label : ""}<button class="x" type="button" title="Remove">×</button><span class="rs"></span></div>`);
+      if (inside) { lastEnd.set(it.row, x0 + tw + 38); return; }
+      const left = Math.max(x1 + 6, (lastEnd.get(it.row) || 0) + 6), room = Math.min(nextX, w) - left - 6;
+      if (room < 36) return;   // no room at all: the tooltip has the name
+      html.push(`<div class="ll-lbl" style="left:${left}px;top:${by + bh / 2}px;max-width:${Math.floor(room)}px" title="${esc(plain)}">${label}</div>`);
+      lastEnd.set(it.row, left + Math.min(tw, room));
+    });
     const out = html.join("");
     if (lane._html !== out) { lane.innerHTML = out; lane._html = out; }   // the timeline redraws every frame while playing
     paintFrame();

@@ -21,6 +21,8 @@ It runs on your machine and needs no account or upload. It is one Python file pl
   - **Speed:** select a footage piece or b-roll clip and pick a speed, from 0.25× slow motion to 4×. It plays at that speed and the timeline shows its new length.
   - Drag pieces to reorder them, drag their edges to trim. Move and trim overlays, captions and sound.
   - Every track header has an eye to hide the track and a speaker to mute it.
+  - Right-click anything on the timeline for copy, cut, paste, duplicate, speed, reverse, crop, mirror and **extract audio**. Extracted audio goes on its own Audio track; select it for the **Sound** panel (volume, fades, mute, noise reduction, voice clarity, even loudness).
+  - Click your own footage on the frame to move or resize it, like any overlay.
   - Timeline settings: snapping, magnetic timeline (clips stay stuck to the footage when you cut it, or keep their place in time), loop playback (the in/out range or the whole video), follow the playhead, filmstrip.
   - Undo and redo, zoom, and a filmstrip and waveform for the main footage.
 - **Sound effects.** The **Sounds** tab has 50 original sound effects (whooshes, pops, clicks, UI dings, impacts, risers, glitches, cartoon, money, camera), all synthesized by `library/sfx/make_sfx.py`, so they're free to use. Click one to hear it, drag it onto the timeline or press **+** to add it at the playhead. Sounds sit on their own **Sound FX** track with a waveform: drag to move, pull an edge to trim, set the volume. They play live, **Export cut** mixes them in, and your AI assistant adds them to compositions.
@@ -177,6 +179,7 @@ If the folder you open is inside a video folder that has a `Project/` folder, Cu
 | `docs/` | The project website (GitHub Pages). |
 | `library.js` | The Library and Captions tabs: browsing, drag and drop, the Library lane and the live preview on the video. |
 | `sfx.js` | The Sounds tab: previews, waveforms, and dragging sounds onto the timeline. |
+| `clipfx.js` | The timeline's right-click menu, copy/paste, crop, extract audio and the Sound panel. |
 | `hub.js` | Cutnote Hub, the project manager, and the Editor/Hub menu at the top left. |
 | `update.js` | The version chip, **Update now** and **Update automatically**. |
 | `library/` | The component library: one folder per component in `library/components/`, the runtime, and `SPEC.md` (how components are written and used). `library/sfx/` holds the sound effects and the script that makes them. |
