@@ -1145,9 +1145,14 @@
     startTour("hub");
   };
   H.editorTour = () => { if (document.body.classList.contains("hub-on")) H.show(false); if (typeof S !== "undefined" && S.playing && typeof pause === "function") pause(); startTour("editor"); };
-  // someone new: the editor tour first (the Hub tour follows from its last step)
-  (() => {
-    let fresh = false; try { fresh = !localStorage.getItem("cutnote:seen") && localStorage.getItem("cutnote:edtour") !== "done"; } catch {}
+  // someone new: the editor tour first (the Hub tour follows from its last step). It waits until What's new has been
+  // closed, and never runs after an update: someone updating already knows Cutnote (Take the tour is in the menu).
+  (async () => {
+    for (let i = 0; i < 50 && !window.CutnoteIntro; i++) await new Promise(r => setTimeout(r, 100));
+    let intro = { updated: false, firstRun: false };
+    try { if (window.CutnoteIntro) intro = await window.CutnoteIntro; } catch {}
+    if (intro.updated) { try { localStorage.setItem("cutnote:edtour", "done"); } catch {} return; }
+    let fresh = false; try { fresh = intro.firstRun && localStorage.getItem("cutnote:edtour") !== "done"; } catch {}
     if (!fresh || location.hash === "#hub") return;
     const until = Date.now() + 20000;
     const go = () => {
