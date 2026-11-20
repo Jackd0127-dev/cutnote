@@ -226,18 +226,19 @@
     }
     return `<button type="button">Let's go</button>`;
   }
-  async function whatsNew(fromV) {
-    if ($("#wnew")) return;
+  async function whatsNew(fromV, onClose) {
+    const done = () => { if (onClose) { const f = onClose; onClose = null; f(); } };
+    if ($("#wnew")) return done();
     let v;
-    try { v = await fetch("/version.json", { cache: "no-store" }).then(r => r.json()); } catch { return; }
-    if (!v || !(v.notes || []).length) return;
+    try { v = await fetch("/version.json", { cache: "no-store" }).then(r => r.json()); } catch { return done(); }
+    if (!v || !(v.notes || []).length) return done();
     document.body.insertAdjacentHTML("beforeend", `<div id="wnew" role="dialog" aria-modal="true" aria-labelledby="wnT"><div class="card">
       <div class="hero"><span class="logo"><svg><use href="#i-blade"/></svg></span><div><div class="eyebrow">What's new</div>
         <h2 id="wnT">Cutnote ${esc(v.version)}</h2><div class="sub">${fromV ? "Updated from " + esc(fromV) : "The latest changes"}${v.date ? " · " + esc(v.date) : ""}</div></div></div>
       <ul>${v.notes.map((n, k) => { const [t, d] = splitNote(n); return `<li style="animation-delay:${0.12 + k * 0.07}s"><i>${CHECK}</i><div><b>${esc(t)}</b>${d ? `<span>${esc(d)}</span>` : ""}</div></li>`; }).join("")}</ul>
       <div class="foot"><a href="https://github.com/Jackd0127-dev/cutnote/commits/main" target="_blank" rel="noopener">See every change</a>${tourBtn(v)}</div></div></div>`);
     const el = $("#wnew");
-    const close = () => { el.classList.remove("on"); setTimeout(() => el.remove(), 300); };
+    const close = () => { el.classList.remove("on"); setTimeout(() => el.remove(), 300); done(); };
     el.querySelectorAll(".foot button").forEach(b => b.onclick = () => {
       close();
       // "Show me the Hub": open Cutnote Hub and walk round it (the tour can be skipped at every step)
@@ -249,15 +250,23 @@
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
     setTimeout(() => { const b = el.querySelector(".foot button:last-child"); b && b.focus(); }, 100);
   }
+  // The first thing someone sees: What's new after an update, or (for someone new) the tour, never both at once.
+  // CutnoteIntro settles once What's new is closed (or isn't needed): {updated} says an update happened, {firstRun} that
+  // this browser has never opened Cutnote. The tour in hub.js waits for it and only runs on a first run.
+  let introDone;
+  window.CutnoteIntro = new Promise(r => { introDone = r; });
   // remember the last version this browser saw; a newer one (however it got here) gets the What's new screen once
   (async () => {
     let cur;
-    try { cur = (await fetch("/api/version", { cache: "no-store" }).then(r => r.json())).version; } catch { return; }
+    try { cur = (await fetch("/api/version", { cache: "no-store" }).then(r => r.json())).version; } catch { return introDone({ updated: false, firstRun: false }); }
     let seen = null, from = null;
     try { seen = localStorage.getItem("cutnote:seen"); from = sessionStorage.getItem("cutnote:updated-from"); sessionStorage.removeItem("cutnote:updated-from"); } catch {}
     try { localStorage.setItem("cutnote:seen", cur); } catch {}
     const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
-    if ((seen && newer(cur, seen)) || (from && newer(cur, from))) setTimeout(() => whatsNew(from || seen), 900);
+    const updated = !!((seen && newer(cur, seen)) || (from && newer(cur, from)));
+    const intro = { updated, firstRun: !seen && !from };
+    if (updated) setTimeout(() => whatsNew(from || seen, () => introDone(intro)), 900);
+    else introDone(intro);
   })();
   refresh();
   setInterval(() => refresh(), 10 * 60 * 1000);
