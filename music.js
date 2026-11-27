@@ -208,11 +208,11 @@
     if (aud.video) {
       if (S.playing) aud.seen = true;
       else if (aud.seen || performance.now() - aud.t0 > 2500) { stopAudition(false); return; }   // paused (Space, the transport, the end of the video)
-      const E = toE(S.t), d = (t && t.dur) || au.duration || 0;
+      const E = toE(liveT()), d = (t && t.dur) || au.duration || 0;
       if (S.playing && (!d || E < d - 0.05)) {
         if (Math.abs(au.playbackRate - S.rate) > 1e-3) au.playbackRate = S.rate;
         if (au.paused) { try { au.currentTime = E; } catch {} au.play().catch(() => {}); }
-        else if (Math.abs(au.currentTime - E) > 0.2 * Math.max(1, S.rate)) { try { au.currentTime = E; } catch {} }
+        else if (Math.abs(au.currentTime - E) > 0.25 * Math.max(1, S.rate)) { try { au.currentTime = E; } catch {} }
       } else if (!au.paused) au.pause();   // past the end of the track: the video plays on without it
     }
     const now = performance.now();
