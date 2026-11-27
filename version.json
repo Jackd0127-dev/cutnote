@@ -1,10 +1,8 @@
 {
-  "version": "1.8.0",
+  "version": "1.8.1",
   "date": "27 Nov 2026",
   "notes": [
-    "Music tab: tracks Claude finds for your video show up in a new Music tab, with the artist, tempo, length, mood and a line on why each one fits.",
-    "Preview with your video: press play on a track to hear it with your video from the playhead, so you can pick the one that fits before you place it.",
-    "Music track: Add or drag a track onto its own Music track, then trim it, cut it with the blade, set its level and fade it in and out.",
-    "Export with music: Export cut mixes your music in at the level and fades you set, and Claude reads the same details when it rebuilds a composition."
+    "Smoother music: music and longer sounds now play straight through instead of stuttering or sounding muffled, even in a background tab or a slow preview window.",
+    "Steadier previews: pressing play on a track in the Music tab stays in time with your video without jumping back."
   ]
 }
