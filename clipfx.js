@@ -69,8 +69,9 @@
   };
   const newId = () => Math.random().toString(36).slice(2, 10);
   function freeRow(kind, P, dur) {
-    const items = sfxItems().filter(x => (x.kind === "ext") === (kind === "ext"));
-    for (let r = 0; r < 8; r++) if (!items.some(it => (it.row || 0) === r && P < toE(it.start) + it.dur - 1e-3 && P + dur > toE(it.start) + 1e-3)) return r;
+    const grp = k => k === "ext" ? "ext" : k === "music" ? "music" : "sfx";   // each track type keeps its own rows
+    const items = sfxItems().filter(x => grp(x.kind) === grp(kind)), rows = kind === "music" ? 2 : 8;
+    for (let r = 0; r < rows; r++) if (!items.some(it => (it.row || 0) === r && P < toE(it.start) + it.dur - 1e-3 && P + dur > toE(it.start) + 1e-3)) return r;
     return 0;
   }
   function copySel(quiet) {
@@ -322,17 +323,23 @@
   const P = $("#sndp");
   const SND = (window.SoundPanel = { it: null, begun: false });
   const fmtS = v => (v / 100).toFixed(2) + " s";
+  const MUSIC_VOL = 0.25;   // music starts (and resets) at 25%
+  const hintP = P.querySelector("p.hint"), HINT = hintP.textContent, HINT_MUSIC = "Volume and fades play live here, and Export cut mixes the music in with them.";
   SND.paint = () => {
     const it = SND.it; if (!it) return;
-    P.querySelector("[data-n]").textContent = (it.name || "Sound") + (it.kind === "ext" ? " · from your footage" : " · sound effect");
+    const music = it.kind === "music";
+    P.querySelector("header h2").textContent = music ? "Music" : "Sound";
+    P.querySelector("[data-n]").textContent = (it.name || (music ? "Music" : "Sound")) + (it.kind === "ext" ? " · from your footage" : music ? " · music" : " · sound effect");
     const vol = Math.round((it.vol == null ? 1 : it.vol) * 100), fi = Math.round((it.fadeIn || 0) * 100), fo = Math.round((it.fadeOut || 0) * 100);
     const set = (k, v) => { const i = P.querySelector(`[data-f="${k}"]`); if (document.activeElement !== i) i.value = v; };
     set("vol", vol); set("fadeIn", fi); set("fadeOut", fo);
-    P.querySelector('[data-m="vol"]').textContent = vol + "%" + (vol > 100 ? " · louder in the build" : "");
+    P.querySelector('[data-m="vol"]').textContent = vol + "%" + (music && typeof volDb === "function" ? " · " + volDb(it.vol == null ? 1 : it.vol) : vol > 100 ? " · louder in the build" : "");
     P.querySelector('[data-m="fadeIn"]').textContent = fmtS(fi); P.querySelector('[data-m="fadeOut"]').textContent = fmtS(fo);
     for (const t of ["mute", "denoise", "voice", "norm"]) P.querySelector(`[data-t="${t}"]`).checked = !!it[t];
+    for (const t of ["denoise", "voice", "norm"]) P.querySelector(`[data-t="${t}"]`).closest(".opt").style.display = music ? "none" : "";   // voice tools aren't for music
+    hintP.textContent = music ? HINT_MUSIC : HINT;
     P.querySelector('[data-a="back"]').style.display = it.kind === "ext" ? "" : "none";
-    P.querySelector('[data-r="vol"]').disabled = vol === 100; P.querySelector('[data-r="fade"]').disabled = !fi && !fo;
+    P.querySelector('[data-r="vol"]').disabled = vol === (music ? Math.round(MUSIC_VOL * 100) : 100); P.querySelector('[data-r="fade"]').disabled = !fi && !fo;
   };
   SND.open = it => { SND.it = it; SND.paint(); P.classList.add("on"); if (window.SidePane && !SidePane.isOpen()) SidePane.setOpen(true); };
   SND.close = () => { commit(); SND.it = null; P.classList.remove("on"); };
@@ -351,7 +358,7 @@
   });
   P.addEventListener("click", e => {
     if (e.target.closest("[data-x]")) { TL.sel = null; SND.close(); draw(); return; }
-    const r = e.target.closest("[data-r]"); if (r && SND.it) { tlBegin(); if (r.dataset.r === "vol") SND.it.vol = 1; else { delete SND.it.fadeIn; delete SND.it.fadeOut; } tlCommit(); SND.paint(); return; }
+    const r = e.target.closest("[data-r]"); if (r && SND.it) { tlBegin(); if (r.dataset.r === "vol") SND.it.vol = SND.it.kind === "music" ? MUSIC_VOL : 1; else { delete SND.it.fadeIn; delete SND.it.fadeOut; } tlCommit(); SND.paint(); return; }
     const a = e.target.closest("[data-a]"); if (!a || !SND.it) return;
     if (a.dataset.a === "back") { const it = SND.it; SND.close(); putBack(it); }
     if (a.dataset.a === "del") { TL.sel = { kind: "clip", key: "sfx:" + SND.it.u }; SND.close(); tlDelete(); }

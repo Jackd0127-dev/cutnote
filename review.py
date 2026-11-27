@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -44,6 +44,15 @@ SKIP_DIRS = {"node_modules", ".git", "snap", "s1", "s2", "s3", "qa-trial1", "qa-
 LOCK = threading.Lock()
 MEDIA_LOCKS = {}
 EXPORTS = {}   # comp id -> job status dict
+# music the assistant picked for a video: audio files in <opened folder>/Music, described (optionally) by Music/music.json
+MUSIC_DIR = "Music"
+AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".ogg", ".aac")
+# a music clip's file: Music/<plain name>.<audio ext>. One level only, no hidden files; names may hold letters, digits,
+# spaces and - _ ( ) & ' . ,  (no slash or backslash, so never a path out of the folder)
+MUSIC_RE = re.compile(r"Music/(?!\.)[\w \-()&'.,]{1,160}\.(?i:mp3|m4a|wav|ogg|aac)")
+MUSIC_CACHE = {}   # (path, mtime, size, what) -> duration or waveform
+for _ext, _type in ((".m4a", "audio/mp4"), (".aac", "audio/aac"), (".wav", "audio/wav")):   # types every browser plays
+    mimetypes.add_type(_type, _ext)
 
 
 def find_video(start):
@@ -356,6 +365,67 @@ class State:
                 json.dump(out, fh)
         return out
 
+    # ---------- music: tracks the assistant put in <root>/Music ----------
+    def music(self):
+        """Every audio file in Music/ (one level), with what Music/music.json says about it. Manifest tracks come first, in
+        its order (the assistant's ranking); files it doesn't mention follow by name. Only files safe() allows are listed."""
+        d = os.path.join(self.root, MUSIC_DIR)
+        out = {"folder": MUSIC_DIR, "path": d, "exists": os.path.isdir(d), "tracks": [], "skipped": []}
+        if not out["exists"] or not self.safe(MUSIC_DIR):
+            return out
+        man, order = {}, []
+        mf = self.safe(MUSIC_DIR + "/music.json")
+        if mf and os.path.isfile(mf):
+            try:
+                with open(mf, encoding="utf-8") as fh:
+                    j = json.load(fh)
+                entries = j.get("tracks") if isinstance(j, dict) else j
+            except (OSError, ValueError):
+                entries, out["error"] = [], "Music/music.json isn't valid JSON, so only the file names show"
+            for t in entries if isinstance(entries, list) else []:
+                if isinstance(t, dict) and isinstance(t.get("file"), str) and t["file"].strip():
+                    k = t["file"].replace("\\", "/").rsplit("/", 1)[-1].casefold()   # "Theories.mp3" or "Music/Theories.mp3"
+                    if k not in man:
+                        man[k] = t; order.append(k)
+        try:
+            names = [n for n in os.listdir(d) if not n.startswith(".") and n.lower().endswith(AUDIO_EXTS)]
+        except OSError:
+            names = []
+        rank = {k: i for i, k in enumerate(order)}
+        names.sort(key=lambda n: (rank.get(n.casefold(), len(rank)), n.casefold()))
+        txt = lambda v, n: v.strip()[:n] if isinstance(v, str) else ""
+        for n in names[:200]:
+            rel = MUSIC_DIR + "/" + n
+            f = self.safe(rel)
+            if not f or not os.path.isfile(f):
+                continue
+            if not MUSIC_RE.fullmatch(rel):
+                out["skipped"].append(n[:120])
+                continue
+            m = man.get(n.casefold()) or {}
+            bpm = m.get("bpm")
+            bpm = round(float(bpm), 1) if isinstance(bpm, (int, float)) and not isinstance(bpm, bool) and 20 <= bpm <= 400 else None
+            mood = m.get("mood")
+            mood = [mood] if isinstance(mood, str) else mood if isinstance(mood, list) else []
+            st_ = os.stat(f)
+            out["tracks"].append({
+                "file": rel, "url": "/f/" + quote(rel), "name": n,
+                "title": txt(m.get("title"), 120) or os.path.splitext(n)[0], "artist": txt(m.get("artist"), 120),
+                "bpm": bpm, "mood": [txt(x, 30) for x in mood if txt(x, 30)][:8], "source": txt(m.get("source"), 60),
+                "sourceId": txt(m.get("sourceId"), 80), "why": txt(m.get("why"), 300),
+                "dur": round(music_probe(f, "dur"), 3), "mtime": int(st_.st_mtime), "size": st_.st_size, "listed": bool(m)})
+        return out
+
+    def music_wave(self, rel):
+        """The waveform of one music file: {rate, peaks 0-100} for the timeline and the Music tab. None if it isn't one."""
+        rel = (rel or "").lstrip("/")
+        if not MUSIC_RE.fullmatch(rel):
+            return None
+        f = self.safe(rel)
+        if not f or not os.path.isfile(f):
+            return None
+        return music_probe(f, "wave")
+
     # ---------- video export ----------
     def export_status(self, comp):
         j = EXPORTS.get(comp)
@@ -415,8 +485,19 @@ class State:
                 raise ValueError("no valid segments")
             total = sum((b - a) / sp for a, b, sp, _ in segs)
             lanes = e.get("lanes") or {}
-            sfx = [x for x in (e.get("sfx") or []) if not (lanes.get(f"sfx:{x.get('row', 0)}") or {}).get("mute")]
-            sfx = [x for x in sfx if not x.get("mute") and (x.get("kind") == "ext" or os.path.isfile(os.path.join(LIB, x["file"])))]
+            # music lives on its own track (music:<row>); everything else keeps the Sound FX track's switch
+            sfx = [x for x in (e.get("sfx") or []) if not (lanes.get(f"{'music' if x.get('kind') == 'music' else 'sfx'}:{x.get('row', 0)}") or {}).get("mute")]
+            src_of = {}   # file -> the path ffmpeg reads: sound effects from the library, music from the opened folder
+
+            def src_file(x):
+                if x.get("kind") == "ext":
+                    return ""
+                if x.get("kind") == "music":
+                    fm = self.safe(x["file"]) if MUSIC_RE.fullmatch(str(x.get("file") or "")) else None
+                    return fm if fm and os.path.isfile(fm) else None
+                fl = os.path.join(LIB, x["file"])
+                return fl if os.path.isfile(fl) else None
+            sfx = [x for x in sfx if not x.get("mute") and src_file(x) is not None]
             sfx = [x for x in sfx if not (x.get("kind") == "ext" and ((lanes.get(f"ext:{x.get('row', 0)}") or {}).get("mute") or not has_audio))]
             mute_main = bool((lanes.get("wave") or {}).get("mute") or (lanes.get("prog") or {}).get("mute"))
             parts = []
@@ -474,6 +555,7 @@ class State:
                 else:
                     if x["file"] not in inputs:
                         inputs[x["file"]] = nin; nin += 1
+                        src_of[x["file"]] = src_file(x)
                     src = f"{inputs[x['file']]}:a"
                 xsp = min(16.0, max(0.1, float(x.get("sp") or 1))) if x.get("kind") == "ext" else 1.0
                 ch = f"[{src}]atrim=start={float(x.get('off', 0)):.4f}:duration={d * xsp:.4f},asetpts=PTS-STARTPTS"
@@ -537,7 +619,7 @@ class State:
                     n += 1
             cmd = ["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", f]
             for f_ in sorted(inputs, key=inputs.get):
-                cmd += ["-i", os.path.join(LIB, f_)]
+                cmd += ["-i", src_of[f_]]
             cmd += ["-filter_complex", ";".join(parts), "-map", "[vo]"]
             cmd += ["-map", "[ao]"] if has_out_audio else ["-an"]
             cmd += ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"]
@@ -586,16 +668,68 @@ class State:
                 dr["image"] = os.path.relpath(f, self.video)
 
 
+def music_probe(f, what):
+    """Length ("dur", seconds) or waveform ("wave") of an audio file, cached until the file changes."""
+    import array, hashlib
+    try:
+        s_ = os.stat(f)
+    except OSError:
+        return 0.0 if what == "dur" else None
+    key = (f, s_.st_mtime, s_.st_size, what)
+    if key in MUSIC_CACHE:
+        return MUSIC_CACHE[key]
+    with LOCK:
+        lk = MEDIA_LOCKS.setdefault(f"music:{what}:" + hashlib.sha1(f.encode()).hexdigest(), threading.Lock())
+    with lk:   # one ffmpeg run per file and kind at a time (the waveform asks for the length while it holds its own lock)
+        if key in MUSIC_CACHE:
+            return MUSIC_CACHE[key]
+        if what == "dur":
+            try:
+                v = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f],
+                                         capture_output=True, text=True, timeout=30).stdout.strip() or 0)
+            except (OSError, ValueError, subprocess.SubprocessError):
+                v = 0.0
+        else:
+            dur = music_probe(f, "dur")
+            rate = max(2, min(50, int(4000 / dur))) if dur > 0 else 20   # at most ~4000 peaks however long the track
+            sr = 4000
+            try:
+                p = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-i", f, "-vn", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"],
+                                   capture_output=True, timeout=120)
+                raw = p.stdout if p.returncode == 0 else b""
+            except (OSError, subprocess.SubprocessError):
+                raw = b""
+            if not raw:
+                return None
+            a = array.array("h"); a.frombytes(raw[: len(raw) // 2 * 2])
+            step = max(1, sr // rate)
+            peaks = []
+            for i in range(0, len(a), step):
+                sl = a[i:i + step]
+                m = max(max(sl), -min(sl)) if sl else 0
+                peaks.append(int(round(100 * (min(m, 32767) / 32767) ** 0.5)))
+            v = {"rate": sr / step, "peaks": peaks}
+        if len(MUSIC_CACHE) > 400:
+            MUSIC_CACHE.clear()
+        MUSIC_CACHE[key] = v
+        return v
+
+
 def clean_sfx(items):
-    """Sound effects placed on the timeline: [{u, id, name, file, start, dur, off, vol, row}] (times in source seconds)."""
+    """Sound effects placed on the timeline: [{u, id, name, file, start, dur, off, vol, row}] (times in source seconds).
+    kind "ext" is audio taken out of the footage; kind "music" is a track from the project's Music/ folder (file "Music/<name>")."""
     out = []
     for it in items if isinstance(items, list) else []:
         if not isinstance(it, dict):
             continue
         try:
             ext = it.get("kind") == "ext"   # audio taken out of the footage: plays the footage's own sound from `off`
+            music = it.get("kind") == "music"   # a track from the project's Music/ folder
             f = "" if ext else str(it.get("file") or "")
-            if not ext and not re.fullmatch(r"sfx/sounds/[a-z0-9-]+\.(mp3|m4a|wav|ogg)", f):
+            if music:
+                if not MUSIC_RE.fullmatch(f) or ".." in f.split("/"):
+                    continue
+            elif not ext and not re.fullmatch(r"sfx/sounds/[a-z0-9-]+\.(mp3|m4a|wav|ogg)", f):
                 continue
             x = {"u": str(it.get("u") or uuid.uuid4().hex[:8])[:16], "id": str(it.get("id") or "")[:60],
                         "name": str(it.get("name") or "")[:80], "file": f,
@@ -605,6 +739,11 @@ def clean_sfx(items):
                         "row": int(min(7, max(0, int(it.get("row", 0) or 0))))}
             if ext:
                 x["kind"] = "ext"
+            if music:   # two Music rows; the artist rides along for the notes
+                x["kind"] = "music"
+                x["row"] = min(1, x["row"])
+                if it.get("artist"):
+                    x["artist"] = str(it["artist"])[:80]
             for k in ("fadeIn", "fadeOut"):
                 if it.get(k):
                     x[k] = round(min(10.0, max(0.0, float(it[k]))), 3)
@@ -623,7 +762,7 @@ def clean_lanes(d):
     """Per-track switches from the timeline headers: {"prog": {"hide": true}, "wave": {"mute": true}, "video:0": {...}}."""
     out = {}
     for k, v in (d or {}).items() if isinstance(d, dict) else []:
-        if isinstance(k, str) and re.fullmatch(r"(prog|wave|lib|(video|other|cap|audio|sfx|ext):\d{1,2})", k) and isinstance(v, dict):
+        if isinstance(k, str) and re.fullmatch(r"(prog|wave|lib|(video|other|cap|audio|sfx|ext|music):\d{1,2})", k) and isinstance(v, dict):
             o = {x: True for x in ("mute", "hide") if v.get(x) is True}
             if o:
                 out[k] = o
@@ -776,7 +915,9 @@ def render_md(data, st):
                   "then rebuild and remove this version's entry from `edits` in review-notes.json. Render stays blocked until then.",
                   "Edits can also include a delivery format (reframe/crop: aspect, size, centre x/y). For video files the player can",
                   "export the cut itself (next to the source, as \"<name> (edited).mp4\"), so no rebuild is needed.",
-                  f"They can also hold speed changes (slow motion / speed up), sound effects (files in {LIB}) and muted or hidden tracks.", ""]
+                  f"They can also hold speed changes (slow motion / speed up), sound effects (files in {LIB}), music (files in "
+                  f"{os.path.join(st.root, MUSIC_DIR)}: mix each music clip in as described, from that part of the track, at that level, with its fades) "
+                  "and muted or hidden tracks.", ""]
         lines += [f"- {x}" for x in e.get("summary") or []]
         lines.append("")
     appr = data.get("approved") or {}
@@ -878,7 +1019,7 @@ class H(BaseHTTPRequestHandler):
         if path == "/version.json":   # this install's own release notes (the What's new screen reads them)
             with open(os.path.join(HERE, "version.json"), "rb") as f:
                 return self.send(200, f.read(), "application/json")
-        if path in ("/timeline.js", "/library.js", "/update.js", "/sfx.js", "/clipfx.js"):
+        if path in ("/timeline.js", "/library.js", "/update.js", "/sfx.js", "/clipfx.js", "/music.js"):
             with open(os.path.join(HERE, path[1:]), "rb") as f:
                 return self.send(200, f.read(), "text/javascript; charset=utf-8")
         if path == "/api/version":
@@ -913,6 +1054,11 @@ class H(BaseHTTPRequestHandler):
             return self.file(f)
         if path == "/api/media":
             return self.jsend(st.media(q.get("comp", [""])[0], q.get("src", [""])[0]))
+        if path == "/api/music":
+            return self.jsend(st.music())
+        if path == "/api/music/wave":
+            w = st.music_wave(q.get("file", [""])[0])
+            return self.jsend(w) if w else self.send(404, json.dumps({"error": "not a music file"}), "application/json")
         if path == "/api/info":
             return self.jsend({"version": VERSION, "video": os.path.basename(st.video), "name": hub_name(st.video), "project": pid_of(st.video), "edit": st.edit, "notes": st.notes_md,
                                "comps": st.comps(), "hf": bool(st.hf), "layout": st.layout, "root": st.root})

@@ -227,7 +227,7 @@
   const short = name => { const s = String(name || "").replace(/^Captions?:?\s*/i, ""); return s.charAt(0).toUpperCase() + s.slice(1); };
 
   /* ---------- sidebar tabs ---------- */
-  const P = { notes: $("#pNotes"), lib: $("#pLib"), cap: $("#pCap"), sfx: $("#pSfx") };
+  const P = { notes: $("#pNotes"), lib: $("#pLib"), cap: $("#pCap"), sfx: $("#pSfx"), music: $("#pMusic") };
   const SP = (window.SidePane = { cur: "notes" });
   // hide / show the whole sidebar (header button, or ⇧\); remembered per browser
   SP.setOpen = (on, quiet) => {
@@ -254,6 +254,7 @@
     slideBar();
     try { localStorage.setItem("cutnote:pane", name); } catch {}
     if (name === "sfx") setTimeout(() => window.SfxDrawer && SfxDrawer.open(), 0);
+    else if (name === "music") setTimeout(() => window.MusicDrawer && MusicDrawer.open(), 0);   // music.js (it opens itself if it loads later)
     else if (name !== "notes") ensureLoaded().then(() => { if (!P[name].dataset.built) render(name); playVisible(); });
     playVisible();
   };

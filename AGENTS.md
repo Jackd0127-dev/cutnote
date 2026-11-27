@@ -50,16 +50,30 @@ The Hub (header menu → **Cutnote Hub**) lists every project on their computer 
 6. Notes of kind *remember* are lasting preferences. Save them wherever durable rules live for this person or project.
 7. **Timeline edits**: the `edits` entries in the JSON, shown as "Timeline edits to bake" in the `.md`.
    - On a composition they are an edit list: the spans of the main footage to keep, in order; overlay and caption moves or retimes; removals; optionally a delivery format with a crop window; and on-frame changes. On-frame changes move an element by dx/dy pixels (CSS translate), scale it (CSS scale), hide it, recolour its text, or change its text; layer changes put a clip on another row of its track (the top row is in front), and name the element by `#id` or by its child path from the composition root. Re-cut and rebuild from the source footage so it plays like that, then delete that version's entry from `edits`.
-   - They can also hold speed changes (`sp` on a footage span or clip: 0.5 = half speed), sound effects (`sfx`: a file under `library/sfx/sounds/`, a start in source time, a length and a volume) and track switches (`lanes`: muted or hidden tracks). The `.md` spells each one out.
+   - They can also hold speed changes (`sp` on a footage span or clip: 0.5 = half speed), sound effects (`sfx`: a file under `library/sfx/sounds/`, a start in source time, a length and a volume), music (`sfx` items with `kind: "music"` and a file under `Music/`) and track switches (`lanes`: muted or hidden tracks). The `.md` spells each one out.
    - On a plain video file the person can press **Export cut** themselves.
 8. Never render a final version they haven't approved in the player, if the project uses the approval gate (`review.py --gate`).
+
+## Adding music for someone
+
+1. When they ask for music, search their music library (for example Epidemic Sound through its MCP) and pick 2–4 tracks that fit the video's length, pace and mood.
+2. Download the chosen tracks into a `Music/` folder inside the folder Cutnote opened. Give them plain names: letters, digits, spaces and `- _ ( ) & ' . ,` only, ending in `.mp3`, `.m4a`, `.wav`, `.ogg` or `.aac`, for example `Music/Theories.mp3`.
+3. Write `Music/music.json`, best pick first:
+
+   ```json
+   {"tracks": [{"file": "Theories.mp3", "title": "Theories", "artist": "Out To The World", "bpm": 120, "mood": ["mysterious", "optimistic"], "source": "Epidemic Sound", "sourceId": "<the library's id>", "why": "One line on why it fits this video"}]}
+   ```
+
+4. Tell them the tracks are in the **Music** tab. They preview each one with the video, place one and set its cuts, level and fades. You don't place it for them.
+5. Never commit, upload or share the music files; they stay in their project folder under the library's licence.
+6. When baking a composition, read the music clips from "Timeline edits to bake" in `review-notes.md`: each one names the file, which part of the track (from X s, for Y s), where it sits on the edited timeline, its volume in % and dB, its fades and whether it's muted. Mix it in exactly like that, under the footage's own sound.
 
 ## Working on Cutnote's code
 
 - `review.py` is the HTTP server. It uses the standard library only; ffmpeg and ffprobe are called as subprocesses.
 - `review.html` holds the page, the player adapters, notes, drawing, dropdowns and themes.
 - `timeline.js` is the canvas timeline editor. It loads after the inline script.
-- `sfx.js` is the Sounds tab; `hub.js` is the Cutnote Hub (project manager) and the header's Editor/Hub menu.
+- `sfx.js` is the Sounds tab; `music.js` is the Music tab (the project's `Music/` folder, auditioning a track with the video, placing it on the Music track); `hub.js` is the Cutnote Hub (project manager) and the header's Editor/Hub menu.
 - Colours are CSS variables, with one set for dark and one for light. The canvas reads them through `readTheme()`, so never hard-code a colour in canvas code.
 - Edits are stored in source time (the version's own clock). The timeline shows program time, after the edits. `toE()` and `toS()` convert between the two.
 - Keep it dependency-free: no build step, no npm packages in the page.

@@ -127,7 +127,12 @@ function eff(c) {   // a clip with its edits applied (source time)
    start is anchored to the footage (it moves with cuts like every clip); dur and off are real seconds of the sound. */
 const sfxItems = () => (S.ed && S.ed.sfx) || [];
 // kind "ext" = audio taken out of the footage (Extract audio): it plays the footage's own sound from `off` (source time)
-function sfxClips() { return sfxItems().map(it => ({ key: "sfx:" + it.u, id: it.name || it.id, type: it.kind === "ext" ? "ext" : "sfx", sfx: it, start: it.start, end: it.start + it.dur, text: "" })); }
+// kind "music" = a track from the project's Music/ folder (Music tab): file "Music/<name>", on the Music track (2 rows), same
+// move / trim / slip / fades / volume as a sound effect; the blade splits it, and deleting a piece closes the gap after it
+const sfxType = it => it.kind === "ext" ? "ext" : it.kind === "music" ? "music" : "sfx";
+function sfxClips() { return sfxItems().map(it => ({ key: "sfx:" + it.u, id: it.name || it.id, type: sfxType(it), sfx: it, start: it.start, end: it.start + it.dur, text: "" })); }
+// where a placed sound's file is served from: the Cutnote library, or the opened folder for music
+const sfxSrc = it => it.kind === "music" ? "/f/" + String(it.file || "").split("/").map(encodeURIComponent).join("/") : "/lib/" + it.file;
 function allClips() { return S.clips.concat(sfxClips()); }
 function clipBy(key) { return allClips().find(c => c.key === key) || null; }
 // where a clip sits in program time: pieces of the kept footage it overlaps (a sound plays in real time from its anchor)
@@ -145,7 +150,7 @@ function pieces(a, b) {
 function editable(c) { if (c && c.sfx) return !!S.comp; return S.comp && S.comp.kind === "code" && c !== mainClip(); }
 
 /* ---------- track switches (eye / speaker in the track headers) ---------- */
-const LANE_SW = { prog: ["mute", "hide"], wave: ["mute"], lib: ["hide"], video: ["mute", "hide"], other: ["hide"], cap: ["hide"], audio: ["mute"], sfx: ["mute"], ext: ["mute"] };
+const LANE_SW = { prog: ["mute", "hide"], wave: ["mute"], lib: ["hide"], video: ["mute", "hide"], other: ["hide"], cap: ["hide"], audio: ["mute"], sfx: ["mute"], ext: ["mute"], music: ["mute"] };
 const laneKey = ln => ["prog", "wave", "lib"].includes(ln.type) ? ln.type : ln.type + ":" + (ln.row || 0);
 const laneSw = k => (S.ed && S.ed.lanes && S.ed.lanes[k]) || {};
 function laneToggle(k, what) {
@@ -321,11 +326,12 @@ function edSummary() {
       it.sp > 0 && it.sp !== 1 && `at ${it.sp}× speed like its footage`, it.rev && "reversed like its footage", it.denoise && "reduce background noise", it.voice && "make the voice clearer (EQ: cut below 80 Hz, lift 2–5 kHz)", it.norm && "even out the loudness (-14 LUFS)", it.mute && "muted"].filter(Boolean);
     out.push(`${laneSw("ext:" + (it.row || 0)).mute ? "(Muted track, leave out) " : ""}Footage audio, separated: play the footage's own sound from ${fmt(it.off)} (${(it.dur * (it.sp || 1)).toFixed(2)} s of it) for ${it.dur.toFixed(2)} s at ${fmt(P)} on the edited timeline${opts.length ? ": " + opts.join(", ") : ""}`);
   }
-  for (const it of sfxItems().filter(x => x.kind !== "ext")) {
+  for (const it of sfxItems().filter(x => x.kind !== "ext" && x.kind !== "music")) {
     const P = toE(it.start), muted = laneSw("sfx:" + (it.row || 0)).mute;
     out.push(`${muted ? "(Muted track, leave out) " : ""}Sound effect "${it.name || it.id}" (Cutnote library file library/${it.file}) at ${fmt(P)} on the edited timeline (composition time ${fmt(it.start)}), ${it.dur.toFixed(2)} s${it.off > 0.005 ? `, starting ${it.off.toFixed(2)} s into the sound` : ""}, volume ${Math.round((it.vol == null ? 1 : it.vol) * 100)}%`);
   }
-  const NAMES = { prog: "Footage", wave: "Footage audio", lib: "Library", video: "B-roll", other: "Overlays", cap: "Captions", audio: "Sound", sfx: "Sound FX", ext: "Audio" };
+  for (const it of sfxItems().filter(x => x.kind === "music").sort((a, b) => (a.row || 0) - (b.row || 0) || toE(a.start) - toE(b.start))) out.push(musicLine(it));
+  const NAMES = { prog: "Footage", wave: "Footage audio", lib: "Library", video: "B-roll", other: "Overlays", cap: "Captions", audio: "Sound", sfx: "Sound FX", ext: "Audio", music: "Music" };
   for (const [k, o] of Object.entries((S.ed && S.ed.lanes) || {})) {
     const [t, r] = k.split(":"), ln = TL.lanes.find(l => laneKey(l) === k);
     const who = ln && ln.clips && ln.clips.length ? ": " + ln.clips.map(c => c.id).slice(0, 12).join(", ") : "";
@@ -339,6 +345,16 @@ function edSummary() {
     out.push(`Deliver as ${f.aspect} (${f.w}×${f.h}): crop the ${S.W}×${S.H} canvas to x ${px(b.x, S.W)}–${px(b.x + b.w, S.W)}, y ${px(b.y, S.H)}–${px(b.y + b.h, S.H)} (window centre ${Math.round(f.x * 100)}%, ${Math.round(f.y * 100)}%), then scale to ${f.w}×${f.h}. Re-check captions and overlays sit inside that window.`);
   }
   return out;
+}
+// one music clip, spelled out for whoever bakes it into a build: which file, which part of the track, where, how loud, fades
+const volDb = v => v > 0 ? (20 * Math.log10(v) >= 0 ? "+" : "") + (20 * Math.log10(v)).toFixed(1) + " dB" : "silent";
+function musicLine(it) {
+  const P = toE(it.start), vol = it.vol == null ? 1 : it.vol, off = it.off || 0, end = Math.min(P + it.dur, progDur());
+  const why = [laneSw("music:" + (it.row || 0)).mute && "muted track", it.mute && "muted clip"].filter(Boolean);
+  const fades = [it.fadeIn > 0 ? `fade in ${(+it.fadeIn).toFixed(2)} s` : "no fade in", it.fadeOut > 0 ? `fade out ${(+it.fadeOut).toFixed(2)} s` : "no fade out"];
+  return `${why.length ? `(${why.join(", ")}: leave out) ` : ""}Music "${it.name || it.file}"${it.artist ? " by " + it.artist : ""} (file ${it.file} in the opened folder), Music row ${(it.row || 0) + 1}: ` +
+    `play the track from ${fmt(off)} for ${it.dur.toFixed(2)} s (track ${fmt(off)}–${fmt(off + it.dur)}), placed at ${fmt(P)}–${fmt(end)} on the edited timeline (composition time ${fmt(it.start)}), ` +
+    `volume ${Math.round(vol * 100)}% (${volDb(vol)}), ${fades.join(", ")}. Mix it under the footage's own sound` + (P + it.dur > progDur() + 0.01 ? "; it runs past the end of the video, so stop it there" : "");
 }
 function tlStatus() {
   const el = $("#tlEdits"); if (!el) return;
@@ -824,11 +840,13 @@ function sfxTick() {
   const keep = new Set(), E = toE(S.t), run = S.playing && !(TL.drag && TL.drag.kind !== "click");
   for (const it of sfxItems()) {
     keep.add(it.u);
-    const ext = it.kind === "ext", src = ext ? mainSrc() : "/lib/" + it.file; if (!src) continue;
+    const ext = it.kind === "ext", src = ext ? mainSrc() : sfxSrc(it); if (!src) continue;
     let a = SFXA.get(it.u);
     if (!a || a._f !== src) { if (a) a.pause(); a = new Audio(src); a.preload = "auto"; a._f = src; SFXA.set(it.u, a); }
     const local = E - toE(it.start);
-    const on = run && !laneSw((ext ? "ext:" : "sfx:") + (it.row || 0)).mute && !it.mute && local >= -0.02 && local < it.dur - 0.01;
+    // (while a track from the Music tab is auditioned, placed music stays quiet so the two don't play over each other)
+    const on = run && !laneSw((ext ? "ext:" : it.kind === "music" ? "music:" : "sfx:") + (it.row || 0)).mute && !it.mute && !(it.kind === "music" && TL.audition)
+      && local >= -0.02 && local < it.dur - 0.01 && (it.kind !== "music" || E < progDur() - 0.01);
     if (!on) { if (!a.paused) a.pause(); continue; }
     const isp = ext && it.sp > 0 ? it.sp : 1;
     const want = ext ? mainMediaAt(it.off || 0) + Math.max(0, local) * isp : (it.off || 0) + Math.max(0, local);
@@ -888,11 +906,46 @@ function tlDelete() {
     return;
   }
   const c = clipBy(sel.key); if (!c) return;
+  if (c.sfx && c.type === "music") { musicDelete(c.sfx); return; }
   if (c.sfx) { tlBegin(); S.ed.sfx = sfxItems().filter(it => it !== c.sfx); TL.sel = null; tlCommit(); toast("Removed " + c.id); return; }
   tlBegin(); const e = eff(c);
   S.ed = S.ed || { segments: null, clips: {} }; S.ed.clips = S.ed.clips || {};
   S.ed.clips[c.key] = { start: e.start, dur: e.end - e.start, del: true };
   TL.sel = null; FE.sel = null; tlCommit(); toast("Removed " + c.id);
+}
+/* ---------- music clips: blade and ripple delete ---------- */
+// split a music clip at program time E into two clips that play on without a break (the second one starts further into the track)
+function musicSplit(it, E) {
+  if (!canEdit()) return false;
+  const P = toE(it.start), local = E - P;
+  if (local < 0.1 || it.dur - local < 0.1) { toast("Too close to the end of the music clip"); return false; }
+  tlBegin();
+  const b = Object.assign(clone(it), { u: Math.random().toString(36).slice(2, 10), start: +toS(E).toFixed(4), off: +((it.off || 0) + local).toFixed(4), dur: +(it.dur - local).toFixed(4) });
+  it.dur = +local.toFixed(4);
+  delete it.fadeOut; delete b.fadeIn;   // the join plays straight through: the fades stay at the outer ends
+  if (it.fadeIn > it.dur / 2) it.fadeIn = +(it.dur / 2).toFixed(3);
+  if (b.fadeOut > b.dur / 2) b.fadeOut = +(b.dur / 2).toFixed(3);
+  const arr = S.ed.sfx; arr.splice(arr.indexOf(it) + 1, 0, b);
+  TL.sel = { kind: "clip", key: "sfx:" + b.u }; tlCommit(); toast("Split the music at " + fmt(E));
+  return true;
+}
+// blade at the playhead (⌘B): a selected music clip under the playhead is split, otherwise the footage
+function tlBladeAt(E) {
+  const c = TL.sel && TL.sel.kind === "clip" ? clipBy(TL.sel.key) : null;
+  if (c && c.type === "music") { const P = toE(c.sfx.start); if (E > P && E < P + c.sfx.dur) { musicSplit(c.sfx, E); return; } }
+  tlSplitAt(E);
+}
+// delete a piece of music; the music clips butted up after it on its row move up to close the gap (ripple)
+function musicDelete(it) {
+  if (!canEdit()) return;
+  const row = it.row || 0, others = sfxItems().filter(x => x !== it && x.kind === "music" && (x.row || 0) === row);
+  const chain = []; let end = toE(it.start) + it.dur;
+  for (;;) { const n = others.find(x => !chain.includes(x) && Math.abs(toE(x.start) - end) < 0.02); if (!n) break; chain.push(n); end = toE(n.start) + n.dur; }
+  tlBegin();
+  const P0 = toE(it.start);
+  let at = P0; for (const x of chain) { x.start = +toS(at).toFixed(4); at += x.dur; }
+  S.ed.sfx = sfxItems().filter(x => x !== it); TL.sel = null; tlCommit();
+  toast(chain.length ? "Removed that piece of music: the rest moved up to close the gap" : "Removed " + (it.name || "the music"));
 }
 // Q / W: ripple-trim the footage span under the playhead from its start (or to its end)
 function tlTrimTo(which) {
@@ -953,14 +1006,24 @@ function zoomBy(f, aroundX) {
 }
 
 /* ---------- layout ---------- */
+// the Music track has two rows: a music clip pasted or duplicated onto a higher row moves to a free one of the two
+function musicRows() {
+  const ms = sfxItems().filter(x => x.kind === "music");
+  for (const it of ms) {
+    if ((it.row || 0) <= 1) continue;
+    const P = toE(it.start), busy = r => ms.some(o => o !== it && (o.row || 0) === r && P < toE(o.start) + o.dur - 1e-3 && P + it.dur > toE(o.start) + 1e-3);
+    it.row = busy(0) && !busy(1) ? 1 : 0;
+  }
+}
 function layoutLanes() {
   const main = mainClip();
+  musicRows();
   // rows of one kind of clip: clips dragged to a row stay there, the rest pack into the first row with room
   const rowsOf = (type, cap) => {
     const rows = [], mk = () => { const r = { type, clips: [], spans: [] }; rows.push(r); return r; };
     const list = allClips().filter(c => c.type === type && c !== main && !eff(c).del).map(c => ({ c, e: eff(c) })).sort((a, b) => a.e.start - b.e.start);
     for (const it of list.filter(it => it.e.lane != null)) {
-      const L = Math.max(0, Math.min(11, it.e.lane)); while (rows.length <= L) mk();
+      const L = Math.max(0, Math.min(type === "music" ? cap - 1 : 11, it.e.lane)); while (rows.length <= L) mk();
       rows[L].clips.push(it.c); rows[L].spans.push([it.e.start, it.e.end]);
     }
     for (const it of list.filter(it => it.e.lane == null)) {
@@ -969,7 +1032,7 @@ function layoutLanes() {
       r.clips.push(it.c); r.spans.push([it.e.start, it.e.end]);
     }
     const dg = TL.drag && TL.drag.kind === "clipmove" && TL.drag.type === type;
-    if (dg && rows.length < (type === "sfx" || type === "ext" ? 8 : 12)) mk().ghost = true;   // an empty row to drop into while dragging
+    if (dg && rows.length < (type === "music" ? cap : type === "sfx" || type === "ext" ? 8 : 12)) mk().ghost = true;   // an empty row to drop into while dragging
     return rows;
   };
   TL.lanes = [
@@ -982,6 +1045,8 @@ function layoutLanes() {
     ...rowsOf("cap", 2).map((r, i) => ({ ...r, label: i ? "" : "Captions", h: CAP_H, row: i })),
     ...rowsOf("audio", 3).map((r, i) => ({ ...r, label: i ? "" : "Sound", h: SFX_H, row: i })),
     ...(() => { if (!S.comp) return []; const r = rowsOf("sfx", 8); if (!r.length) r.push({ type: "sfx", clips: [], spans: [] }); return r.map((x, i) => ({ ...x, label: i ? "" : "Sound FX", h: ROW_H, row: i })); })(),
+    // Music: shown once a track is placed, or as a drop zone while one is dragged in from the Music tab
+    ...(() => { if (!S.comp) return []; const r = rowsOf("music", 2); if (!r.length && TL.musicDrop) r.push({ type: "music", clips: [], spans: [] }); return r.map((x, i) => ({ ...x, label: i ? "" : "Music", h: ROW_H, row: i })); })(),
   ];
   // deleted clips leave the lanes; undo (⌘Z) or Reset brings them back
 }
@@ -1006,7 +1071,7 @@ const TC = {};
 function readTheme() {
   const cs = getComputedStyle(document.documentElement);
   for (const k of ["accent", "dim", "faint", "ink", "fix", "change", "remember", "done", "video", "audio", "cap", "cap-ink", "other", "tl-bg", "tl-ruler", "tl-grid", "tl-beyond", "tl-head",
-    "tl-band", "tl-tick", "tl-line", "tl-prog", "tl-edge", "tl-label-bg", "tl-label", "playhead", "cut", "snap", "blade", "panel", "sfx"]) TC[k] = cs.getPropertyValue("--" + k).trim();
+    "tl-band", "tl-tick", "tl-line", "tl-prog", "tl-edge", "tl-label-bg", "tl-label", "playhead", "cut", "snap", "blade", "panel", "sfx", "music", "music-ink", "tl-fade"]) TC[k] = cs.getPropertyValue("--" + k).trim();
 }
 readTheme();
 const css = v => TC[v.slice(2)] || getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1050,13 +1115,13 @@ function draw() {
     else if (ln.type === "wave") drawWave(g, ss, starts);
     else if (ln.clips) { for (const c of ln.clips) drawClip(c, g, ctx.globalAlpha); if (g.h >= 12) laneLabels(g); }
     ctx.globalAlpha = 1;
-    if (ln.type === "sfx" && !ln.clips.length && g.ln.row === 0) {   // an empty Sound FX track: a drop zone with its hint inside it
+    if ((ln.type === "sfx" || ln.type === "music") && !ln.clips.length && g.ln.row === 0) {   // an empty Sound FX (or Music) track: a drop zone with its hint inside it
       const zx = Math.max(G, X(0)) + 2, zw = Math.min(w, X(PD)) - 2 - zx;
       if (zw > 60) {
         ctx.save(); ctx.strokeStyle = TC["tl-line"]; ctx.setLineDash([4, 3]); rr(zx + .5, g.y + .5, zw - 1, g.h - 1, 4); ctx.stroke(); ctx.setLineDash([]);
         ctx.beginPath(); ctx.rect(zx, g.y, zw, g.h); ctx.clip();
         ctx.fillStyle = TC.faint; ctx.font = "11px -apple-system, system-ui, sans-serif";
-        const t = fitText("Drag sounds here from the Sounds tab", zw - 20), tx = t ? dodgePlayhead(zx + 10, ctx.measureText(t).width, zx + 10, zx + zw - 10) : null;
+        const t = fitText(ln.type === "music" ? "Drop the music here" : "Drag sounds here from the Sounds tab", zw - 20), tx = t ? dodgePlayhead(zx + 10, ctx.measureText(t).width, zx + 10, zx + zw - 10) : null;
         if (t && tx != null) ctx.fillText(t, tx, g.y + g.h / 2 + 4);
         ctx.restore();
       }
@@ -1081,7 +1146,7 @@ function draw() {
   // roll: the cut you'd grab
   if (TL.tool === "roll" && TL.hoverCut != null) { const x = X(segStarts()[TL.hoverCut]); ctx.fillStyle = TC.accent; ctx.fillRect(x - 1.5, RULER, 3, h); }
   // where a dragged sound will land
-  if (TL.dropE != null) { ctx.fillStyle = TC.sfx || "#ffa53d"; ctx.fillRect(X(TL.dropE) - 1, RULER, 2, h); }
+  if (TL.dropE != null) { ctx.fillStyle = (TL.musicDrop ? TC.music : TC.sfx) || "#ffa53d"; ctx.fillRect(X(TL.dropE) - 1, RULER, 2, h); }
   // razor preview
   if (TL.tool === "razor" && TL.hoverX != null && TL.hoverX > G) { ctx.strokeStyle = TC.blade; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(TL.hoverX + .5, RULER); ctx.lineTo(TL.hoverX + .5, h); ctx.stroke(); }
   ctx.restore();
@@ -1228,7 +1293,7 @@ function laneLabels(g) {
     const text = c.type === "cap" ? c.text : c.id + (c.type === "other" && c.text ? "  " + c.text : "") + (c.sfx && c.sfx.vol != null && c.sfx.vol !== 1 ? "  " + Math.round(c.sfx.vol * 100) + "%" : "");
     if (!text) return;
     ctx.font = (c.sfx ? "600 " : "") + (g.h >= 18 ? "11px" : "10px") + " -apple-system, system-ui, sans-serif";
-    const inkIn = c.type === "cap" ? TC["cap-ink"] : c.sfx ? "#2a1500" : "#fff";
+    const inkIn = c.type === "cap" ? TC["cap-ink"] : c.type === "music" ? TC["music-ink"] : c.sfx ? "#2a1500" : "#fff";
     const nx = items.slice(k + 1).find(o => o.x0 > it.x0 + 0.5), nextX = nx ? nx.x0 : W;
     const sp = c.sfx ? 1 : eff(c).sp, badge = sp !== 1 && it.x1 - it.x0 > 40 && it.x1 <= nextX ? ctx.measureText(sp + "×").width + 12 : 0;   // leave the speed badge clear
     const x0 = Math.max(G, it.x0), start = Math.max(x0 + 5, lastEnd + 6), end = Math.min(it.x1 - badge, nextX, W) - 5, room = end - start;
@@ -1251,7 +1316,7 @@ function drawClip(c, g, alpha) {
     ctx.fillStyle = col; rr(x0, g.y, wv, g.h, 3); ctx.fill();
     if (c.sfx) {   // the sound's own waveform
       const wvs = TL.media && TL.media.wave, mstart = (mainClip() || {}).start || 0;
-      const pk = c.type === "ext" ? (wvs ? { ext: true } : null) : window.SfxDrawer && SfxDrawer.peaksFor(c.sfx.id);
+      const pk = c.type === "ext" ? (wvs ? { ext: true } : null) : c.type === "music" ? window.MusicDrawer && MusicDrawer.peaksFor(c.sfx.file) : window.SfxDrawer && SfxDrawer.peaksFor(c.sfx.id);
       if (pk && wv > 6) {
         ctx.save(); rr(x0, g.y, wv, g.h, 3); ctx.clip(); ctx.fillStyle = "rgba(0,0,0,.28)";
         const len = c.sfx.len || c.sfx.dur, mid = g.y + g.h / 2;
@@ -1263,11 +1328,28 @@ function drawClip(c, g, alpha) {
         ctx.restore();
       }
     }
+    if (c.type === "music" && wv > 6) drawFades(c.sfx, x0, x1, g);
     if (e.sp !== 1 && wv > 40) { ctx.save(); rr(x0, g.y, wv, g.h, 3); ctx.clip(); ctx.fillStyle = "rgba(0,0,0,.35)"; const lbl = e.sp + "×", tw = ctx.measureText(lbl).width + 8; rr(x1 - tw - 3, g.y + 2, tw, g.h - 4, 3); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(lbl, x1 - tw + 1, g.y + g.h / 2 + 4); ctx.restore(); }
     ctx.globalAlpha = A;
     if (sel) { ctx.strokeStyle = TC.playhead; ctx.lineWidth = 2; rr(x0 + 1, g.y + 1, wv - 2, g.h - 2, 3); ctx.stroke(); ctx.lineWidth = 1; }
 
   }
+}
+
+// a music clip's fades as ramps: the faded-out corner is shaded, with a line from silence up to full level
+function drawFades(it, x0, x1, g) {
+  const pps = (x1 - x0) / Math.max(1e-6, it.dur), top = g.y + 1.5, bot = g.y + g.h - 1.5;
+  const fi = Math.min(it.fadeIn || 0, it.dur / 2) * pps, fo = Math.min(it.fadeOut || 0, it.dur / 2) * pps;
+  if (fi < 1.5 && fo < 1.5) return;
+  ctx.save(); rr(x0, g.y, x1 - x0, g.h, 3); ctx.clip();
+  ctx.fillStyle = TC["tl-fade"]; ctx.beginPath();
+  if (fi >= 1.5) { ctx.moveTo(x0, top); ctx.lineTo(x0 + fi, top); ctx.lineTo(x0, bot); ctx.closePath(); }
+  if (fo >= 1.5) { ctx.moveTo(x1, top); ctx.lineTo(x1 - fo, top); ctx.lineTo(x1, bot); ctx.closePath(); }
+  ctx.fill();
+  ctx.strokeStyle = TC["music-ink"]; ctx.lineWidth = 1.25; ctx.beginPath();
+  if (fi >= 1.5) { ctx.moveTo(x0, bot); ctx.lineTo(x0 + fi, top); }
+  if (fo >= 1.5) { ctx.moveTo(x1 - fo, top); ctx.lineTo(x1, bot); }
+  ctx.stroke(); ctx.restore();
 }
 
 /* ---------- pointer ---------- */
@@ -1326,7 +1408,10 @@ cv.addEventListener("pointerdown", e => {
     const hit = S.notes.filter(n => S.comp && n.comp === S.comp.id && (n.status !== "done" || showDone())).find(n => Math.abs(X(toE(n.t)) - x) < 7);
     if (hit) { S.sel = hit.id; pause(); seek(hit.t); renderNotes(); const el = document.querySelector(`.note[data-id="${hit.id}"]`); el && el.scrollIntoView({ block: "nearest" }); return; }
   }
-  if (TL.tool === "razor" && y >= RULER) { tlSplitAt(snapE(T(x)).E); return; }
+  if (TL.tool === "razor" && y >= RULER) {
+    if (h.zone === "clip" && h.c.type === "music") { TL.sel = { kind: "clip", key: h.c.key }; musicSplit(h.c.sfx, snapE(T(x), h.c.key).E); return; }   // the blade on music cuts the music
+    tlSplitAt(snapE(T(x)).E); return;
+  }
   if (TL.tool === "roll" && y >= RULER + NOTES_H) {
     const k = cutNear(x);
     if (k == null) { toast("Roll: drag a cut between two footage pieces (split first)"); return; }
@@ -1383,7 +1468,7 @@ cv.addEventListener("pointermove", e => {
       : h.zone === "ruler" ? "col-resize" : h.zone === "notes" ? "pointer"
       : (h.zone === "seg" || h.zone === "clip") ? (h.edge === "L" || h.edge === "R" ? "ew-resize" : h.zone === "clip" && !editable(h.c) ? "pointer" : "grab") : "default";
     let label = x >= G ? fmt(T(x)) : "";
-    if (h.zone === "clip") { const ee = eff(h.c); label += "  ·  " + h.c.id + (h.c.text ? ": " + h.c.text : "") + (h.c.sfx ? "  (" + h.c.sfx.dur.toFixed(2) + " s sound)" : "  (" + fmt(ee.start) + "–" + fmt(ee.end) + " source)") + (ee.del ? "  removed" : ""); }
+    if (h.zone === "clip") { const ee = eff(h.c); label += "  ·  " + h.c.id + (h.c.text ? ": " + h.c.text : "") + (h.c.sfx ? "  (" + h.c.sfx.dur.toFixed(2) + (h.c.type === "music" ? " s of music, from " + fmt(h.c.sfx.off || 0) + " in the track)" : " s sound)") : "  (" + fmt(ee.start) + "–" + fmt(ee.end) + " source)") + (ee.del ? "  removed" : ""); }
     if (h.zone === "seg") { const s = segs()[h.i]; label += "  ·  footage " + fmt(s.in) + "–" + fmt(s.out) + " (" + segLen(s).toFixed(2) + " s" + (spOf(s) !== 1 ? " at " + spOf(s) + "×" : "") + ")"; }
     hv.textContent = label; hv.style.display = label ? "block" : "none";
     hv.style.left = Math.min(x + 12, cv.clientWidth - hv.offsetWidth - 4) + "px";
