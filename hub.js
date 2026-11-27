@@ -127,7 +127,7 @@
   .hb-name[contenteditable="true"] { white-space: normal; box-shadow: 0 0 0 2px var(--accent); padding: 1px 4px; margin: -1px -4px; cursor: text; background: var(--panel); }
   .hb-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; min-width: 0; color: var(--dim); font-size: 12px; }
   .hb-meta > * { min-width: 0; max-width: 100%; }
-  .hb-meta .open { color: var(--change, #ff9500); font-weight: 600; }
+  .hb-meta .open { color: var(--warn, #ff9500); font-weight: 600; }
   .hb-path { color: var(--faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hb-new { display: grid; place-items: center; align-content: center; gap: 10px; min-height: 260px; border-radius: 16px; border: 1.5px dashed var(--line-2); background: none; color: var(--dim); cursor: pointer; font: 600 13px -apple-system, system-ui, sans-serif; transition: border-color .15s, color .15s, background .15s; }
   .hb-new:hover { border-color: var(--accent); color: var(--ink); background: var(--panel); }
@@ -291,7 +291,7 @@
   .ns-tx { flex: 1; min-width: 0; display: grid; gap: 1px; }
   .ns-tx b { font-size: 13.5px; font-weight: 650; letter-spacing: -.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ns-tx small { font-size: 11.5px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ns-row.miss .ns-tx small { color: var(--change, #d98a12); }
+  .ns-row.miss .ns-tx small { color: var(--warn, #d98a12); }
   .ns-chip { flex: 0 1 auto; min-width: 0; max-width: 42%; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--panel); box-shadow: 0 0 0 1px var(--line); color: var(--dim); font-size: 11px; font-weight: 700; }
   .ns-chip svg { flex: none; width: 12px; height: 12px; }
   .ns-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -967,7 +967,7 @@
     d.el.querySelector("[data-hub]").onclick = () => { d.close(); H.show(true); };
   };
   // an error raised before this file loaded still gets its card
-  { const e0 = document.getElementById("err"); if (e0 && e0.textContent && typeof err === "function") setTimeout(() => err(e0.textContent), 0); }
+  { if (typeof err === "function" && err.last) { const m = err.last; setTimeout(() => { if (err.last === m) err(m); }, 0); } }
   // nothing playable, or the video never loads: say so instead of leaving a blank editor
   setTimeout(function watchLoad() {
     if (typeof S === "undefined" || !S.info) return setTimeout(watchLoad, 500);
@@ -1031,8 +1031,8 @@
     { ic: LOGO_EDITOR, icLime: true, k: "Cutnote Editor", t: "Welcome to Cutnote", p: "Review a video, leave notes and cut it, then your AI assistant builds the changes. Here's a one-minute look round, or skip and explore.", next: "Show me round", lime: true },
     { el: () => $("#frame"), pad: 4, r: 16, k: "The video", t: "It plays live, right here", p: "Your edit plays as it really is. With the select tool, click anything on it to move it, resize it from a corner, or double-click to change its words." },
     { el: () => $("#tools"), pad: 6, k: "Drawing", t: "Point at things", p: "Scribble <kbd>P</kbd> or draw a box <kbd>R</kbd> on any frame, in any colour. Drawings are saved with your note." },
-    { el: () => $("#transport"), fit: true, pad: 6, k: "Playback", t: "Play, step and loop", p: "<kbd>Space</kbd> plays, <kbd>←</kbd> <kbd>→</kbd> step a frame, <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> work too. Change the speed or loop the whole video." },
-    { el: () => $("#tlbar"), fit: true, pad: 6, k: "Editing tools", t: "Cut like a real editor", p: "Select, Slip, Roll and Blade; split at the playhead, trim the start or end, change speed for slow motion, and set snapping or the magnetic timeline." },
+    { el: () => $("#transport"), fit: true, pad: 6, k: "Playback", t: "Play and step", p: "<kbd>Space</kbd> plays, <kbd>←</kbd> <kbd>→</kbd> step a frame, <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> work too. The readout shows the time and the frame; zoom the timeline on the right." },
+    { el: () => $("#tlbar"), fit: true, pad: 6, k: "Editing tools", t: "Cut like a real editor", p: "Select, Slip, Roll and Blade; split at the playhead, trim the start or end, change a clip's speed for slow motion. Snap, Loop and the playback speed sit here too, and the gear sets the magnetic timeline." },
     { el: () => [$("#tlgrip"), $("#tlwrap")], pad: 0, r: 10, k: "Timeline", t: "Everything on its own track", p: "Drag clips to move them, pull their edges to trim, drag up or down to layer. The eye hides a track and the speaker mutes it." },
     { el: () => $("#sideTabs"), pad: 4, before: () => side(), k: "Sidebar", t: "Notes, Library, Captions, Sounds", p: "Animated overlays, caption styles and 50 sound effects: drag any of them onto the video or the timeline." },
     { el: () => $("#compose"), pad: 6, before: () => side("notes"), k: "Notes", t: "Tell your AI what to change", p: "Press <kbd>N</kbd> at any moment, type what should change and press <kbd>Enter</kbd>. Your AI assistant reads the notes and makes the changes." },

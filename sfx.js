@@ -9,14 +9,23 @@
   const css = `
   #pSfx .sx-body { padding: 0 12px 16px; overflow: auto; flex: 1; min-height: 0; }
   #pSfx .sx-list { display: grid; gap: 6px; }
-  .sx-row { display: grid; grid-template-columns: 34px 1fr auto 30px; align-items: center; gap: 10px; padding: 7px 7px 7px 7px; border-radius: 11px;
-    background: var(--panel); box-shadow: 0 0 0 1px var(--line); cursor: grab; user-select: none; transition: box-shadow .15s, background .15s; }
-  .sx-row:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 6px 18px rgba(0,0,0,.08); }
-  .sx-row.playing { box-shadow: 0 0 0 1.5px #ffa53d; background: color-mix(in srgb, #ffa53d 7%, var(--panel)); }
-  .sx-play { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: color-mix(in srgb, #ffa53d 18%, var(--panel-2)); color: #c26a00; cursor: pointer; }
-  [data-theme="dark"] .sx-play { color: #ffb661; }
-  .sx-play svg { width: 14px; height: 14px; }
-  .sx-play:hover { background: color-mix(in srgb, #ffa53d 30%, var(--panel-2)); }
+  /* rings are inset so the scroll box and the sticky section headings can never cut them off */
+  .sx-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 30px; align-items: center; gap: 10px; padding: 7px; border-radius: 11px;
+    background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); cursor: grab; user-select: none; transition: box-shadow .15s, background .15s; }
+  .sx-row:hover { box-shadow: inset 0 0 0 1.5px var(--line-2); background: color-mix(in srgb, var(--ink) 3%, var(--panel)); }
+  .sx-row.playing { box-shadow: inset 0 0 0 1.5px var(--accent-text); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  .sx-play { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
+    background: var(--play-bg, var(--accent)); color: var(--play-ink, #0b0b0b); box-shadow: 0 1px 2px rgba(0,0,0,.14);
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease; }
+  .sx-play:hover { transform: scale(1.07); box-shadow: 0 0 14px 2px var(--play-glow, color-mix(in srgb, var(--accent) 45%, transparent)), 0 1px 2px rgba(0,0,0,.14); }
+  .sx-play:active { transform: scale(.9); transition-duration: .09s; }
+  .sx-row.playing .sx-play { box-shadow: 0 0 10px 1px var(--play-glow, color-mix(in srgb, var(--accent) 45%, transparent)), 0 1px 2px rgba(0,0,0,.14); }
+  .sx-play svg { grid-area: 1 / 1; width: 14px; height: 14px; transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
+  .sx-play .i-play { transform: translateX(1px); }
+  .sx-play .i-stop { opacity: 0; transform: scale(.4) rotate(-90deg); }
+  .sx-row.playing .sx-play .i-play { opacity: 0; transform: scale(.4) rotate(90deg); }
+  .sx-row.playing .sx-play .i-stop { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .sx-play, .sx-play svg { transition: opacity .12s linear; } .sx-play:hover, .sx-play:active { transform: none; } .sx-play svg, .sx-row.playing .sx-play svg { transform: none; } }
   .sx-mid { min-width: 0; display: grid; gap: 3px; }
   .sx-mid b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sx-mid canvas { width: 100%; height: 16px; display: block; }
@@ -33,6 +42,7 @@
   const ICON = {
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg>',
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
+    playStop: '<svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg><svg class="i-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
   };
@@ -51,27 +61,41 @@
     pane.innerHTML = `<div class="lp-head"><label class="lp-search">${ICON.search}<input type="search" data-q placeholder="Search ${SX.list.length} sounds" aria-label="Search sounds"></label><div class="lp-chips" data-chips></div></div><div class="sx-body" data-body></div>`;
     pane.style.display = ""; pane.classList.add("sx");
     pane.querySelector("[data-q]").addEventListener("input", e => { SX.q = e.target.value.trim().toLowerCase(); paint(); });
-    pane.querySelector("[data-chips]").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if (b) { SX.cat = b.dataset.c; paint(); } });
+    pane.querySelector("[data-chips]").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if (b && b.dataset.c !== SX.cat) { SX.cat = b.dataset.c; chipsOn(); paint(); } });
     pane.querySelector("[data-body]").addEventListener("click", onClick);
     pane.querySelector("[data-body]").addEventListener("pointerdown", onDown);
-    paint();
+    chipsBuild(); paint();
   };
-  function paint() {
-    const chips = pane.querySelector("[data-chips]"), body = pane.querySelector("[data-body]");
+  /* category chips: built once (their counts never change), so the sliding highlight (CNSlider, when the page has it) keeps its place */
+  let slider = null;
+  function chipsBuild() {
+    const chips = pane.querySelector("[data-chips]");
     const count = c => SX.list.filter(x => c === "All" || x.category === c).length;
-    chips.innerHTML = ["All", ...SX.cats].map(c => `<button type="button" data-c="${esc(c)}" class="${c === SX.cat ? "on" : ""}">${esc(c)}<i>${count(c)}</i></button>`).join("");
+    chips.innerHTML = ["All", ...SX.cats].map(c => `<button type="button" data-c="${esc(c)}" class="${c === SX.cat ? "on" : ""}" aria-pressed="${c === SX.cat}" data-tip="${c === "All" ? "Show every sound" : "Show only " + esc(c) + " sounds"}">${esc(c)}<i>${count(c)}</i></button>`).join("");
+    if (window.CNSlider && CNSlider.attach) { try { slider = CNSlider.attach(chips, "button[data-c]", el => el.dataset.c === SX.cat); } catch { slider = null; } }
+  }
+  function chipsOn() {
+    const chips = pane.querySelector("[data-chips]");
+    for (const b of chips.querySelectorAll("button[data-c]")) { const on = b.dataset.c === SX.cat; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+    if (window.CNSlider && CNSlider.attach) {
+      try { if (slider && typeof slider.refresh === "function") slider.refresh(); else slider = CNSlider.attach(chips, "button[data-c]", el => el.dataset.c === SX.cat); } catch {}
+    }
+  }
+  function paint() {
+    const body = pane.querySelector("[data-body]");
     const q = SX.q, hit = x => (SX.cat === "All" || x.category === SX.cat) && (!q || (x.name + " " + x.category + " " + (x.tags || []).join(" ")).toLowerCase().includes(q));
     let html = "";
-    if (!tipOff()) html += `<div class="lp-tip"><span>Click a sound to hear it. Drag it onto the timeline, or press <b>+</b> to add it at the playhead.</span><button type="button" data-act="tipx" aria-label="Hide tip">×</button></div>`;
+    if (!tipOff()) html += `<div class="lp-tip"><span>Click a sound to hear it. Drag it onto the timeline, or press <b>+</b> to add it at the playhead.</span><button type="button" data-act="tipx" aria-label="Hide tip" data-tip="Hide this tip">×</button></div>`;
     for (const c of SX.cats) {
       const xs = SX.list.filter(x => x.category === c && hit(x)); if (!xs.length) continue;
       html += `<div class="lp-sec">${esc(c)}<span>${xs.length}</span></div><div class="sx-list">` + xs.map(x =>
-        `<div class="sx-row" data-id="${esc(x.id)}" title=""><button type="button" class="sx-play" data-act="play" aria-label="Play ${esc(x.name)}">${ICON.play}</button>
-          <div class="sx-mid"><b>${esc(x.name)}</b><canvas data-wave="${esc(x.id)}"></canvas></div><span class="sx-dur">${x.dur.toFixed(2)}s</span>
-          <button type="button" class="sx-add" data-act="add" aria-label="Add ${esc(x.name)} at the playhead">${ICON.plus}</button></div>`).join("") + `</div>`;
+        `<div class="sx-row" data-id="${esc(x.id)}"><button type="button" class="sx-play" data-act="play" aria-label="Play ${esc(x.name)}" data-tip="Hear this sound">${ICON.playStop}</button>
+          <div class="sx-mid"><b data-tip="${esc(x.name)}">${esc(x.name)}</b><canvas data-wave="${esc(x.id)}" aria-hidden="true"></canvas></div><span class="sx-dur">${x.dur.toFixed(2)}s</span>
+          <button type="button" class="sx-add" data-act="add" aria-label="Add ${esc(x.name)} at the playhead" data-tip="Add at the playhead">${ICON.plus}</button></div>`).join("") + `</div>`;
     }
     if (!SX.list.some(hit)) html += `<div class="sx-empty">No sounds match "${esc(SX.q)}"</div>`;
     body.innerHTML = html;
+    if (cur) mark(cur, true);
     waves();
   }
   const tipOff = () => { try { return localStorage.getItem("cutnote:tip:sfx") === "off"; } catch { return false; } };
@@ -98,29 +122,62 @@
       const c = pane.querySelector(`canvas[data-wave="${CSS.escape(id)}"]`); if (c) waveOne(c);
     } catch {}
   }
-  function waveOne(c) {
+  // frac: how far the preview has got (0..1), or null when this sound isn't playing. Played bars fill in the accent, the
+  // rest stay dim, and a thin playhead line marks where the audio is.
+  function waveOne(c, frac) {
+    if (!c) return;
     const pk = SX.peaks.get(c.dataset.wave); if (!pk) { SX.peaksFor(c.dataset.wave); return; }
     const dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (!w) return;
-    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    const W = Math.round(w * dpr), H = Math.round(h * dpr); if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
     const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--faint").trim() || "#999";
-    const playing = c.closest(".sx-row.playing"); if (playing) g.fillStyle = "#ffa53d";
-    for (let x = 0; x < w; x += 2.5) { const v = pk[Math.min(pk.length - 1, Math.floor(x / w * pk.length))], a = Math.max(0.6, v * (h / 2 - 1)); g.fillRect(x, h / 2 - a, 1.5, a * 2); }
+    const cs = getComputedStyle(document.documentElement), dim = cs.getPropertyValue("--faint").trim() || "#999";
+    const on = frac != null && c.dataset.wave === cur, px = on ? Math.max(0, Math.min(1, frac)) * w : -1;
+    const lit = on ? cs.getPropertyValue("--accent-text").trim() || dim : dim;
+    for (let x = 0; x < w; x += 2.5) {
+      const v = pk[Math.min(pk.length - 1, Math.floor(x / w * pk.length))], a = Math.max(0.6, v * (h / 2 - 1));
+      g.fillStyle = x + 0.75 <= px ? lit : dim; g.fillRect(x, h / 2 - a, 1.5, a * 2);
+    }
+    if (on) { g.fillStyle = cs.getPropertyValue("--ink").trim() || "#000"; g.fillRect(Math.min(w - 1.5, px), 0, 1.5, h); }
   }
   function waves() { for (const c of pane.querySelectorAll("canvas[data-wave]")) waveOne(c); }
   new ResizeObserver(() => { if (pane.classList.contains("on")) waves(); }).observe(pane);
 
-  /* preview */
-  const au = new Audio(); let cur = null;
-  function stopPreview() { au.pause(); if (cur) { const r = pane.querySelector(`.sx-row[data-id="${CSS.escape(cur)}"]`); if (r) { r.classList.remove("playing"); r.querySelector(".sx-play").innerHTML = ICON.play; waveOne(r.querySelector("canvas")); } } cur = null; }
+  /* preview: plays the sound from start to finish; its waveform fills in as it goes */
+  const au = new Audio(); let cur = null, raf = 0;
+  const rowOf = id => pane.querySelector(`.sx-row[data-id="${CSS.escape(id)}"]`);
+  // currentTime moves in steps; run it on smoothly between updates so the playhead glides
+  const clk = { t: -1, at: 0 };
+  function nowT() {
+    const t = au.currentTime || 0, now = performance.now();
+    if (t !== clk.t || au.paused) { clk.t = t; clk.at = now; return t; }
+    return t + Math.min(0.3, (now - clk.at) / 1000) * (au.playbackRate || 1);
+  }
+  function frac() { const x = SX.list && SX.list.find(s => s.id === cur), d = (isFinite(au.duration) && au.duration) || (x && x.dur) || 0; return d ? nowT() / d : 0; }
+  function mark(id, on) {
+    const r = rowOf(id); if (!r) return;
+    r.classList.toggle("playing", on);
+    const b = r.querySelector(".sx-play"), x = SX.list.find(s => s.id === id), n = x ? x.name : "";
+    b.setAttribute("aria-label", (on ? "Stop " : "Play ") + n); b.dataset.tip = on ? "Stop" : "Hear this sound";
+    waveOne(r.querySelector("canvas"), on ? frac() : null);
+  }
+  function frame() {
+    raf = 0; if (!cur) return;
+    const r = rowOf(cur); if (r) waveOne(r.querySelector("canvas"), frac());
+    raf = requestAnimationFrame(frame);
+  }
+  function stopPreview() {
+    au.pause(); if (raf) cancelAnimationFrame(raf); raf = 0;
+    const f = cur; cur = null; if (f) mark(f, false);
+  }
   function preview(id) {
     if (cur === id) { stopPreview(); return; }
     stopPreview();
     const x = SX.list.find(s => s.id === id); if (!x) return;
-    cur = id; au.src = "/lib/" + x.file; au.currentTime = 0; au.play().catch(() => {});
-    const r = pane.querySelector(`.sx-row[data-id="${CSS.escape(id)}"]`); if (r) { r.classList.add("playing"); r.querySelector(".sx-play").innerHTML = ICON.stop; waveOne(r.querySelector("canvas")); }
+    cur = id; clk.t = -1; au.src = "/lib/" + x.file; au.currentTime = 0; au.play().catch(() => {});
+    mark(id, true); raf = requestAnimationFrame(frame);
   }
   au.addEventListener("ended", stopPreview);
+  au.addEventListener("error", () => { if (cur) { stopPreview(); toast("Couldn't play that sound"); } });   // ended never comes for a file that won't load
   function onClick(e) {
     if (e.target.closest('[data-act="tipx"]')) { try { localStorage.setItem("cutnote:tip:sfx", "off"); } catch {} e.target.closest(".lp-tip").remove(); return; }
     const row = e.target.closest(".sx-row"); if (!row || SX.dragged) return;
@@ -164,6 +221,8 @@
     };
     addEventListener("pointermove", mv); addEventListener("pointerup", up); addEventListener("pointercancel", up);
   }
+  // the Sounds tab was open last time and library.js showed it before this file loaded: fill it now
+  if (window.SidePane && SidePane.cur === "sfx") SX.open();
   // warm the waveforms of sounds already on the timeline
   setTimeout(() => { load().then(() => { for (const it of sfxItems()) SX.peaksFor(it.id); }).catch(() => {}); }, 400);
 })();

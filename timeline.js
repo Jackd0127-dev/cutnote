@@ -1445,6 +1445,7 @@ cv.addEventListener("pointerdown", e => {
     TL.sel = { kind: "seg", i: h.i };
     const s = segs()[h.i];
     TL.drag = { kind: h.edge === "body" ? "segmove" : "segtrim", edge: h.edge, i: h.i, x0: x, E0: T(x), orig: clone(s), moved: false, wasPlaying: S.playing, keep: holdPlaces() };
+    if (h.edge === "body") cv.style.cursor = "grab";
     pause(); draw(); return;
   }
   if (h.zone === "clip") {
@@ -1453,11 +1454,23 @@ cv.addEventListener("pointerdown", e => {
     TL.drag = editable(h.c) ? { kind: h.edge === "body" ? "clipmove" : "cliptrim", edge: h.edge, key: h.c.key, type: h.c.type, x0: x, y0: y, E0: T(x), orig: { start: ee.start, end: ee.end }, lane0: h.g.ln.row, lane: ee.lane, laneStored: ee.lane, moved: false, wasPlaying: S.playing,
                               sfx0: h.c.sfx ? { P: toE(h.c.sfx.start), dur: h.c.sfx.dur, off: h.c.sfx.off || 0, len: h.c.sfx.len || h.c.sfx.dur } : null }
                             : { kind: "click", x0: x, E0: T(x) };
+    if (TL.drag.kind === "clipmove") cv.style.cursor = "grab";
     pause(); draw(); return;
   }
   TL.sel = null;
   TL.drag = { kind: "scrub", wasPlaying: S.playing }; pause(); S.follow = false; seekE(T(x));
 });
+// the cursor over the timeline: a pointer over any clip, its edges resize, and the blade / slip / roll tools show their own
+// (holding the button on a clip shows grab, dragging it grabbing: see pointerdown and the drag below)
+function tlCursor(x, y, h, hc) {
+  h = h || hitAt(x, y);
+  if (hc === undefined) hc = TL.tool === "roll" ? cutNear(x) : null;
+  return x < G ? "default" : TL.tool === "razor" && y >= RULER ? BLADE_CURSOR
+    : TL.tool === "roll" && y >= RULER + NOTES_H ? (hc != null ? "col-resize" : "not-allowed")
+    : TL.tool === "slip" && (h.zone === "seg" || (h.zone === "clip" && h.c.sfx)) ? "ew-resize"
+    : h.zone === "ruler" ? "col-resize" : h.zone === "notes" ? "pointer"
+    : (h.zone === "seg" || h.zone === "clip") ? (h.edge === "L" || h.edge === "R" ? "ew-resize" : "pointer") : "default";
+}
 cv.addEventListener("pointermove", e => {
   const x = e.offsetX, y = e.offsetY, d = TL.drag;
   TL.hoverX = x;
@@ -1471,11 +1484,7 @@ cv.addEventListener("pointermove", e => {
       hv.style.display = "block"; hv.style.left = (x + 12) + "px"; return;
     }
     const hc = TL.tool === "roll" ? cutNear(x) : null; if (hc !== TL.hoverCut) { TL.hoverCut = hc; draw(); }
-    cv.style.cursor = x < G ? "default" : TL.tool === "razor" && y >= RULER ? BLADE_CURSOR
-      : TL.tool === "roll" && y >= RULER + NOTES_H ? (hc != null ? "col-resize" : "not-allowed")
-      : TL.tool === "slip" && (h.zone === "seg" || (h.zone === "clip" && h.c.sfx)) ? "ew-resize"
-      : h.zone === "ruler" ? "col-resize" : h.zone === "notes" ? "pointer"
-      : (h.zone === "seg" || h.zone === "clip") ? (h.edge === "L" || h.edge === "R" ? "ew-resize" : h.zone === "clip" && !editable(h.c) ? "pointer" : "grab") : "default";
+    cv.style.cursor = tlCursor(x, y, h, hc);
     let label = x >= G ? fmt(T(x)) : "";
     if (h.zone === "clip") { const ee = eff(h.c); label += "  ·  " + h.c.id + (h.c.text ? ": " + h.c.text : "") + (h.c.sfx ? "  (" + h.c.sfx.dur.toFixed(2) + (h.c.type === "music" ? " s of music, from " + fmt(h.c.sfx.off || 0) + " in the track)" : " s sound)") : "  (" + fmt(ee.start) + "–" + fmt(ee.end) + " source)") + (ee.del ? "  removed" : ""); }
     if (h.zone === "seg") { const s = segs()[h.i]; label += "  ·  footage " + fmt(s.in) + "–" + fmt(s.out) + " (" + segLen(s).toFixed(2) + " s" + (spOf(s) !== 1 ? " at " + spOf(s) + "×" : "") + ")"; }
@@ -1515,9 +1524,9 @@ cv.addEventListener("pointermove", e => {
     draw(); return;
   }
   if (d.kind === "scrub") { cv.style.cursor = "col-resize"; seekE(T(x)); return; }
-  if (d.kind === "segmove" || d.kind === "clipmove") cv.style.cursor = "grabbing";
   if (Math.abs(x - d.x0) > 3 || (d.y0 != null && Math.abs(y - d.y0) > 6)) d.moved = true;
   if (!d.moved) return;
+  if (d.kind === "segmove" || d.kind === "clipmove") cv.style.cursor = "grabbing";
   if (!d.began && d.kind !== "click" && d.kind !== "segmove") {
     tlBegin(); d.began = true;
     if (d.kind === "segtrim") { S.ed = S.ed || { clips: {} }; if (!S.ed.segments) S.ed.segments = clone(segs()); }
@@ -1608,6 +1617,7 @@ cv.addEventListener("pointerleave", () => { $("#hover").style.display = "none"; 
 function hoverMsg(x, m) { const hv = $("#hover"); hv.textContent = m; hv.style.display = "block"; hv.style.left = Math.min(x + 12, cv.clientWidth - hv.offsetWidth - 4) + "px"; }
 function endDrag(e) {
   const d = TL.drag; if (!d) return; TL.drag = null;
+  if (e && e.offsetX != null) cv.style.cursor = tlCursor(e.offsetX, e.offsetY);   // grab / grabbing ends with the drag
   if (TL.needSync) setTimeout(tlSync, 0);
   if (d.kind === "scrub") return;   // dragging the playhead leaves the video paused where you let go
   if (!d.moved || d.kind === "click") { if (d.E0 != null) seekE(d.E0); draw(); return; }   // a click: select + move the playhead there
