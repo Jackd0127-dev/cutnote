@@ -541,16 +541,16 @@
   #help .ft .kc { min-width: 20px; height: 20px; font-size: 10.5px; padding: 0 5px; }
   @media (prefers-reduced-motion: reduce) { #help .card { transform: none; transition: none; } #help .kc, #help .kg.down .kc { transform: none; transition: background .12s, color .12s; } }
   /* hover tooltips (data-tip): one pop-up for the whole page */
-  #cnTip { position: fixed; left: 0; top: 0; z-index: 2000; max-width: 280px; padding: 7px 10px; border-radius: 9px; background: var(--tip-bg); color: var(--tip-ink); border: 1px solid var(--tip-line);
-    font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; box-shadow: var(--shadow); pointer-events: none;
+  #cnTip { position: fixed; left: 0; top: 0; z-index: 2000; max-width: 240px; padding: 4px 8px; border-radius: 7px; font-size: 11.5px; line-height: 1.35; background: var(--tip-bg); color: var(--tip-ink); border: 1px solid var(--tip-line);
+    font: 500 11.5px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; box-shadow: var(--shadow); pointer-events: none;
     opacity: 0; transform: translate(var(--tx, 0), var(--ty, 4px)); transition: opacity .12s ease, transform .12s ease; visibility: hidden; }
   #cnTip.on { opacity: 1; transform: none; visibility: visible; }
   #cnTip.off { transition: none; }
-  #cnTip .h { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  #cnTip .h { display: flex; align-items: center; gap: 6px; font-weight: 600; }
   #cnTip .h > span { min-width: 0; }
-  #cnTip .b { display: block; margin-top: 2px; color: var(--tip-dim); font-weight: 400; }
+  #cnTip .b { display: block; margin-top: 1px; font-size: 11px; color: var(--tip-dim); font-weight: 400; }
   #cnTip .k { display: inline-flex; gap: 3px; margin-left: auto; flex: none; }
-  #cnTip kbd { color: var(--tip-ink); background: var(--tip-key); border: 0; border-radius: 4px; padding: 0 5px; min-width: 17px; font: 600 10.5px/17px ui-monospace, "SF Mono", Menlo, monospace; }
+  #cnTip kbd { color: var(--tip-ink); background: var(--tip-key); border: 0; border-radius: 4px; padding: 0 5px; min-width: 15px; font: 600 10px/15px ui-monospace, "SF Mono", Menlo, monospace; }
   @media (prefers-reduced-motion: reduce) { #cnTip { transform: none; } }
   @media (max-width: 900px) {
     /* narrow screens: the page scrolls; the sidebar stacks under the timeline with real height (it used to collapse to 0) */
@@ -699,8 +699,8 @@
     <div id="tlbar">
       <div class="seg" id="tlTools" role="group" aria-label="Timeline tool">
         <button data-ttool="select" class="on" data-tip="Select (V): click a clip to select it, drag to move it, drag its edges to trim"><svg><use href="#i-cursor"/></svg><span class="lb">Select</span></button>
-        <button data-ttool="slip" data-tip="Slip (Y): drag a footage piece to show a different moment of it, same length and place. Also slides a sound inside its block"><svg><use href="#i-slip"/></svg><span class="lb">Slip</span></button>
-        <button data-ttool="roll" data-tip="Roll (T): drag a cut between two pieces. One gets longer, the other shorter, the video length stays the same"><svg><use href="#i-roll"/></svg><span class="lb">Roll</span></button>
+        <button data-ttool="slip" data-tip-always data-tip="Slip (Y): drag a footage piece to show a different moment of it, same length and place. Also slides a sound inside its block"><svg><use href="#i-slip"/></svg><span class="lb">Slip</span></button>
+        <button data-ttool="roll" data-tip-always data-tip="Roll (T): drag a cut between two pieces. One gets longer, the other shorter, the video length stays the same"><svg><use href="#i-roll"/></svg><span class="lb">Roll</span></button>
         <button data-ttool="razor" data-tip="Blade (B): click anywhere on the timeline to cut the footage in two there"><svg><use href="#i-blade"/></svg><span class="lb">Blade</span></button>
       </div>
       <div class="seg" id="tlEditSeg">
@@ -885,6 +885,7 @@ const CNTip = (() => {
   const el = document.createElement("div"); el.id = "cnTip"; el.setAttribute("role", "tooltip"); el.className = "off";
   document.body.appendChild(el);
   let tgt = null, timer = 0, warm = 0, shown = false, muted = null;
+  const REST = 2200;   // ms the pointer rests on a control before its tip shows
   const POPS = "[role=listbox], [role=menu], .dd-pop, #tlSetPop, #cnPop, #updPop, #ccPop .sv, #ccPop .hue";
   const KEEP = /^(IFRAME|IMG|ABBR)$/;   // their title is their name or meaning: leave it to the browser
   const conv = n => {
@@ -905,7 +906,16 @@ const CNTip = (() => {
     conv(e);
     const pop = t.closest(POPS); if (pop && e.contains(pop)) return null;          // inside an open menu: its options speak for themselves
     if (e.closest(".open, [aria-expanded=true]") || e.querySelector("[aria-expanded=true]")) return null;   // its menu is open
-    return e.dataset.tip ? e : null;
+    return e.dataset.tip && worth(e) ? e : null;
+  };
+  // A tip only where it adds something: controls with no words of their own (icons), or ones marked
+  // data-tip-always (words that don't explain themselves, like Slip or Roll). Labelled buttons, tabs and dropdowns
+  // already say what they do.
+  const worth = e => {
+    if (e.hasAttribute("data-tip-always")) return true;
+    if (e.matches("select, [role=tab], [role=option], [aria-haspopup], .dd, .dd-btn, [class*=dd-]") || e.closest(".dd, [role=listbox], [role=menu]")) return false;
+    const c = e.cloneNode(true); c.querySelectorAll("kbd, svg, [aria-hidden=true]").forEach(n => n.remove());
+    return !(c.textContent || "").replace(/\s+/g, "").length;
   };
   const esc2 = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const KEY = /^(?:(?:[⌘⇧⌥⌃]|Ctrl\+|Shift\+|Alt\+)*(?:[A-Za-z0-9]|[^\sA-Za-z0-9]{1,2}|Space|Esc|Enter|Return|Home|End|Tab|Del|Delete|Backspace))$/;
@@ -913,7 +923,9 @@ const CNTip = (() => {
     let t = typeof keyText === "function" ? keyText(raw) : raw, keys = [];
     const m = /\s*\(([^()]{1,22})\)/.exec(t);
     if (m) { const ks = m[1].split(/\s+or\s+|\s*\/\s*|,\s*/).map(k => k.trim()).filter(Boolean); if (ks.length && ks.every(k => KEY.test(k))) { keys = ks; t = t.slice(0, m.index) + t.slice(m.index + m[0].length); } }
-    const i = t.indexOf(": "), head = i > 0 && i < 44 ? t.slice(0, i) : t, body = i > 0 && i < 44 ? t.slice(i + 2) : "";
+    const i = t.indexOf(": "), head = i > 0 && i < 44 ? t.slice(0, i) : t;
+    let body = i > 0 && i < 44 ? t.slice(i + 2) : "";
+    body = body.split(/(?<=[.!?])\s/)[0].replace(/\.$/, "");   // keep tips short: the first sentence only
     const kb = keys.length ? `<span class="k">${keys.map(k => `<kbd>${esc2(k)}</kbd>`).join("")}</span>` : "";
     el.innerHTML = `<span class="h"><span>${esc2(head)}</span>${kb}</span>` + (body ? `<span class="b">${esc2(body.charAt(0).toUpperCase() + body.slice(1))}</span>` : "");
     el.querySelector(".h").style.fontWeight = body || keys.length ? "" : "500";
@@ -947,8 +959,15 @@ const CNTip = (() => {
     if (e.pointerType === "touch") return;
     const t = find(e.target);
     if (t === tgt) return;
-    hide(); tgt = t; muted = null;
-    if (t) timer = setTimeout(show, Date.now() < warm ? 60 : 450);
+    hide(); tgt = t; muted = null; still = null;
+    if (t) timer = setTimeout(show, REST);
+  }, true);
+  // the pointer has to rest: moving more than a few pixels starts the wait again
+  let still = null;
+  document.addEventListener("pointermove", e => {
+    if (!tgt || shown || e.pointerType === "touch") return;
+    if (still && Math.hypot(e.clientX - still[0], e.clientY - still[1]) < 4) return;
+    still = [e.clientX, e.clientY]; clearTimeout(timer); timer = setTimeout(show, REST);
   }, true);
   document.addEventListener("pointerout", e => { if (tgt && (!e.relatedTarget || !tgt.contains(e.relatedTarget))) { hide(); tgt = null; muted = null; } }, true);
   const quiet = () => { if (tgt) muted = tgt; hide(); warm = 0; };
