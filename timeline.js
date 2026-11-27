@@ -166,8 +166,44 @@ function laneToggle(k, what) {
   if (Object.keys(o).length) S.ed.lanes[k] = o; else delete S.ed.lanes[k];
   tlCommit(); toast(what === "mute" ? (o.mute ? "Track muted" : "Track unmuted") : (o.hide ? "Track hidden" : "Track showing"));
 }
-// the switch icons a lane header shows, right-aligned: [{what, x}]
-function laneIcons(ln) { const w = LANE_SW[ln.type] || []; return w.map((what, i) => ({ what, x: G - 20 - (w.length - 1 - i) * 17 })); }
+// the switch buttons a lane header shows, right-aligned: [{what, x}] (x = left of the 14 px hit box, the button's centre is x + 7)
+function laneIcons(ln) { const w = LANE_SW[ln.type] || []; return w.map((what, i) => ({ what, x: G - 22 - (w.length - 1 - i) * 18 })); }
+/* switch animation: per switch (laneKey + what) three eased values, worked out from the time on each draw.
+   tog 0 = on, 1 = off (eye shut / speaker struck out); hov = hover; prs = pressed. Nothing redraws once they all settle. */
+const SWA = new Map();
+const RMQ = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : null;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const twVal = (tw, now) => !tw.d || now - tw.t0 >= tw.d ? tw.b : tw.a + (tw.b - tw.a) * easeOut((now - tw.t0) / tw.d);
+function twTo(tw, b, ms, now) {
+  if (tw.b === b) return;
+  tw.a = twVal(tw, now); tw.b = b; tw.t0 = now;
+  tw.d = RMQ && RMQ.matches ? 0 : ms * Math.max(0.35, Math.abs(b - tw.a));   // a reversal half-way takes the time that is left
+}
+function swState(key, off, hot, down, now) {
+  let s = SWA.get(key);
+  if (!s) { const tw = v => ({ a: v, b: v, t0: 0, d: 0 }); s = { tog: tw(off ? 1 : 0), hov: tw(hot ? 1 : 0), prs: tw(0) }; SWA.set(key, s); }
+  twTo(s.tog, off ? 1 : 0, 240, now); twTo(s.hov, hot ? 1 : 0, hot ? 140 : 200, now); twTo(s.prs, down ? 1 : 0, down ? 70 : 170, now);
+  if (now - s.tog.t0 < s.tog.d || now - s.hov.t0 < s.hov.d || now - s.prs.t0 < s.prs.d) swKick();
+  return { p: twVal(s.tog, now), h: twVal(s.hov, now), d: twVal(s.prs, now) };
+}
+// one extra frame while a switch moves. The page's frame loop already draws every frame once the player is ready, so
+// this only draws itself before that; either way it stops asking once the switches settle.
+let swRaf = 0;
+function swKick() { if (!swRaf) swRaf = requestAnimationFrame(() => { swRaf = 0; if (!(S.player && S.player.ready)) draw(); }); }
+function swRelease() { if (TL.swPress) { TL.swPress = null; draw(); } }
+// theme colours as [r, g, b, a] so the switches can blend between them (the canvas normalises any CSS colour)
+const COLS = new Map(); let colCtx = null;
+function rgbOf(c) {
+  let v = COLS.get(c); if (v) return v;
+  colCtx = colCtx || document.createElement("canvas").getContext("2d");
+  colCtx.fillStyle = "#000"; colCtx.fillStyle = c || "#000"; const s = String(colCtx.fillStyle);
+  if (s[0] === "#") v = [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16), 1];
+  else { const m = /^rgba?\(/.test(s) ? s.match(/[\d.]+/g) : null; v = m ? [+m[0], +m[1], +m[2], m[3] != null ? +m[3] : 1] : [128, 128, 128, 1]; }
+  COLS.set(c, v); return v;
+}
+const mixRGB = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+const rgbaS = v => `rgba(${Math.round(v[0])},${Math.round(v[1])},${Math.round(v[2])},${v[3].toFixed(3)})`;
 
 /* ---------- magnetic timeline ---------- */
 // on: overlays, captions and sounds stay stuck to the footage under them when you cut, move or retime it.
@@ -650,6 +686,7 @@ function feText(cx, cy) {
 function applyClipEdits() {
   const fr = compFrame(); if (!fr) { applyVideoFe(); mainFx(true); return; }
   const { w, d } = fr;
+  prewarm(fr);   // once per loaded version, after its player is ready
   const byKey = compEls(fr);
   for (const e of d.querySelectorAll("[data-hfr-lm]")) { e.muted = e.dataset.hfrLm === "1"; e.removeAttribute("data-hfr-lm"); }   // track mutes come off first, then deletes, then both go back on
   applyFrameEdits(fr);
@@ -781,6 +818,54 @@ function mediaWatch() {
     if (v.paused) v.play().catch(() => {});
     if (Math.abs(v.playbackRate - base * csp) > 1e-3) v.playbackRate = base * csp;
   }
+  // look-ahead: a clip starting within the next second that sits paused away from its first frame is parked there once,
+  // so it is decoded when it starts (the window widens with the playback speed)
+  const ahead = Math.max(1, base);
+  for (const m of fr.d.querySelectorAll("video, audio")) {
+    if (!m.paused) continue;
+    const a = mediaStart(m); if (a == null || a <= S.t || a - S.t > ahead || m.closest("[data-hfr-hid]")) continue;
+    const off = mediaOff(m); if (Math.abs((m.currentTime || 0) - off) <= 0.05) continue;
+    const was = LOOK.get(m); if (was && now - was < 1500) continue;
+    LOOK.set(m, now); try { m.currentTime = off; } catch {}
+  }
+}
+const LOOK = new WeakMap();   // media element -> when the look-ahead last parked it
+
+/* ---------- pre-warm: decode every later clip's first frame before the first play ----------
+   On a version's first play, a clip that hasn't been decoded yet stalls playback for ~180 ms when it starts. Once the
+   player is ready, walk the composition's video and audio, one every 120 ms (no burst), soonest first: each one that
+   hasn't buffered (readyState < 3) gets preload="auto" and is parked at its media start. A clip that is playing or has
+   already started is never touched. Another version or a seek stops the walk. */
+const mediaOff = m => parseFloat(m.getAttribute("data-media-start") || m.getAttribute("data-playback-start") || "0") || 0;
+function mediaStart(m) {
+  const u = m.hasAttribute("data-start") ? m : m.closest("[data-start]"), a = u ? parseFloat(u.getAttribute("data-start")) : NaN;
+  return isFinite(a) ? a : null;
+}
+const PW = { doc: null, timer: 0 };
+function prewarmStop() { clearTimeout(PW.timer); PW.timer = 0; }
+function prewarm(fr) {
+  if (!fr || PW.doc === fr.d || !S.comp || S.comp.kind !== "code" || !(S.player && S.player.ready)) return;
+  prewarmStop(); PW.doc = fr.d;
+  const comp = S.comp, doc = fr.d;
+  const list = [...doc.querySelectorAll("video, audio")].map(m => ({ m, a: mediaStart(m) })).filter(x => x.a != null && x.a > S.t).sort((x, y) => x.a - y.a);
+  let i = 0, last = { t: S.t, at: performance.now(), playing: S.playing };
+  const step = () => {
+    PW.timer = 0;
+    const f = compFrame(); if (S.comp !== comp || !f || f.d !== doc) return;   // another version
+    const now = performance.now(), run = last.playing && S.playing ? (now - last.at) / 1000 * S.rate * (TL.curSp || 1) : 0;
+    if (Math.abs(S.t - (last.t + run)) > (last.playing || S.playing ? 0.5 : 1.5 / FPS)) return;   // a seek: stop here
+    last = { t: S.t, at: now, playing: S.playing };
+    while (i < list.length) {
+      const m = list[i++].m, a = mediaStart(m);
+      if (!m.isConnected || !m.paused || a == null || a <= S.t || m.readyState >= 3 || m.closest("[data-hfr-hid]")) continue;
+      if (m.preload !== "auto") m.preload = "auto";
+      const off = mediaOff(m);
+      if (m.readyState < 2 || Math.abs((m.currentTime || 0) - off) > 0.05) { try { m.currentTime = off; } catch {} }
+      break;
+    }
+    if (i < list.length) PW.timer = setTimeout(step, 120);
+  };
+  PW.timer = setTimeout(step, 120);
 }
 
 /* sound effects play from the page (they aren't part of the composition) */
@@ -1080,7 +1165,7 @@ const TC = {};
 function readTheme() {
   const cs = getComputedStyle(document.documentElement);
   for (const k of ["accent", "dim", "faint", "ink", "fix", "change", "remember", "done", "video", "audio", "cap", "cap-ink", "other", "tl-bg", "tl-ruler", "tl-grid", "tl-beyond", "tl-head",
-    "tl-band", "tl-tick", "tl-line", "tl-prog", "tl-edge", "tl-label-bg", "tl-label", "playhead", "cut", "snap", "blade", "panel", "sfx", "music", "music-ink", "tl-fade"]) TC[k] = cs.getPropertyValue("--" + k).trim();
+    "tl-band", "tl-tick", "tl-line", "tl-prog", "tl-edge", "tl-label-bg", "tl-label", "playhead", "cut", "snap", "blade", "panel", "sfx", "music", "music-ink", "tl-fade", "warn"]) TC[k] = cs.getPropertyValue("--" + k).trim();
 }
 readTheme();
 const css = v => TC[v.slice(2)] || getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1177,6 +1262,7 @@ function draw() {
   }
   ctx.stroke(); ctx.restore();
   // track headers
+  const swNow = performance.now();
   ctx.fillStyle = TC["tl-ruler"]; ctx.fillRect(0, RULER, G, h - RULER);
   ctx.strokeStyle = TC["tl-line"]; ctx.beginPath(); ctx.moveTo(G - .5, 0); ctx.lineTo(G - .5, h); ctx.stroke();
   const head = (y, hh, col, label, sub2) => {
@@ -1195,7 +1281,8 @@ function draw() {
     head(g.y, g.h, col, g.ln.label, sub2);
     const sw = Object.assign({}, laneSw(laneKey(g.ln)));
     if (g.ln.type === "prog" && laneSw("wave").mute) sw.mute = true;
-    for (const ic of laneIcons(g.ln)) laneIcon(ic.what, ic.x, g.y + g.h / 2, !!sw[ic.what], TL.hoverIcon && TL.hoverIcon.g === g.ln && TL.hoverIcon.what === ic.what);
+    const lk = laneKey(g.ln), hk = TL.hoverIcon ? laneKey(TL.hoverIcon.g) + TL.hoverIcon.what : "";   // by key: a toggle rebuilds the lanes
+    for (const ic of laneIcons(g.ln)) laneIcon(ic.what, ic.x + 7, g.y + g.h / 2, g.h, swState(lk + ic.what, !!sw[ic.what], hk === lk + ic.what, TL.swPress === lk + ic.what, swNow));
   }
   // playhead + time readout
   const px = Math.round(X(toE(S.t))) + .5;
@@ -1206,19 +1293,53 @@ function draw() {
     ctx.fillStyle = TC.playhead; ctx.beginPath(); ctx.moveTo(px - 6, 2); ctx.lineTo(px + 6, 2); ctx.lineTo(px + 6, 9); ctx.lineTo(px, 14); ctx.lineTo(px - 6, 9); ctx.closePath(); ctx.fill();
   }
 }
-// eye / speaker switch in a track header; "off" draws it struck through
-function laneIcon(what, x, cy, off, hot) {
-  const s = 6; ctx.save(); ctx.translate(x + 7, cy);
-  if (hot) { ctx.fillStyle = TC["tl-band"]; ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI * 2); ctx.fill(); }
-  ctx.strokeStyle = off ? TC.fix : hot ? TC.ink : TC.dim; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  if (what === "hide") {
-    ctx.beginPath(); ctx.moveTo(-s, 0); ctx.quadraticCurveTo(0, -s * 1.15, s, 0); ctx.quadraticCurveTo(0, s * 1.15, -s, 0); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, 1.9, 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.beginPath(); ctx.moveTo(-s, -2); ctx.lineTo(-3, -2); ctx.lineTo(0.5, -5); ctx.lineTo(0.5, 5); ctx.lineTo(-3, 2); ctx.lineTo(-s, 2); ctx.closePath(); ctx.fill();
-    if (!off) { ctx.beginPath(); ctx.arc(1.5, 0, 3.4, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(1.5, 0, 6, -0.8, 0.8); ctx.stroke(); }
+// eye / speaker switch in a track header: a round button, cx/cy its centre, lh the lane's height, st = swState(...).
+// Off: the button takes a calm --warn tint, the eye's lid closes and a slash draws across it, the speaker's waves
+// shrink away and an x draws in. All of it runs backwards when the switch goes back on.
+function laneIcon(what, cx, cy, lh, st) {
+  const p = st.p, h = st.h, dn = st.d, TAU = Math.PI * 2;
+  const r = Math.max(5, Math.min(7.5, (lh - 2) / 2)), offC = TC.warn || TC.fix;
+  ctx.save(); ctx.translate(cx, cy);
+  const sc = 1 + 0.07 * h - 0.12 * dn; ctx.scale(sc, sc);
+  // the button: a faint ink wash at rest that deepens on hover, crossfading to a warn wash and hairline ring when off
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+  ctx.globalAlpha = (0.045 + 0.085 * h) * (1 - p); ctx.fillStyle = TC.ink; ctx.fill();
+  if (p > 0) {
+    ctx.globalAlpha = (0.13 + 0.07 * h) * p; ctx.fillStyle = offC; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r - 0.5, 0, TAU); ctx.globalAlpha = (0.3 + 0.15 * h) * p; ctx.strokeStyle = offC; ctx.lineWidth = 1; ctx.stroke();
   }
-  if (off) { ctx.beginPath(); ctx.moveTo(-s - 1, -s); ctx.lineTo(s + 1, s); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  // the glyph, drawn on a 15 px grid and scaled to the button
+  const k = r / 7.5; ctx.scale(k, k);
+  const col = rgbaS(mixRGB(mixRGB(rgbOf(TC.dim), rgbOf(TC.ink), h), rgbOf(offC), p));
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.35; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const seg = (x0, y0, x1, y1, t) => { if (t <= 0) return; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t); ctx.stroke(); };
+  if (what === "hide") {
+    const s = 5.2, lid = easeOut(clamp01(p / 0.65)), sl = clamp01((p - 0.3) / 0.7);
+    const up = -1.2 * s + 1.75 * s * lid, lo = 1.2 * s - 0.65 * s * lid;   // the upper lid sweeps down onto the lower one
+    const ey = -0.75 * lid;   // and the shut lid rises a little to sit on the button's centre
+    const eye = () => { ctx.beginPath(); ctx.moveTo(-s, ey); ctx.quadraticCurveTo(0, ey + up, s, ey); ctx.quadraticCurveTo(0, ey + lo, -s, ey); };
+    ctx.save();
+    if (sl > 0) {   // keep a clear gap either side of the slash: clip that band out of the eye
+      const L = 4.6, x1 = -L + 2 * L * sl, w = 1.75 / Math.SQRT2;
+      ctx.beginPath(); ctx.rect(-10, -10, 20, 20);
+      ctx.moveTo(-L - w - 1, -L + w - 1); ctx.lineTo(x1 - w + 1, x1 + w + 1); ctx.lineTo(x1 + w + 1, x1 - w + 1); ctx.lineTo(-L + w - 1, -L - w - 1); ctx.closePath();
+      ctx.clip("evenodd");
+    }
+    eye(); ctx.stroke();
+    if (lid < 1) { ctx.save(); eye(); ctx.clip(); ctx.beginPath(); ctx.arc(0, 0, 2.05, 0, TAU); ctx.fill(); ctx.restore(); }   // the pupil hides behind the lid
+    ctx.restore();
+    seg(-4.6, -4.6, 4.6, 4.6, sl);
+  } else {
+    ctx.translate(-0.7, 0);   // optical centre of speaker + waves / speaker + x
+    ctx.beginPath(); ctx.moveTo(-5, -1.9); ctx.lineTo(-2.7, -1.9); ctx.lineTo(0.3, -4.7); ctx.lineTo(0.3, 4.7); ctx.lineTo(-2.7, 1.9); ctx.lineTo(-5, 1.9); ctx.closePath(); ctx.fill();
+    const wave = (r0, r1, a, t) => { if (t >= 1) return; ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(1.4, 0, r0 + (r1 - r0) * t, -a, a); ctx.stroke(); ctx.globalAlpha = 1; };
+    wave(5.4, 3.2, 0.8, easeOut(clamp01(p / 0.4)));          // the outer wave goes first
+    wave(3.1, 1.6, 0.9, easeOut(clamp01((p - 0.1) / 0.4)));
+    const xc = 4.1, xh = 2.05;
+    seg(xc - xh, -xh, xc + xh, xh, easeOut(clamp01((p - 0.35) / 0.35)));
+    seg(xc + xh, -xh, xc - xh, xh, easeOut(clamp01((p - 0.55) / 0.45)));
+  }
   ctx.restore();
 }
 function drawProgram(g, ss, starts, v0, v1) {
@@ -1410,7 +1531,7 @@ cv.addEventListener("pointerdown", e => {
   cv.setPointerCapture(e.pointerId);
   libUnpick();   // anything on the timeline canvas (a clip, a track switch, the ruler) takes over from a Library pick
   const x = e.offsetX, y = e.offsetY, h = hitAt(x, y);
-  if (x < G) { const ic = iconAt(x, y); if (ic) laneToggle(laneKey(ic.g), ic.what); return; }
+  if (x < G) { const ic = iconAt(x, y); if (ic) { TL.swPress = laneKey(ic.g) + ic.what; laneToggle(laneKey(ic.g), ic.what); draw(); } return; }
   if (INK.sel) { INK.sel = null; inkBump(); }
   FE.sel = null;   // clicking the timeline moves the selection there
   if (h.zone === "notes") {
@@ -1613,7 +1734,7 @@ cv.addEventListener("pointermove", e => {
   }
   draw();
 });
-cv.addEventListener("pointerleave", () => { $("#hover").style.display = "none"; TL.hoverX = null; TL.hoverCut = null; if (TL.hoverIcon) TL.hoverIcon = null; draw(); });
+cv.addEventListener("pointerleave", () => { $("#hover").style.display = "none"; TL.hoverX = null; TL.swPress = null; TL.hoverCut = null; if (TL.hoverIcon) TL.hoverIcon = null; draw(); });
 function hoverMsg(x, m) { const hv = $("#hover"); hv.textContent = m; hv.style.display = "block"; hv.style.left = Math.min(x + 12, cv.clientWidth - hv.offsetWidth - 4) + "px"; }
 function endDrag(e) {
   const d = TL.drag; if (!d) return; TL.drag = null;
@@ -1634,6 +1755,8 @@ function endDrag(e) {
 }
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("pointerup", swRelease);
+cv.addEventListener("pointercancel", swRelease);
 cv.addEventListener("wheel", e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) zoomBy(Math.exp(e.deltaY * 0.01), e.offsetX);

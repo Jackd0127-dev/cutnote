@@ -430,7 +430,7 @@
   .playbtn:active { transform: scale(.92); transition-duration: .08s; }
   .playbtn.is-playing { box-shadow: inset 0 0 0 1px var(--play-ring), 0 0 16px color-mix(in srgb, var(--play-glow) 70%, transparent); }
   .playbtn svg { grid-area: 1 / 1; width: 16px; height: 16px; transition: opacity .18s ease, transform .26s cubic-bezier(.22,1.2,.36,1); }
-  .playbtn .pi-play { transform: translateX(1px); }
+  .playbtn .pi-play { transform: none; }   /* the path itself is optically centred (bbox a touch right of centre) */
   .playbtn .pi-pause { opacity: 0; transform: scale(.4) rotate(-90deg); }
   .playbtn.is-playing .pi-play { opacity: 0; transform: scale(.4) rotate(90deg); }
   .playbtn.is-playing .pi-pause { opacity: 1; transform: none; }
@@ -570,7 +570,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6.2v11.6a1 1 0 0 0 1.53.85l9.2-5.8a1 1 0 0 0 0-1.7l-9.2-5.8A1 1 0 0 0 8 6.2z" fill="currentColor"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor"/></symbol>
   <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>

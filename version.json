@@ -1,7 +1,10 @@
 {
-  "version": "1.9.1",
+  "version": "2.0.0",
   "date": "27 Nov 2026",
   "notes": [
-    "Calmer tips: hover tips now wait until you rest the pointer for about two seconds, are smaller, and only appear on icons and controls that don't explain themselves."
+    "Cutnote 2.0: the Music tab, a fresh pure-black look, sliding controls, banners, pressable shortcuts and one-click updates all come together in one release.",
+    "Smoother first play: every clip loads ahead of time, so a video no longer freezes for a moment the first time a new shot starts.",
+    "Nicer track switches: the eye and speaker on each track are round buttons that ease on hover and animate as they turn off and on.",
+    "Centred play buttons: the play triangle now sits optically centred in every play button."
   ]
 }
