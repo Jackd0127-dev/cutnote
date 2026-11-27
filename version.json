@@ -1,7 +1,10 @@
 {
-  "version": "1.7.1",
-  "date": "20 Nov 2026",
+  "version": "1.8.0",
+  "date": "27 Nov 2026",
   "notes": [
-    "One welcome at a time: after an update you see What's new on its own, and the tour no longer pops up over it. New users still get the tour the first time they open Cutnote."
+    "Music tab: tracks Claude finds for your video show up in a new Music tab, with the artist, tempo, length, mood and a line on why each one fits.",
+    "Preview with your video: press play on a track to hear it with your video from the playhead, so you can pick the one that fits before you place it.",
+    "Music track: Add or drag a track onto its own Music track, then trim it, cut it with the blade, set its level and fade it in and out.",
+    "Export with music: Export cut mixes your music in at the level and fades you set, and Claude reads the same details when it rebuilds a composition."
   ]
 }

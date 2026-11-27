@@ -15,6 +15,7 @@
     --accent: #c6f432; --accent-ink: #141a00; --accent-text: #c6f432; --accent-soft: rgba(198,244,50,.12);
     --fix: #ff6b5b; --change: #ffb547; --remember: #6cb4ff; --done: #555b64;
     --video: #3d6fd6; --audio: #2f9e6a; --sfx: #ffa53d; --cap: #c9ccd1; --cap-ink: #111; --other: #9a6bd8;
+    --music: #ee74b8; --music-ink: #2b0619; --music-soft: rgba(238,116,184,.14); --music-text: #f59acb; --tl-fade: rgba(11,12,14,.5);
     --shadow: 0 12px 32px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
     --tl-bg: #0b0c0e; --tl-ruler: #111316; --tl-grid: #181a1e; --tl-beyond: #070809; --tl-head: #16181c; --tl-band: rgba(255,255,255,.018);
     --tl-tick: #3a3e45; --tl-line: #23262c; --tl-prog: #1d2a44; --tl-edge: rgba(255,255,255,.18); --tl-label-bg: rgba(0,0,0,.55); --tl-label: #fff;
@@ -27,6 +28,7 @@
     --accent: #c6f432; --accent-ink: #141a00; --accent-text: #4f6e00; --accent-soft: rgba(120,160,0,.12);
     --fix: #e5483a; --change: #d98a12; --remember: #2f86e0; --done: #a9adb4;
     --video: #4a7be0; --audio: #2a9464; --sfx: #ffa53d; --cap: #dfe1e5; --cap-ink: #16171a; --other: #8a5bd0;
+    --music: #e86aae; --music-ink: #2b0619; --music-soft: rgba(214,69,143,.1); --music-text: #b0306f; --tl-fade: rgba(255,255,255,.5);
     --shadow: 0 12px 32px rgba(20,22,26,.14), 0 2px 6px rgba(20,22,26,.08);
     --tl-bg: #fbfbfa; --tl-ruler: #f3f3f0; --tl-grid: #ececE8; --tl-beyond: #efefec; --tl-head: #f1f1ee; --tl-band: rgba(0,0,0,.022);
     --tl-tick: #c2c2bc; --tl-line: #e2e2de; --tl-prog: #c9d6ef; --tl-edge: rgba(0,0,0,.16); --tl-label-bg: rgba(255,255,255,.85); --tl-label: #16171a;
@@ -193,7 +195,8 @@
   #tools .size { font-size: 11px; font-weight: 600; }
 
   /* notes sidebar */
-  aside { grid-row: 2 / 4; grid-column: 2; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; position: relative; overflow: hidden; }
+  aside { grid-row: 2 / 4; grid-column: 2; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; position: relative; overflow: hidden; overflow: clip; }
+  /* (clip: focus or scrollIntoView inside an off-screen panel can't scroll the sidebar sideways; the script below covers browsers without it) */
   /* inspector: edits the piece selected on the frame */
   #insp { position: absolute; inset: 0; z-index: 5; background: var(--panel); display: flex; flex-direction: column; transform: translateX(102%); transition: transform .22s cubic-bezier(.2,.8,.2,1); visibility: hidden; }
   #insp.on { transform: none; visibility: visible; }
@@ -276,8 +279,8 @@
   #notesFilters { display: flex; gap: 8px; padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
   #notesFilters .seg { flex: 1; } #notesFilters .seg button { flex: 1; justify-content: center; padding: 0 6px; }
   #notes { flex: 1; overflow: auto; padding: 8px; }
-  #sideTabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--line); flex: none; }
-  #sideTabs button { position: relative; flex: 1; height: 34px; border: 0; background: none; color: var(--dim); font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;
+  #sideTabs { display: flex; gap: 2px; padding: 10px 8px 0; border-bottom: 1px solid var(--line); flex: none; }
+  #sideTabs button { position: relative; flex: 1; min-width: max-content; padding: 0 5px; white-space: nowrap; height: 34px; border: 0; background: none; color: var(--dim); font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .15s, background .15s; }
   #sideTabs button:hover { color: var(--ink); background: var(--hover); }
   #sideTabs button.on { color: var(--ink); }
@@ -489,6 +492,7 @@
       <button type="button" role="tab" data-p="lib" aria-selected="false">Library</button>
       <button type="button" role="tab" data-p="cap" aria-selected="false">Captions</button>
       <button type="button" role="tab" data-p="sfx" aria-selected="false">Sounds</button>
+      <button type="button" role="tab" data-p="music" aria-selected="false">Music</button>
       <button type="button" class="hide" id="sideHide" title="Hide the sidebar (⇧\)" aria-label="Hide the sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/><path d="M15 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3z" fill="currentColor" stroke="none" opacity=".35"/></svg></button>
       <span class="ink-bar" aria-hidden="true"></span>
     </nav>
@@ -519,6 +523,7 @@
     <div class="pane" id="pLib" role="tabpanel" aria-label="Library"></div>
     <div class="pane" id="pCap" role="tabpanel" aria-label="Captions"></div>
     <div class="pane" id="pSfx" role="tabpanel" aria-label="Sounds"></div>
+    <div class="pane" id="pMusic" role="tabpanel" aria-label="Music"></div>
   </aside>
   <section id="bottom">
     <div id="transport">
@@ -1390,6 +1395,8 @@ const CNK = window.CnKeys = {
   button: t => !!(t && t.closest && t.closest("button, a[href], summary, [role=button], [role=menuitem], [role=menuitemcheckbox], [role=option], [role=tab]")),
   text: keyText,
 };
+// the sidebar never scrolls itself: a focused control in a panel sliding in from the side would otherwise shift every pane sideways
+{ const side = document.querySelector("#app aside"); if (side) side.addEventListener("scroll", () => { if (side.scrollLeft || side.scrollTop) { side.scrollLeft = 0; side.scrollTop = 0; } }); }
 // clicking the timeline or the frame leaves no button or switch focused (so ⌫ / Space act on the editor, not on it)
 document.addEventListener("pointerdown", e => {
   if (!e.target.closest || !e.target.closest("#tlwrap, #frame") || CNK.typing(e.target)) return;
@@ -1406,7 +1413,7 @@ document.addEventListener("keydown", e => {
     if (K === "z") { e.preventDefault(); if (e.shiftKey) redoAny(); else undoAny(); }
     else if (K === "y" && !e.shiftKey) { e.preventDefault(); redoAny(); }
     else if (CNK.control(t)) return;   // a focused switch or slider: only undo / redo reach the editor
-    else if (K === "b" || K === "k" || k === "\\") { e.preventDefault(); tlSplitAt(toE(S.t)); }      // split at playhead (FCP/Resolve ⌘B, Premiere ⌘K)
+    else if (K === "b" || K === "k" || k === "\\") { e.preventDefault(); tlBladeAt(toE(S.t)); }      // split at playhead (FCP/Resolve ⌘B, Premiere ⌘K): a selected music clip, else the footage
     else if (k === "=" || k === "+") { e.preventDefault(); zoomBy(1 / 1.6); }
     else if (k === "-") { e.preventDefault(); zoomBy(1.6); }
     else if (K === "l") { e.preventDefault(); $("#loop").click(); }
@@ -1622,6 +1629,7 @@ document.addEventListener("DOMContentLoaded", init);
 <script src="/library.js"></script>
 <script src="/clipfx.js"></script>
 <script src="/sfx.js"></script>
+<script src="/music.js"></script>
 <script src="/hub.js"></script>
 <script src="/update.js"></script>
 </body>
