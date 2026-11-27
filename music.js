@@ -21,26 +21,39 @@
   #pMusic .mu-ref.spin svg { animation: muSpin .7s linear infinite; }
   @keyframes muSpin { to { transform: rotate(360deg); } }
   #pMusic .mu-list { display: grid; gap: 8px; margin-top: 12px; }
-  .mu-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 9px 8px 9px 8px; border-radius: 12px;
-    background: var(--panel); box-shadow: 0 0 0 1px var(--line); cursor: grab; user-select: none; transition: box-shadow .15s, background .15s; }
-  .mu-row:hover { box-shadow: 0 0 0 1.5px var(--line-2), 0 6px 18px rgba(0,0,0,.08); }
-  .mu-row.playing { box-shadow: 0 0 0 1.5px var(--music); background: color-mix(in srgb, var(--music) 7%, var(--panel)); }
-  .mu-play { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--music-soft); color: var(--music-text); cursor: pointer; padding: 0; }
-  .mu-play:hover { background: color-mix(in srgb, var(--music) 26%, var(--panel-2)); }
-  .mu-row.playing .mu-play { background: var(--music); color: var(--music-ink); }
-  .mu-play svg { width: 14px; height: 14px; }
+  /* rings are inset so the scroll box can never cut them off */
+  .mu-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 9px 8px; border-radius: 12px;
+    background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); cursor: grab; user-select: none; transition: box-shadow .15s, background .15s; }
+  .mu-row:hover { box-shadow: inset 0 0 0 1.5px var(--line-2); background: color-mix(in srgb, var(--ink) 3%, var(--panel)); }
+  .mu-row.playing { box-shadow: inset 0 0 0 1.5px var(--accent-text); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  .mu-play { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
+    background: var(--play-bg, var(--accent)); color: var(--play-ink, #0b0b0b); box-shadow: 0 1px 2px rgba(0,0,0,.14);
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease; }
+  .mu-play:hover { transform: scale(1.07); box-shadow: 0 0 14px 2px var(--play-glow, color-mix(in srgb, var(--accent) 45%, transparent)), 0 1px 2px rgba(0,0,0,.14); }
+  .mu-play:active { transform: scale(.9); transition-duration: .09s; }
+  .mu-row.playing .mu-play { box-shadow: 0 0 10px 1px var(--play-glow, color-mix(in srgb, var(--accent) 45%, transparent)), 0 1px 2px rgba(0,0,0,.14); }
+  .mu-play svg { grid-area: 1 / 1; width: 14px; height: 14px; transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
+  .mu-play .i-play { transform: translateX(1px); }
+  .mu-play .i-stop { opacity: 0; transform: scale(.4) rotate(-90deg); }
+  .mu-row.playing .mu-play .i-play { opacity: 0; transform: scale(.4) rotate(90deg); }
+  .mu-row.playing .mu-play .i-stop { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .mu-play, .mu-play svg { transition: opacity .12s linear; } .mu-play:hover, .mu-play:active { transform: none; } .mu-play svg, .mu-row.playing .mu-play svg { transform: none; } }
   .mu-mid { min-width: 0; display: grid; gap: 4px; }
   .mu-mid > b { font-size: 13px; font-weight: 650; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mu-meta { display: flex; min-width: 0; font-size: 11.5px; color: var(--dim); line-height: 1.35; }
+  .mu-meta { display: flex; min-width: 0; font-size: 11.5px; color: var(--dim); line-height: 1.35; white-space: nowrap; }
   .mu-meta .a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mu-meta .n { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .mu-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
-  .mu-chips span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 16px; padding: 1px 7px; border-radius: 999px;
+  /* at most two pills, on one line: two moods, or one mood and "On the timeline" */
+  .mu-chips { display: flex; flex-wrap: nowrap; gap: 4px; min-width: 0; overflow: hidden; }
+  .mu-chips:not(:has(span:not([hidden]))) { display: none; }
+  .mu-chips span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 16px; padding: 1px 7px; border-radius: 999px;
     background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); }
-  .mu-chips .src { background: var(--raise); border-color: var(--line-2); color: var(--ink); font-weight: 600; }
-  .mu-chips .on { background: var(--music-soft); border-color: transparent; color: var(--music-text); font-weight: 600; }
-  .mu-why { margin: 0; font-size: 12px; line-height: 1.4; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-  .mu-mid canvas { width: 100%; height: 18px; display: block; margin-top: 2px; }
+  .mu-chips .on { flex: none; background: var(--music-soft); border-color: transparent; color: var(--music-text); font-weight: 600; }
+  .mu-row.placed .mu-chips .m2 { display: none; }
+  /* the waveform is a scrubber: press or drag on it to hear that part of the track */
+  .mu-mid canvas { width: 100%; height: 22px; display: block; margin-top: 2px; cursor: pointer; touch-action: none; border-radius: 4px; }
+  .mu-mid canvas:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+  body.mu-scrubbing, body.mu-scrubbing * { cursor: ew-resize !important; }
   .mu-add { height: 30px; padding: 0 10px 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); display: inline-flex; align-items: center; gap: 5px;
     cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .mu-add:hover { border-color: var(--line-2); background: var(--raise); }
@@ -59,6 +72,7 @@
   const ICON = {
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg>',
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
+    playStop: '<svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg><svg class="i-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     ref: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.34-5.66"/><path d="M20 4v5h-5"/></svg>',
     note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
@@ -83,7 +97,7 @@
   MD.open = () => {
     if (!pane.dataset.built) {
       pane.dataset.built = "1";
-      pane.innerHTML = `<div class="lp-head"><div class="mu-bar"><b>Music</b><span data-count></span><button type="button" class="mu-ref" data-act="ref" title="Look for new tracks in the Music folder">${ICON.ref}Refresh</button></div></div><div class="mu-body" data-body></div>`;
+      pane.innerHTML = `<div class="lp-head"><div class="mu-bar"><b>Music</b><span data-count></span><button type="button" class="mu-ref" data-act="ref" data-tip="Look for new tracks in the Music folder">${ICON.ref}Refresh</button></div></div><div class="mu-body" data-body></div>`;
       pane.addEventListener("click", onClick);
       pane.querySelector("[data-body]").addEventListener("pointerdown", onDown);
     }
@@ -102,7 +116,7 @@
       html = `<div class="mu-empty"><i>${ICON.note}</i><b>No music yet</b><span>Ask Claude to find music for this video. Tracks it picks appear here.</span>
         <small>Claude saves them in a Music folder inside the folder Cutnote opened.</small></div>`;
     } else {
-      if (!tipOff()) html += `<div class="lp-tip"><span>Press play to hear a track with your video, from the playhead. <b>Add</b> puts it on the Music track from the start, or drag it to where it should begin.</span><button type="button" data-act="tipx" aria-label="Hide tip">×</button></div>`;
+      if (!tipOff()) html += `<div class="lp-tip"><span>Press play to hear a track with your video, from the playhead. Click or drag along a waveform to hear that part. <b>Add</b> puts it on the Music track from the start, or drag it to where it should begin.</span><button type="button" data-act="tipx" aria-label="Hide tip" data-tip="Hide this tip">×</button></div>`;
       html += `<div class="mu-list">` + list.map(rowHtml).join("") + `</div>`;
     }
     if (d.error) html += `<p class="mu-note">${esc(d.error)}</p>`;
@@ -113,12 +127,13 @@
   }
   function rowHtml(t) {
     const nums = [t.bpm ? Math.round(t.bpm) + " BPM" : "", t.dur ? mmss(t.dur) : ""].filter(Boolean).join(" · ");
-    const meta = t.artist ? `<span class="a" title="${esc(t.artist)}">${esc(t.artist)}</span>${nums ? `<span class="n">&nbsp;· ${nums}</span>` : ""}` : `<span class="n">${nums}</span>`;
-    const chips = [t.source ? `<span class="src" title="${esc(t.source)}">${esc(t.source)}</span>` : "", ...(t.mood || []).map(m => `<span title="${esc(m)}">${esc(m)}</span>`), `<span class="on" data-on hidden>On the timeline</span>`].join("");
-    return `<div class="mu-row" data-f="${esc(t.file)}"><button type="button" class="mu-play" data-act="play" aria-label="Play ${esc(t.title)} with your video">${ICON.play}</button>
-      <div class="mu-mid"><b title="${esc(t.title)}">${esc(t.title)}</b>${meta ? `<div class="mu-meta">${meta}</div>` : ""}<div class="mu-chips">${chips}</div>
-        ${t.why ? `<p class="mu-why" title="${esc(t.why)}">${esc(t.why)}</p>` : ""}<canvas data-wave="${esc(t.file)}" aria-hidden="true"></canvas></div>
-      <button type="button" class="mu-add" data-act="add" aria-label="Add ${esc(t.title)} to the Music track">${ICON.plus}Add</button></div>`;
+    const meta = t.artist ? `<span class="a">${esc(t.artist)}</span>${nums ? `<span class="n">&nbsp;· ${nums}</span>` : ""}` : `<span class="n">${nums}</span>`;
+    const metaTip = [t.artist, nums].filter(Boolean).join(" · ");
+    const chips = (t.mood || []).slice(0, 2).map((m, i) => `<span${i ? ' class="m2"' : ""}>${esc(m)}</span>`).join("") + `<span class="on" data-on hidden>On the timeline</span>`;
+    return `<div class="mu-row" data-f="${esc(t.file)}"${t.why ? ` data-tip="${esc(t.why)}"` : ""}><button type="button" class="mu-play" data-act="play" aria-label="Play ${esc(t.title)} with your video" data-tip="Play with your video, from the playhead">${ICON.playStop}</button>
+      <div class="mu-mid"><b data-tip="${esc(t.title)}">${esc(t.title)}</b>${nums || t.artist ? `<div class="mu-meta" data-tip="${esc(metaTip)}">${meta}</div>` : ""}<div class="mu-chips">${chips}</div>
+        <canvas data-wave="${esc(t.file)}" aria-hidden="true" data-tip="Click or drag to hear that part of the track"></canvas></div>
+      <button type="button" class="mu-add" data-act="add" aria-label="Add ${esc(t.title)} to the Music track" data-tip="Put it on the Music track from 0:00">${ICON.plus}Add</button></div>`;
   }
   const tipOff = () => { try { return localStorage.getItem("cutnote:tip:music") === "off"; } catch { return false; } };
   // "On the timeline" beside tracks already placed
@@ -127,7 +142,7 @@
   function placedSync(force) {
     const on = new Set(sfxItems().filter(x => x.kind === "music").map(x => fileKey(x.file)));
     const sig = [...on].sort().join("|"); if (!force && sig === placedSig) return; placedSig = sig;
-    for (const r of pane.querySelectorAll(".mu-row")) { const s = r.querySelector("[data-on]"); if (s) s.hidden = !on.has(fileKey(r.dataset.f)); }
+    for (const r of pane.querySelectorAll(".mu-row")) { const p = on.has(fileKey(r.dataset.f)), s = r.querySelector("[data-on]"); if (s) s.hidden = !p; r.classList.toggle("placed", p); }
   }
   // edits, undo / redo and the saved edits arriving after the list all change what's placed: check a few times a second
   setInterval(() => { if (pane.classList.contains("on")) placedSync(); }, 300);
@@ -150,33 +165,46 @@
       const c = pane.querySelector(`canvas[data-wave="${CSS.escape(file)}"]`); if (c) waveOne(c);
     } catch {}
   }
+  // the track being auditioned shows how far it has got: played bars in the accent, the rest dim, a thin playhead line
   function waveOne(c) {
+    if (!c) return;
     const pk = MD.peaks.get(c.dataset.wave); if (!pk) { MD.peaksFor(c.dataset.wave); return; }
     const dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (!w) return;
-    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    const W = Math.round(w * dpr), H = Math.round(h * dpr); if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
     const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const cs = getComputedStyle(document.documentElement), playing = c.closest(".mu-row.playing");
-    g.fillStyle = (playing ? cs.getPropertyValue("--music") : cs.getPropertyValue("--faint")).trim() || "#999";
+    const cs = getComputedStyle(document.documentElement), dim = cs.getPropertyValue("--faint").trim() || "#999";
+    let px = -1;
+    if (cur && aud && c.dataset.wave === cur) { const t = byFile(cur), d = (t && t.dur) || au.duration || 0; if (d > 0) px = Math.max(0, Math.min(1, playAt() / d)) * w; }
+    const lit = px >= 0 ? cs.getPropertyValue("--accent-text").trim() || dim : dim;
     for (let x = 0; x < w; x += 2.5) {
       const a0 = Math.floor(x / w * pk.length), a1 = Math.max(a0 + 1, Math.floor((x + 2.5) / w * pk.length)); let v = 0;
       for (let i = a0; i < a1 && i < pk.length; i++) if (pk[i] > v) v = pk[i];
-      const a = Math.max(0.6, v * (h / 2 - 1)); g.fillRect(x, h / 2 - a, 1.5, a * 2);
+      const a = Math.max(0.6, v * (h / 2 - 1)); g.fillStyle = x + 0.75 <= px ? lit : dim; g.fillRect(x, h / 2 - a, 1.5, a * 2);
     }
-    // while auditioning: where the track is now
-    if (playing && cur) { const t = byFile(cur); if (t && t.dur) { const px = Math.min(w, (playAt() / t.dur) * w); g.fillStyle = cs.getPropertyValue("--ink").trim(); g.fillRect(px, 0, 1.5, h); } }
+    if (px >= 0) { g.fillStyle = cs.getPropertyValue("--ink").trim() || "#000"; g.fillRect(Math.min(w - 1.5, px), 0, 1.5, h); }
   }
   function waves() { for (const c of pane.querySelectorAll("canvas[data-wave]")) waveOne(c); }
   new ResizeObserver(() => { if (pane.classList.contains("on")) waves(); }).observe(pane);
 
   /* ---------- audition: the track plays with the video, in sync, as if it started at 0:00 of the edit ---------- */
   const au = new Audio(); au.preload = "auto";
-  let cur = null, aud = null, loop = 0;   // the file being auditioned; { t0, seen, video }
-  const playAt = () => (aud && aud.video ? toE(S.t) : au.currentTime || 0);
+  // the file being auditioned; aud = { t0, seen, video, off, hold, scrub }. off: where in the track the video's 0:00 lands
+  // (scrubbing changes it, never the video); hold: the scrub point while the pointer is down
+  let cur = null, aud = null, loop = 0;
+  // currentTime moves in steps; run it on smoothly between updates so the playhead glides
+  const clk = { t: -1, at: 0 };
+  function auT() {
+    const t = au.currentTime || 0, now = performance.now();
+    if (t !== clk.t || au.paused) { clk.t = t; clk.at = now; return t; }
+    return t + Math.min(0.3, (now - clk.at) / 1000) * (au.playbackRate || 1);
+  }
+  const playAt = () => !aud ? 0 : aud.hold != null ? aud.hold : aud.video ? toE(liveT()) + (aud.off || 0) : auT();
   function mark(file, on) {
     const r = pane.querySelector(`.mu-row[data-f="${CSS.escape(file)}"]`); if (!r) return;
     r.classList.toggle("playing", on);
-    const b = r.querySelector(".mu-play"); b.innerHTML = on ? ICON.stop : ICON.play;
-    const t = byFile(file); b.setAttribute("aria-label", (on ? "Stop " : "Play ") + (t ? t.title : "") + (on ? "" : " with your video"));
+    const b = r.querySelector(".mu-play"), t = byFile(file);
+    b.setAttribute("aria-label", (on ? "Stop " : "Play ") + (t ? t.title : "") + (on ? "" : " with your video"));
+    b.dataset.tip = on ? "Stop" : "Play with your video, from the playhead";
     const c = r.querySelector("canvas"); if (c) waveOne(c);
   }
   // stop the audition; pauseVideo: the person pressed Stop, so the video stops too
@@ -187,36 +215,49 @@
     if (pauseVideo && hadVideo && S.playing) pause();
   }
   MD.stop = () => stopAudition(true);
-  function audition(t) {
-    if (cur === t.file) { stopAudition(true); return; }
+  // at: start from that point of the track (a click on its waveform) instead of in step with the playhead
+  function audition(t, at) {
+    if (cur === t.file) { if (at == null) stopAudition(true); else seekTrack(at, true); return; }
     stopAudition(false);
-    cur = t.file; TL.audition = true;
+    cur = t.file; TL.audition = true; clk.t = -1;
     au.src = t.url; au.volume = LEVEL; au.playbackRate = 1;
     const video = !!(S.player && S.comp && progDur() > 0);
-    aud = { t0: performance.now(), seen: false, video };
+    aud = { t0: performance.now(), seen: false, video, off: at != null ? at - toE(S.t) : 0, hold: null, scrub: false };
     if (video) { if (!S.playing) play(); }
-    else { au.currentTime = 0; au.play().catch(() => {}); }
+    else { try { au.currentTime = at || 0; } catch {} au.play().catch(() => {}); }
     mark(t.file, true);
-    if (video && t.dur && toE(S.t) >= t.dur - 0.05) toast(`The playhead is past the end of this track (${mmss(t.dur)}): move it earlier to hear it`);
+    if (video && at == null && t.dur && toE(S.t) >= t.dur - 0.05) toast(`The playhead is past the end of this track (${mmss(t.dur)}): move it earlier to hear it`);
     const id = ++loop; requestAnimationFrame(() => tick(id));
   }
-  au.addEventListener("ended", () => { if (cur && aud && !aud.video) stopAudition(false); });
-  let lastWave = 0;
+  // jump the audition to point `at` of the track; while dragging the seeks are spaced out so the audio doesn't stutter
+  let lastSeek = 0;
+  function seekTrack(at, now) {
+    if (!cur || !aud) return;
+    const t = byFile(cur), d = (t && t.dur) || au.duration || 0;
+    at = Math.max(0, d ? Math.min(d - 0.05, at) : at);
+    if (aud.video) aud.off = at - toE(liveT());
+    const ms = performance.now(); if (!now && ms - lastSeek < 70) return;
+    lastSeek = ms; clk.t = -1;
+    try { au.currentTime = at; } catch {}
+    if (au.paused && (!aud.video || S.playing)) au.play().catch(() => {});
+  }
+  au.addEventListener("ended", () => { if (cur && aud && !aud.video && !aud.scrub) stopAudition(false); });
+  au.addEventListener("error", () => { if (cur) { stopAudition(false); toast("Couldn't play that track"); } });   // a file that won't load never ends
   function tick(id) {
     if (!cur || !aud || id !== loop) return;   // a newer audition has its own loop
     const t = byFile(cur);
     if (aud.video) {
       if (S.playing) aud.seen = true;
       else if (aud.seen || performance.now() - aud.t0 > 2500) { stopAudition(false); return; }   // paused (Space, the transport, the end of the video)
-      const E = toE(liveT()), d = (t && t.dur) || au.duration || 0;
-      if (S.playing && (!d || E < d - 0.05)) {
+      const P = toE(liveT()) + (aud.off || 0), d = (t && t.dur) || au.duration || 0;
+      if (aud.scrub) { /* the scrub does its own seeking */ }
+      else if (S.playing && P >= 0 && (!d || P < d - 0.05)) {
         if (Math.abs(au.playbackRate - S.rate) > 1e-3) au.playbackRate = S.rate;
-        if (au.paused) { try { au.currentTime = E; } catch {} au.play().catch(() => {}); }
-        else if (Math.abs(au.currentTime - E) > 0.25 * Math.max(1, S.rate)) { try { au.currentTime = E; } catch {} }
-      } else if (!au.paused) au.pause();   // past the end of the track: the video plays on without it
+        if (au.paused) { try { au.currentTime = P; } catch {} au.play().catch(() => {}); }
+        else if (Math.abs(au.currentTime - P) > 0.25 * Math.max(1, S.rate)) { try { au.currentTime = P; } catch {} }
+      } else if (!au.paused) au.pause();   // outside the track: the video plays on without it
     }
-    const now = performance.now();
-    if (now - lastWave > 120) { lastWave = now; const c = pane.querySelector(`.mu-row.playing canvas`); if (c) waveOne(c); }
+    const c = pane.querySelector(`.mu-row.playing canvas`); if (c) waveOne(c);
     requestAnimationFrame(() => tick(id));
   }
   // switching version or project ends an audition
@@ -261,8 +302,27 @@
   /* ---------- drag a track onto the timeline (that time, that Music row) or the video (from the start) ---------- */
   const ghost = $("#muGhost");
   let dragging = false;
+  // press or drag on a waveform: hear that part of the track (starts it there if it isn't playing)
+  function scrub(e, c) {
+    const row = c.closest(".mu-row"), t = row && byFile(row.dataset.f); if (!t || !(t.dur > 0)) return;
+    e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch {}
+    const at = ev => { const r = c.getBoundingClientRect(); return (r.width ? Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) : 0) * t.dur; };
+    let a = at(e);
+    audition(t, a); if (cur !== t.file || !aud) return;
+    const mine = aud; mine.hold = a; mine.scrub = true; dragging = true; document.body.classList.add("mu-scrubbing"); waveOne(c);
+    const mv = ev => { if (aud !== mine) return; a = at(ev); mine.hold = a; seekTrack(a); waveOne(c); };
+    const up = ev => {
+      c.removeEventListener("pointermove", mv); c.removeEventListener("pointerup", up); c.removeEventListener("pointercancel", up);
+      document.body.classList.remove("mu-scrubbing"); dragging = false;
+      if (aud !== mine) return;
+      if (ev.type === "pointerup") a = at(ev);
+      seekTrack(a, true); mine.hold = null; mine.scrub = false; waveOne(c);
+    };
+    c.addEventListener("pointermove", mv); c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+  }
   function onDown(e) {
     if (e.button !== 0 || e.target.closest("button")) return;
+    const wv = e.target.closest("canvas[data-wave]"); if (wv) { scrub(e, wv); return; }
     const row = e.target.closest(".mu-row"); if (!row) return;
     const t = byFile(row.dataset.f); if (!t) return;
     const x0 = e.clientX, y0 = e.clientY; let on = false; MD.dragged = false;

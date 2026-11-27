@@ -86,6 +86,11 @@
       "mtime": 1795116008
     },
     {
+      "id": "follow-outro",
+      "script": "components/follow-outro/component.js",
+      "mtime": 1795795644
+    },
+    {
       "id": "free-pack",
       "script": "components/free-pack/component.js",
       "mtime": 1795116157
