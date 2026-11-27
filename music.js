@@ -33,7 +33,7 @@
   .mu-play:active { transform: scale(.9); transition-duration: .09s; }
   .mu-row.playing .mu-play { box-shadow: 0 0 10px 1px var(--play-glow, color-mix(in srgb, var(--accent) 45%, transparent)), 0 1px 2px rgba(0,0,0,.14); }
   .mu-play svg { grid-area: 1 / 1; width: 14px; height: 14px; transition: opacity .2s ease, transform .3s cubic-bezier(.22,1,.36,1); }
-  .mu-play .i-play { transform: translateX(1px); }
+  .mu-play .i-play { transform: none; }
   .mu-play .i-stop { opacity: 0; transform: scale(.4) rotate(-90deg); }
   .mu-row.playing .mu-play .i-play { opacity: 0; transform: scale(.4) rotate(90deg); }
   .mu-row.playing .mu-play .i-stop { opacity: 1; transform: none; }
@@ -70,9 +70,9 @@
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   document.body.insertAdjacentHTML("beforeend", `<div id="muGhost"></div>`);
   const ICON = {
-    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 6.2v11.6a1 1 0 0 0 1.53.85l9.2-5.8a1 1 0 0 0 0-1.7l-9.2-5.8A1 1 0 0 0 8 6.2z"/></svg>',
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
-    playStop: '<svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 001.5.86l10.5-6.5a1 1 0 000-1.72L9.5 4.64A1 1 0 008 5.5z"/></svg><svg class="i-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>',
+    playStop: '<svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 6.2v11.6a1 1 0 0 0 1.53.85l9.2-5.8a1 1 0 0 0 0-1.7l-9.2-5.8A1 1 0 0 0 8 6.2z"/></svg><svg class="i-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     ref: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.34-5.66"/><path d="M20 4v5h-5"/></svg>',
     note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
