@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.8.2"
+VERSION = "1.8.3"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -1898,7 +1898,17 @@ def update_files():
     the ones on GitHub's main branch. Everything is downloaded and checked first; files are only ever added or
     replaced, never deleted."""
     import io, tarfile, urllib.request
-    req = urllib.request.Request(f"https://codeload.github.com/{REPO}/tar.gz/refs/heads/main", headers={"User-Agent": f"Cutnote/{VERSION}"})
+    ref = "refs/heads/main"
+    try:   # the archive of main can lag a minute or two behind a release; the exact commit's archive never does
+        q = urllib.request.Request(f"https://api.github.com/repos/{REPO}/commits/main",
+                                   headers={"User-Agent": f"Cutnote/{VERSION}", "Accept": "application/vnd.github.sha"})
+        with urllib.request.urlopen(q, timeout=15) as r:
+            sha = r.read(100).decode("ascii", "ignore").strip()
+        if re.fullmatch(r"[0-9a-f]{40}", sha):
+            ref = sha
+    except Exception:
+        pass
+    req = urllib.request.Request(f"https://codeload.github.com/{REPO}/tar.gz/{ref}", headers={"User-Agent": f"Cutnote/{VERSION}"})
     with urllib.request.urlopen(req, timeout=60) as r:
         blob = r.read(80_000_000 + 1)
     if len(blob) > 80_000_000:

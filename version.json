@@ -1,8 +1,7 @@
 {
-  "version": "1.8.2",
+  "version": "1.8.3",
   "date": "27 Nov 2026",
   "notes": [
-    "Update now works everywhere: copies that weren't installed with git, or that live inside another project, now update themselves with one click instead of asking you to run the installer.",
-    "Shorter menu link: Report a problem is now just Report."
+    "Reliable updates: Update now fetches the exact new release, so it works straight away instead of sometimes asking you to try again a few minutes later."
   ]
 }
