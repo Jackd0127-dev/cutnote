@@ -17,6 +17,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
+    # only the "videos" release changes the site; app releases are tags the Pages environment won't deploy from,
+    # and their run would cancel the push run that does the real deploy
+    if: github.event_name != 'release' || github.event.release.tag_name == 'videos'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
