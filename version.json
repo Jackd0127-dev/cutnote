@@ -1,11 +1,7 @@
 {
-  "version": "1.9.0",
+  "version": "1.9.1",
   "date": "27 Nov 2026",
   "notes": [
-    "A fresh look: calmer colours for Fix, Change and Remember, a truly black dark mode, and lime play buttons that glow and morph smoothly.",
-    "Hover to learn: rest the pointer on any button and a small tip explains what it does, with its shortcut.",
-    "Smoother controls: highlights slide between tools, tabs and filters; messages arrive as small banners you can close; the time readout, speed and Loop now sit in one tidy toolbar.",
-    "Better sound previews: sounds and music fill their waveform as they play, and you can drag along a music track to hear any part of it.",
-    "New in the Library: a Follow + comment outro, and a keyboard shortcuts sheet with keys you can press."
+    "Calmer tips: hover tips now wait until you rest the pointer for about two seconds, are smaller, and only appear on icons and controls that don't explain themselves."
   ]
 }

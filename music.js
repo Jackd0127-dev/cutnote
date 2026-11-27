@@ -130,9 +130,9 @@
     const meta = t.artist ? `<span class="a">${esc(t.artist)}</span>${nums ? `<span class="n">&nbsp;· ${nums}</span>` : ""}` : `<span class="n">${nums}</span>`;
     const metaTip = [t.artist, nums].filter(Boolean).join(" · ");
     const chips = (t.mood || []).slice(0, 2).map((m, i) => `<span${i ? ' class="m2"' : ""}>${esc(m)}</span>`).join("") + `<span class="on" data-on hidden>On the timeline</span>`;
-    return `<div class="mu-row" data-f="${esc(t.file)}"${t.why ? ` data-tip="${esc(t.why)}"` : ""}><button type="button" class="mu-play" data-act="play" aria-label="Play ${esc(t.title)} with your video" data-tip="Play with your video, from the playhead">${ICON.playStop}</button>
-      <div class="mu-mid"><b data-tip="${esc(t.title)}">${esc(t.title)}</b>${nums || t.artist ? `<div class="mu-meta" data-tip="${esc(metaTip)}">${meta}</div>` : ""}<div class="mu-chips">${chips}</div>
-        <canvas data-wave="${esc(t.file)}" aria-hidden="true" data-tip="Click or drag to hear that part of the track"></canvas></div>
+    return `<div class="mu-row" data-f="${esc(t.file)}"${t.why ? ` data-tip-always data-tip="${esc(t.why)}"` : ""}><button type="button" class="mu-play" data-act="play" aria-label="Play ${esc(t.title)} with your video" data-tip="Play with your video, from the playhead">${ICON.playStop}</button>
+      <div class="mu-mid"><b>${esc(t.title)}</b>${nums || t.artist ? `<div class="mu-meta" data-tip="${esc(metaTip)}">${meta}</div>` : ""}<div class="mu-chips">${chips}</div>
+        <canvas data-wave="${esc(t.file)}" aria-hidden="true"></canvas></div>
       <button type="button" class="mu-add" data-act="add" aria-label="Add ${esc(t.title)} to the Music track" data-tip="Put it on the Music track from 0:00">${ICON.plus}Add</button></div>`;
   }
   const tipOff = () => { try { return localStorage.getItem("cutnote:tip:music") === "off"; } catch { return false; } };
