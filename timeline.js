@@ -836,8 +836,17 @@ function muteMain(on) {
     m.volume = Math.min(1, v == null ? 1 : +v || 1);
   }
 }
+/* The player's clock moves in steps (a few times a second, about once a second in a background tab), while page
+   audio runs smoothly. Between steps, run the clock on from its last change, so long sounds such as music aren't
+   pulled back on every step (that made music stutter and sound muffled). */
+const LT = { t: null, at: 0 };
+function liveT() {
+  const now = performance.now();
+  if (S.t !== LT.t || !S.playing) { LT.t = S.t; LT.at = now; return S.t; }
+  return S.t + Math.min(1.5, (now - LT.at) / 1000) * (S.rate || 1);
+}
 function sfxTick() {
-  const keep = new Set(), E = toE(S.t), run = S.playing && !(TL.drag && TL.drag.kind !== "click");
+  const keep = new Set(), E = toE(liveT()), run = S.playing && !(TL.drag && TL.drag.kind !== "click");
   for (const it of sfxItems()) {
     keep.add(it.u);
     const ext = it.kind === "ext", src = ext ? mainSrc() : sfxSrc(it); if (!src) continue;
@@ -856,7 +865,7 @@ function sfxTick() {
     a.volume = Math.max(0, Math.min(1, gain));
     { const r = S.rate * (ext && it.sp > 0 ? it.sp : 1); if (Math.abs(a.playbackRate - r) > 1e-3) a.playbackRate = r; }
     if (a.paused) { try { a.currentTime = want; } catch {} a.play().catch(() => {}); }
-    else if (Math.abs(a.currentTime - want) > 0.15 * Math.max(1, S.rate)) { try { a.currentTime = want; } catch {} }
+    else if (Math.abs(a.currentTime - want) > 0.25 * Math.max(1, S.rate)) { try { a.currentTime = want; } catch {} }
   }
   for (const [u, a] of SFXA) if (!keep.has(u)) { a.pause(); SFXA.delete(u); }
 }
