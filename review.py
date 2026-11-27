@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = next((d for d in (os.environ.get("CUTNOTE_LIBRARY"), os.path.join(HERE, "library"),
                         os.path.normpath(os.path.join(HERE, "..", "..", "library"))) if d and os.path.isdir(d)),
            os.path.join(HERE, "library"))
-VERSION = "1.8.1"
+VERSION = "1.8.2"
 # updates: the published version.json on the main branch says what the newest version is and what changed
 REPO = "Jackd0127-dev/cutnote"
 UPDATE_URL = os.environ.get("CUTNOTE_UPDATE_URL", f"https://raw.githubusercontent.com/{REPO}/main/version.json")
@@ -1147,6 +1147,8 @@ class H(BaseHTTPRequestHandler):
             return self.send(code, json.dumps(obj), "application/json")
         if path == "/api/update":
             act = body.get("action")
+            if act in ("auto", "apply") and not self.loopback():
+                return self.send(403, "updates only work on this computer")
             if act == "auto":
                 d = load_settings(); d["autoUpdate"] = bool(body.get("on")); save_settings(d)
             elif act == "check":
@@ -1774,21 +1776,45 @@ def git(*args, timeout=60):
 
 class Updater:
     """Checks version.json on GitHub every few hours. 'Update now' (or auto-update) pulls the install's git checkout
-    (fast-forward only) and restarts the server on the same port; the page then reloads itself."""
+    (fast-forward only), or for any other copy downloads the app files, then restarts the server on the same port;
+    the page then reloads itself."""
 
     def __init__(self):
         self.latest, self.notes, self.date, self.error, self.checked = None, [], None, None, 0
         self.state = "idle"   # idle | checking | updating | restarting
         self.lock = threading.Lock()
 
-    def install(self):
-        """Can this copy update itself? Only a clean git clone of the Cutnote repo whose root is this folder."""
+    def route(self):
+        """How this copy updates: "git" for its own clone of the Cutnote repo (fast-forward pull), "files" for a copy
+        that isn't its own clone (a plain folder, or a copy kept inside another repo): the app files are downloaded
+        from GitHub and replaced in place."""
         try:
             top = git("rev-parse", "--show-toplevel", timeout=10)
-            if top.returncode != 0:
-                return False, "This copy isn't a git install. Run the installer again to update."
-            if os.path.realpath(top.stdout.strip()) != os.path.realpath(HERE):
-                return False, "This is a development copy inside another repo; update it from there."
+        except (OSError, subprocess.SubprocessError):
+            top = None
+        if top is None or (top.returncode != 0 and os.path.isdir(os.path.join(HERE, ".git"))):
+            return "unknown"   # git didn't answer: never treat a real clone as a plain folder
+        if top.returncode == 0 and os.path.realpath(top.stdout.strip()) == os.path.realpath(HERE):
+            return "git"
+        return "files"
+
+    def install(self):
+        """Can this copy update itself? A clean git clone of the Cutnote repo, or any other copy whose folder we can
+        write and whose app files have no unsaved changes in an enclosing repo."""
+        r = self.route()
+        if r == "unknown":
+            return False, "git didn't answer, so Cutnote won't update itself right now. Try again in a moment."
+        if r == "files":
+            if not os.access(HERE, os.W_OK):
+                return False, "Cutnote can't write to its own folder, so it can't update itself here."
+            try:   # a copy kept inside another repo: don't overwrite edits that repo hasn't saved yet
+                st = git("status", "--porcelain", "--untracked-files=no", "--", ".", timeout=20)
+                if st.returncode == 0 and st.stdout.strip():
+                    return False, "This copy has unsaved changes in the project that holds it, so it won't be overwritten. Commit or discard them, then update."
+            except (OSError, subprocess.SubprocessError):
+                pass
+            return True, ""
+        try:
             url = git("remote", "get-url", "origin", timeout=10).stdout.strip()
             if REPO.lower() not in url.lower():
                 return False, "This copy doesn't come from the Cutnote repo."
@@ -1833,6 +1859,15 @@ class Updater:
             if not can:
                 return False, why
             self.state = "updating"
+            if self.route() == "files":
+                try:
+                    update_files()
+                except Exception as ex:   # download, check or write failed: update_files put back anything it had replaced
+                    self.state = "idle"
+                    return False, ("Update failed: " + (str(ex) or ex.__class__.__name__))[:200]
+                self.state = "restarting"
+                threading.Timer(0.6, restart).start()
+                return True, ""
             try:
                 r = git("pull", "--ff-only", "--quiet", timeout=120)
                 if r.returncode != 0:
@@ -1853,6 +1888,72 @@ class Updater:
                 ok, why = self.apply()
                 print(f"  auto-update to {self.latest}: {'restarting' if ok else why}")
             time.sleep(600)
+
+
+APP_FILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\.(py|html|js|json)")
+
+
+def update_files():
+    """Replace this copy's app files (top-level .py/.html/.js/.json, plus library/ when it lives in this folder) with
+    the ones on GitHub's main branch. Everything is downloaded and checked first; files are only ever added or
+    replaced, never deleted."""
+    import io, tarfile, urllib.request
+    req = urllib.request.Request(f"https://codeload.github.com/{REPO}/tar.gz/refs/heads/main", headers={"User-Agent": f"Cutnote/{VERSION}"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        blob = r.read(80_000_000 + 1)
+    if len(blob) > 80_000_000:
+        raise ValueError("the download is too large")
+    lib_here = os.path.isdir(os.path.join(HERE, "library")) and os.path.realpath(LIB).startswith(os.path.realpath(HERE) + os.sep)
+    files = {}
+    with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tf:
+        for m in tf.getmembers():
+            parts = m.name.split("/")[1:]   # drop the archive's top folder
+            if not m.isfile() or not parts or any(p in ("", ".", "..") or p.startswith(".") for p in parts):
+                continue
+            if (len(parts) == 1 and APP_FILE.fullmatch(parts[0])) or (lib_here and parts[0] == "library" and len(parts) > 1):
+                files["/".join(parts)] = tf.extractfile(m).read()
+    if "review.py" not in files or "review.html" not in files or "version.json" not in files:
+        raise ValueError("the download doesn't look like Cutnote")
+    compile(files["review.py"], "review.py", "exec")   # never install a server that won't start
+    new = str(json.loads(files["version.json"].decode("utf-8")).get("version") or "")
+    m = re.search(rb'^VERSION = "([0-9.]+)"', files["review.py"], re.M)
+    if not new or not m or m.group(1).decode() != new or vtuple(new) <= vtuple(VERSION):
+        raise ValueError(f"GitHub's copy isn't a newer release yet ({new or '?'}); try again in a few minutes")
+    # library files that are already here may have been customised: only add new ones
+    files = {k: v for k, v in files.items() if not (k.startswith("library/") and os.path.exists(os.path.join(HERE, *k.split("/"))))}
+    # 1) write every new file next to its target; 2) swap them all in; any failure puts the old files back
+    staged, old, done = [], {}, []
+    try:
+        for rel, data in files.items():
+            dst = os.path.join(HERE, *rel.split("/"))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(dst + ".cutnote-update", "wb") as f:
+                f.write(data)
+            staged.append(dst)
+            if os.path.isfile(dst):
+                with open(dst, "rb") as f:
+                    old[dst] = f.read()
+        for dst in staged:
+            os.replace(dst + ".cutnote-update", dst)
+            done.append(dst)
+    except Exception:
+        for dst in done:
+            try:
+                if dst in old:
+                    with open(dst, "wb") as f:
+                        f.write(old[dst])
+                else:
+                    os.remove(dst)
+            except OSError:
+                pass
+        raise
+    finally:
+        for dst in staged:
+            try:
+                os.remove(dst + ".cutnote-update")
+            except OSError:
+                pass
+    return sorted(files)
 
 
 def restart():

@@ -1,8 +1,8 @@
 {
-  "version": "1.8.1",
+  "version": "1.8.2",
   "date": "27 Nov 2026",
   "notes": [
-    "Smoother music: music and longer sounds now play straight through instead of stuttering or sounding muffled, even in a background tab or a slow preview window.",
-    "Steadier previews: pressing play on a track in the Music tab stays in time with your video without jumping back."
+    "Update now works everywhere: copies that weren't installed with git, or that live inside another project, now update themselves with one click instead of asking you to run the installer.",
+    "Shorter menu link: Report a problem is now just Report."
   ]
 }
